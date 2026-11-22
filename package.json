@@ -1,6 +1,6 @@
 {
   "name": "muvuca",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "Painel local para trabalhar com um time de agentes de IA: líder, subagentes, portão de testes e revisor.",

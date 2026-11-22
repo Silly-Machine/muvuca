@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: a Buzina não some mais
+## 0.2.2 (22/11/2026): a Buzina não some mais
 
 - **A Buzina continua solta no aplicativo de mesa.** A escolha ficava guardada só no navegador, e o aplicativo, que abria num endereço novo a cada vez, não a encontrava. Agora ela fica na pasta de dados e vale para o navegador e para o aplicativo.
 - **O aplicativo de mesa abre sempre no mesmo endereço** (porta 43170; se estiver ocupada, usa uma livre). Com isso, a pasta de projeto escolhida e a conversa recolhida também são lembradas entre uma abertura e outra.
