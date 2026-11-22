@@ -2,6 +2,10 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento
+
+- **O comando de lançar roda os testes de verdade.** Na 0.2.1 essa etapa terminava sem executar nenhum teste e seguia em frente. Agora ela conta os testes que rodaram e para se a conta der zero ou se algum falhar.
+
 ## 0.2.1 (22/11/2026): controle de versões
 
 - **Lançar uma versão virou um comando só:** `npm run lancar -- correcao` (ou `menor`, `maior`, ou a versão por extenso). Ele roda os testes, fecha a seção "Em andamento" deste arquivo com o número e a data, atualiza `package.json`, `package-lock.json` e o selo do README, e cria o commit e a tag. Com `--enviar`, já publica.

@@ -128,8 +128,16 @@ function lancar(pedido, { enviar, semTestes }) {
 
   if (!semTestes) {
     console.log('Rodando os testes...');
-    const t = spawnSync(process.execPath, ['--test'], { cwd: RAIZ, stdio: ['ignore', 'ignore', 'inherit'], env: { ...process.env, NODE_TEST_CONTEXT: '' } });
-    if (t.status !== 0) throw new Error('os testes não passaram: nada foi alterado');
+    // sem NODE_TEST_CONTEXT: com ela definida (mesmo vazia) o Node acha que já está dentro de um teste e não roda nada
+    const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
+    const t = spawnSync(process.execPath, ['--test'], { cwd: RAIZ, encoding: 'utf8', env });
+    const total = Number(/^. tests (\d+)/m.exec(t.stdout || '')?.[1] || 0);
+    if (t.status !== 0) {
+      process.stderr.write((t.stdout || '').split('\n').filter((l) => /^(✖|not ok)/.test(l)).join('\n') + '\n');
+      throw new Error('os testes não passaram: nada foi alterado');
+    }
+    if (!total) throw new Error('os testes não rodaram: nada foi alterado');
+    console.log(`${total} testes passaram.`);
   }
 
   gravar('CHANGELOG.md', changelog);
