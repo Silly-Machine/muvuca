@@ -43,7 +43,7 @@ function abrir(url) {
   try { spawn(comando, argumentos, { stdio: 'ignore', detached: true, windowsHide: true }).on('error', () => {}).unref(); } catch { /* sem navegador */ }
 }
 
-const { pronto } = await import(pathToFileURL(path.join(RAIZ, 'servidor.js')).href);
+const { pronto } = await import(pathToFileURL(path.join(RAIZ, 'src', 'servidor.js')).href);
 const emUso = await pronto;
 if (!tem('--sem-abrir')) abrir(`http://localhost:${emUso}`);
 console.log('Ctrl+C encerra.');

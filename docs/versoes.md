@@ -68,9 +68,9 @@ Para só gerar os instaladores, sem publicar, rode o fluxo à mão pela aba Acti
 ## Comandos de apoio
 
 ```sh
-node apoio/versao.mjs notas           # notas da versão atual, como vão para a página de Releases
-node apoio/versao.mjs notas 0.2.0     # de uma versão específica
-node apoio/versao.mjs conferir        # package.json, package-lock.json e CHANGELOG batem?
+node scripts/versao.mjs notas           # notas da versão atual, como vão para a página de Releases
+node scripts/versao.mjs notas 0.2.0     # de uma versão específica
+node scripts/versao.mjs conferir        # package.json, package-lock.json e CHANGELOG batem?
 ```
 
 ## Corrigir uma versão publicada

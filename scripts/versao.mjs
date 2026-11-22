@@ -1,9 +1,9 @@
 // Controle de versões da Muvuca. Um lugar só para: calcular a próxima versão, tirar do CHANGELOG as notas
 // de uma versão, conferir se a tag bate com o código e lançar (commit + tag).
 //
-//   node apoio/versao.mjs lancar <correcao|menor|maior|X.Y.Z> [--enviar] [--sem-testes]
-//   node apoio/versao.mjs notas [X.Y.Z]        notas da versão (padrão: a do package.json)
-//   node apoio/versao.mjs conferir [vX.Y.Z]    a tag bate com package.json e tem notas no CHANGELOG?
+//   node scripts/versao.mjs lancar <correcao|menor|maior|X.Y.Z> [--enviar] [--sem-testes]
+//   node scripts/versao.mjs notas [X.Y.Z]        notas da versão (padrão: a do package.json)
+//   node scripts/versao.mjs conferir [vX.Y.Z]    a tag bate com package.json e tem notas no CHANGELOG?
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -130,7 +130,7 @@ function lancar(pedido, { enviar, semTestes }) {
     console.log('Rodando os testes...');
     // sem NODE_TEST_CONTEXT: com ela definida (mesmo vazia) o Node acha que já está dentro de um teste e não roda nada
     const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
-    const t = spawnSync(process.execPath, ['--test'], { cwd: RAIZ, encoding: 'utf8', env });
+    const t = spawnSync(process.execPath, ['--test', 'test/*.test.js'], { cwd: RAIZ, encoding: 'utf8', env });
     const total = Number(/^. tests (\d+)/m.exec(t.stdout || '')?.[1] || 0);
     if (t.status !== 0) {
       process.stderr.write((t.stdout || '').split('\n').filter((l) => /^(✖|not ok)/.test(l)).join('\n') + '\n');
@@ -173,6 +173,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (comando === 'notas') process.stdout.write(notasDa(ler('CHANGELOG.md'), (args[0] || versaoAtual()).replace(/^v/, '')) + '\n');
     else if (comando === 'conferir') console.log(`Tudo certo com a versão ${conferir(args[0])}.`);
     else if (comando === 'lancar' && args[0]) lancar(args[0], { enviar: opcoes.includes('--enviar'), semTestes: opcoes.includes('--sem-testes') });
-    else { console.log('Uso:\n  node apoio/versao.mjs lancar <correcao|menor|maior|X.Y.Z> [--enviar] [--sem-testes]\n  node apoio/versao.mjs notas [X.Y.Z]\n  node apoio/versao.mjs conferir [vX.Y.Z]'); process.exit(comando ? 2 : 0); }
+    else { console.log('Uso:\n  node scripts/versao.mjs lancar <correcao|menor|maior|X.Y.Z> [--enviar] [--sem-testes]\n  node scripts/versao.mjs notas [X.Y.Z]\n  node scripts/versao.mjs conferir [vX.Y.Z]'); process.exit(comando ? 2 : 0); }
   } catch (e) { console.error(`Não deu: ${e.message}`); process.exit(1); }
 }

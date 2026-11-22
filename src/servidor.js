@@ -1,4 +1,4 @@
-// Servidor local da Muvuca. Sem dependências: node servidor.js
+// Servidor local da Muvuca. Sem dependências: node src/servidor.js
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -14,7 +14,9 @@ import { normalizarRotinas, devidas } from './rotinas.js';
 import { caminhoAnexo, LIMITES_ANEXO } from './ajustes.js';
 import { lerJson, gravarJson, normalizarPreferencias, normalizarProjetos, infoProjeto, pastaPadrao } from './ajustes.js';
 
-const AQUI = path.dirname(fileURLToPath(import.meta.url));
+// Raiz do aplicativo: a pasta acima de src/, onde estão public/, config/ e docs/.
+const RAIZ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const CONFIG = path.join(RAIZ, 'config');
 const PORTA = Number(process.env.MUVUCA_PORTA ?? process.env.PORTA ?? 4317);   // 0 = qualquer porta livre
 // Pasta de dados de quem usa (preferências, projetos, rotinas, memória, times salvos). Fica fora da pasta do app,
 // que num aplicativo instalado não pode ser escrita.
@@ -23,20 +25,21 @@ const ARQUIVOS_DE_DADOS = ['preferencias.json', 'projetos.json', 'rotinas.json',
 if (!await fs.stat(DADOS).catch(() => null)) {
   await fs.mkdir(DADOS, { recursive: true });
   // Quem já usava a Muvuca com os dados dentro da pasta do app leva tudo junto, uma vez só. Os originais ficam onde estão.
-  for (const n of ARQUIVOS_DE_DADOS) await fs.cp(path.join(AQUI, n), path.join(DADOS, n), { recursive: true, errorOnExist: false }).catch(() => {});
+  for (const n of ARQUIVOS_DE_DADOS) await fs.cp(path.join(RAIZ, n), path.join(DADOS, n), { recursive: true, errorOnExist: false }).catch(() => {});
 }
-const arquivoCfg = path.resolve(AQUI, process.env.MUVUCA_CONFIG || process.env.ESTUDIO_CONFIG || 'agentes.json');
+// MUVUCA_CONFIG aceita o nome de um arquivo de config/ ou um caminho completo.
+const arquivoCfg = path.resolve(CONFIG, process.env.MUVUCA_CONFIG || process.env.ESTUDIO_CONFIG || 'agentes.json');
 const cfg = JSON.parse(await fs.readFile(arquivoCfg, 'utf8'));
 // Provedores dos outros arquivos de agentes entram na lista também: dá para trocar de provedor pela tela,
 // sem subir o servidor de novo com outro arquivo. Os do arquivo em uso têm prioridade; depois, os seus (agentes.local.json na pasta de dados).
-for (const extra of [path.join(DADOS, 'agentes.local.json'), path.join(AQUI, 'agentes.json')]) {
+for (const extra of [path.join(DADOS, 'agentes.local.json'), path.join(CONFIG, 'agentes.json')]) {
   const outros = (await lerJsonSimples(extra))?.provedores || {};
   for (const [nome, p] of Object.entries(outros)) if (!cfg.provedores[nome]) cfg.provedores[nome] = p;
 }
 async function lerJsonSimples(arq) { try { return JSON.parse(await fs.readFile(arq, 'utf8')); } catch { return null; } }
 const muvuca = new Muvuca(cfg);
 const BOOT = Date.now().toString(36);
-const VERSAO = JSON.parse(await fs.readFile(path.join(AQUI, 'package.json'), 'utf8')).version;
+const VERSAO = JSON.parse(await fs.readFile(path.join(RAIZ, 'package.json'), 'utf8')).version;
 // Ponto de restauração em disco: se o servidor cair com mudanças esperando decisão, elas voltam a aparecer ao subir.
 const PASTA_PENDENTE = path.join(DADOS, '.pendente');
 muvuca.aoMudarFoto = (foto, projeto) => salvarFoto(PASTA_PENDENTE, projeto, foto);
@@ -92,14 +95,14 @@ async function versaoDe(comando) {
   const r = await rodar(String(comando), { args: ['--version'], limiteMs: 15000 });
   return r.codigo === 0 ? r.saida.trim().split('\n')[0].slice(0, 60) : '';
 }
-const PASTA_PRONTOS = path.join(AQUI, 'arquiteturas');
+const PASTA_PRONTOS = path.join(CONFIG, 'arquiteturas');
 const PASTA_SALVOS = path.join(DADOS, 'times');
 // Configurações (aba da engrenagem) e projetos (aba da pasta): JSON simples na pasta de dados.
 const ARQ_PREFS = path.join(DADOS, 'preferencias.json');
 const ARQ_PROJETOS = path.join(DADOS, 'projetos.json');
 // Pasta de projeto de fábrica: a irmã "teste-estudio" quando existe (quem roda do código-fonte); senão, uma pasta na casa do usuário.
-const PROJETO_FABRICA = await fs.stat(pastaPadrao(AQUI)).then((s) => s.isDirectory()).catch(() => false) ? pastaPadrao(AQUI) : path.join(os.homedir(), 'Muvuca', 'primeiro-projeto');
-const opcoesPrefs = { raiz: AQUI, cfg, padrao: PROJETO_FABRICA };
+const PROJETO_FABRICA = await fs.stat(pastaPadrao(RAIZ)).then((s) => s.isDirectory()).catch(() => false) ? pastaPadrao(RAIZ) : path.join(os.homedir(), 'Muvuca', 'primeiro-projeto');
+const opcoesPrefs = { raiz: RAIZ, cfg, padrao: PROJETO_FABRICA };
 const prefsGravadas = await lerJson(ARQ_PREFS, null);
 let prefs = normalizarPreferencias(prefsGravadas ?? {}, opcoesPrefs);
 // Quem já tinha preferências gravadas antes de existir a tela de boas-vindas não precisa passar por ela.
@@ -178,12 +181,12 @@ const servidor = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
-      return res.end(await fs.readFile(path.join(AQUI, 'public', 'index.html')));
+      return res.end(await fs.readFile(path.join(RAIZ, 'public', 'index.html')));
     }
     // imagens dos personagens: só nomes do tipo forma-estado.webp, sem caminho
     const boneco = req.method === 'GET' && /^\/bonecos\/([a-z]+-[a-z]+\.webp)$/.exec(url.pathname);
     if (boneco) {
-      const arq = path.join(AQUI, 'public', 'bonecos', boneco[1]);
+      const arq = path.join(RAIZ, 'public', 'bonecos', boneco[1]);
       const st = await fs.stat(arq).catch(() => null);
       if (!st) { res.writeHead(404); return res.end(); }
       const etag = `"${st.size}-${Math.round(st.mtimeMs)}"`;
@@ -203,7 +206,7 @@ const servidor = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/times') {
       // biblioteca de agentes básicos do construtor (só formas que a tela sabe desenhar)
-      const catalogo = JSON.parse(await fs.readFile(path.join(AQUI, 'catalogo-agentes.json'), 'utf8').catch(() => '{"agentes":[]}')).agentes.filter((a) => FORMAS.includes(a.forma));
+      const catalogo = JSON.parse(await fs.readFile(path.join(CONFIG, 'catalogo-agentes.json'), 'utf8').catch(() => '{"agentes":[]}')).agentes.filter((a) => FORMAS.includes(a.forma));
       return json(res, 200, { catalogo, times: [{ origem: 'arquivo', ...timeDoArquivo }, ...await lerTimes(PASTA_PRONTOS, 'pronto'), ...await lerTimes(PASTA_SALVOS, 'salvo')] });
     }
     if (req.method === 'POST' && url.pathname === '/api/time') {
@@ -323,7 +326,7 @@ const servidor = http.createServer(async (req, res) => {
           const historico = (Array.isArray(b.historico) ? b.historico : []).slice(-8)
             .map((m) => ({ role: m?.de === 'buzina' ? 'assistant' : 'user', content: String(m?.texto || '').slice(0, 1500) })).filter((m) => m.content);
           const pasta = path.join(os.tmpdir(), 'muvuca-buzina'); await fs.mkdir(pasta, { recursive: true });   // longe de qualquer projeto
-          const readme = await fs.readFile(path.join(AQUI, 'docs', 'guia.md'), 'utf8').catch(() => fs.readFile(path.join(AQUI, 'README.md'), 'utf8')).catch(() => '');
+          const readme = await fs.readFile(path.join(RAIZ, 'docs', 'guia.md'), 'utf8').catch(() => fs.readFile(path.join(RAIZ, 'README.md'), 'utf8')).catch(() => '');
           const r = await chamar(prov, { sistema: sistemaBuzina(readme), mensagens: [...historico, { role: 'user', content: pergunta }], ferramentas: [], sinal: AbortSignal.timeout(90000), cwd: pasta, agente: { id: 'buzina', nome: 'Buzina', ferramentas: [] } });
           const texto = String(r.texto || '').trim();
           if (texto) return json(res, 200, { texto: texto.slice(0, 4000), fonte: prov.modelo || prov.nome });

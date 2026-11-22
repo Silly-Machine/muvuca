@@ -3,13 +3,13 @@ import assert from 'node:assert';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Muvuca } from '../orquestrador.js';
-import { validarTime } from '../times.js';
+import { Muvuca } from '../src/orquestrador.js';
+import { validarTime } from '../src/times.js';
 
 process.env.DEMO_ATRASO = '0';
-const cfg = JSON.parse(await fs.readFile(new URL('../agentes.json', import.meta.url), 'utf8'));
+const cfg = JSON.parse(await fs.readFile(new URL('../config/agentes.json', import.meta.url), 'utf8'));
 const pastaNova = () => fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-times-'));
-const PRONTOS = new URL('../arquiteturas/', import.meta.url);
+const PRONTOS = new URL('../config/arquiteturas/', import.meta.url);
 const pronto = async (n) => validarTime(JSON.parse(await fs.readFile(new URL(n, PRONTOS), 'utf8')), cfg.provedores, 'demo');
 const comTime = (t) => { const e = new Muvuca(structuredClone(cfg)); e.trocarTime(t); return e; };
 const PEDIDO = 'Crie uma página de status com um endpoint /health';
@@ -21,8 +21,8 @@ test('todos os modelos prontos passam no validador', async () => {
 });
 
 test('biblioteca de agentes básicos: formas válidas, sem repetir boneco, e cada um vira time sozinho', async () => {
-  const { agentes } = JSON.parse(await fs.readFile(new URL('../catalogo-agentes.json', import.meta.url), 'utf8'));
-  const { FORMAS } = await import('../times.js');
+  const { agentes } = JSON.parse(await fs.readFile(new URL('../config/catalogo-agentes.json', import.meta.url), 'utf8'));
+  const { FORMAS } = await import('../src/times.js');
   assert.ok(agentes.length >= 12);
   for (const a of agentes) assert.ok(FORMAS.includes(a.forma), `${a.id}: forma ${a.forma}`);
   const executores = agentes.filter((a) => !a.funcao && a.forma !== 'lente');

@@ -4,13 +4,13 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Muvuca, extrairJson } from '../orquestrador.js';
-import { usar, dentro, comandoSeguro } from '../ferramentas.js';
-import { lerSaidaCli } from '../provedores.js';
+import { Muvuca, extrairJson } from '../src/orquestrador.js';
+import { usar, dentro, comandoSeguro } from '../src/ferramentas.js';
+import { lerSaidaCli } from '../src/provedores.js';
 
 process.env.DEMO_ATRASO = '0';
-const cfg = JSON.parse(await fs.readFile(new URL('../agentes.json', import.meta.url), 'utf8'));
-const FALSO_CLI = fileURLToPath(new URL('../apoio/falso-cli.js', import.meta.url));
+const cfg = JSON.parse(await fs.readFile(new URL('../config/agentes.json', import.meta.url), 'utf8'));
+const FALSO_CLI = fileURLToPath(new URL('./apoio/falso-cli.js', import.meta.url));
 const pastaNova = () => fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-'));
 
 test('fluxo v3 completo em modo demonstração', async () => {

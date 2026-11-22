@@ -35,7 +35,7 @@ function portaDoApp() {
 async function subirServidor() {
   completarPath();
   if (!process.env.MUVUCA_PORTA) process.env.MUVUCA_PORTA = String(await portaDoApp());
-  const { pronto } = await import(pathToFileURL(path.join(RAIZ, 'servidor.js')).href);
+  const { pronto } = await import(pathToFileURL(path.join(RAIZ, 'src', 'servidor.js')).href);
   return pronto;
 }
 

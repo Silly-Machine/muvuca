@@ -2,6 +2,16 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: repositório reorganizado
+
+Nada muda na tela nem no jeito de usar. Muda onde cada arquivo fica.
+
+- **Estrutura nova de pastas.** O programa foi para `src/`; o time de fábrica, a biblioteca de agentes e os modelos prontos, para `config/`; as ferramentas de versão e os testes ao vivo, para `scripts/`; as fontes dos personagens, para `assets/personagens/`; os aplicativos falsos usados nos testes, para `test/apoio/`. A raiz caiu de 20 arquivos para 7.
+- **Quem roda do código-fonte:** o servidor agora é `node src/servidor.js` (`npm start` continua igual). A variável `MUVUCA_CONFIG` passa a procurar o arquivo em `config/`; caminho completo continua valendo.
+- **Node 22 ou mais novo** para rodar do código-fonte ou pelo `npx`. O Node 20 saiu de suporte, e o comando de teste usa um recurso que ele não tem. O aplicativo de mesa não é afetado: traz o próprio Node.
+- `npm run bateria` roda a bateria ao vivo.
+- Pendência registrada no roteiro: tirar do repositório as imagens-fonte dos personagens, que são 41 MB dos 48 MB.
+
 ## 0.2.2 (22/11/2026): a Buzina não some mais
 
 - **A Buzina continua solta no aplicativo de mesa.** A escolha ficava guardada só no navegador, e o aplicativo, que abria num endereço novo a cada vez, não a encontrava. Agora ela fica na pasta de dados e vale para o navegador e para o aplicativo.

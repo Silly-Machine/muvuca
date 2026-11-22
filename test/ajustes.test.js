@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { normalizarPreferencias, normalizarProjetos, infoProjeto, pastaPadrao } from '../ajustes.js';
+import { normalizarPreferencias, normalizarProjetos, infoProjeto, pastaPadrao } from '../src/ajustes.js';
 
 test('preferências: padrão de fábrica é a irmã teste-estudio e os limites ficam na faixa', () => {
   const raiz = path.resolve('/apps/muvuca');
@@ -33,7 +33,7 @@ test('infoProjeto conta arquivos e ignora node_modules', async () => {
 });
 
 test('ponto de restauração: salvar e carregar a foto devolve os mesmos arquivos, e null apaga', async () => {
-  const { fotografar, salvarFoto, carregarFoto, restaurar } = await import('../ferramentas.js');
+  const { fotografar, salvarFoto, carregarFoto, restaurar } = await import('../src/ferramentas.js');
   const proj = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-foto-'));
   const dir = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-pend-')), '.pendente');
   await fs.mkdir(path.join(proj, 'src')); await fs.writeFile(path.join(proj, 'src', 'a.txt'), 'original');
@@ -49,7 +49,7 @@ test('ponto de restauração: salvar e carregar a foto devolve os mesmos arquivo
 });
 
 test('anexos: caminho seguro dentro de anexos/, sem sair da pasta nem levar arquivo protegido', async () => {
-  const { caminhoAnexo } = await import('../ajustes.js');
+  const { caminhoAnexo } = await import('../src/ajustes.js');
   assert.equal(caminhoAnexo('foto.png'), 'anexos/foto.png');
   assert.equal(caminhoAnexo('minha pasta\\sub/relatório final.pdf'), 'anexos/minha pasta/sub/relatório final.pdf');
   assert.equal(caminhoAnexo('/abs/arquivo.txt'), 'anexos/abs/arquivo.txt', 'barra inicial não vira caminho absoluto');

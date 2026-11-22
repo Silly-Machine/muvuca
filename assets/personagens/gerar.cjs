@@ -1,8 +1,8 @@
 // Exporta os personagens da Muvuca como SVGs independentes, uma folha com todos os estados e o código-fonte.
 const fs = require('fs'); const vm = require('vm'); const path = require('path');
-const R = path.join(__dirname, '..') + '/';   // pasta do projeto, onde quer que ela esteja
+const R = path.join(__dirname, '..', '..') + '/';   // pasta do projeto, onde quer que ela esteja
 const html = fs.readFileSync(R + 'public/index.html', 'utf8');
-const SAIDA = R + 'sprites/';
+const SAIDA = R + 'assets/personagens/';
 fs.mkdirSync(SAIDA, { recursive: true });
 
 // 1. código dos personagens: funções puras de texto, entre os dois marcadores
@@ -20,7 +20,7 @@ const css = linhas.slice(iCss, fCss + 1).join('\n')
   .replace('.agente, .mascote *, .foco', '.mascote *');
 
 // 3. cor padrão de cada forma (a mesma da biblioteca de agentes)
-const catalogo = JSON.parse(fs.readFileSync(R + 'catalogo-agentes.json', 'utf8')).agentes;
+const catalogo = JSON.parse(fs.readFileSync(R + 'config/catalogo-agentes.json', 'utf8')).agentes;
 const cores = Object.fromEntries(catalogo.map((a) => [a.forma, a.cor]));
 const NOMES = { cartola: 'Maestro de cartola (líder)', engrenagem: 'Engrenagem (back-end)', regente: 'Cápsula de batuta (sub-líder)', pilha: 'Pilha de discos (dados)', cristal: 'Cristal lapidado (front-end)', lente: 'Esfera de lente (pesquisa)', escudo: 'Escudo de óculos (revisor)', tela: 'Monitor de antena', gota: 'Gota', nuvem: 'Nuvem (UX)', cogumelo: 'Cogumelo (produto)', polvo: 'Polvo (testes)', foguete: 'Foguete (DevOps)', gato: 'Gato vigia (segurança)', livro: 'Livro (docs)', planta: 'Vaso de planta (generalista)' };
 // ordem da biblioteca de agentes; as formas fora dela vão no fim

@@ -73,6 +73,6 @@ A Muvuca troca o trecho `/* ---------- personagens ---------- */` do `public/ind
 
 Abra `folha.html` no navegador. Para ver uma versão nova:
 1. Troque o trecho dos personagens no `public/index.html`.
-2. Gere tudo de novo com `node sprites/gerar.cjs`, rodado na pasta da Muvuca. Os PNGs saem pelo Edge sem janela; os comandos estão na conversa que gerou este pacote.
+2. Gere tudo de novo com `node assets/personagens/gerar.cjs`, rodado na pasta da Muvuca. Os PNGs saem pelo Edge sem janela; os comandos estão na conversa que gerou este pacote.
 3. Ou abra `http://localhost:4317/?vitrine=disponivel,pensando,trabalhando,concluido,aguardando` com a Muvuca rodando.
 

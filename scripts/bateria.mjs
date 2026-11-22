@@ -1,5 +1,5 @@
 // Bateria ao vivo: exercita o servidor ligado, rota por rota, em modo demonstração.
-// Uso (com a Muvuca rodando):  node apoio/bateria.mjs
+// Uso (com a Muvuca rodando):  node scripts/bateria.mjs
 // Só trabalha na pasta padrão (que precisa terminar em "teste-estudio") e devolve tudo ao estado inicial no fim.
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -53,7 +53,7 @@ secao('Página e imagens');
   ok('as 85 imagens dos bonecos existem', !faltam.length, faltam.join(', ')); }
 ok('imagem que não existe dá 404', (await get('/bonecos/nada-nada.webp')).s === 404);
 ok('caminho fora da pasta de imagens não é servido', (await get('/bonecos/..%2F..%2Fservidor.js')).s === 404 && (await get('/bonecos/../servidor.js')).s === 404);
-ok('arquivo do servidor não é servido', (await get('/servidor.js')).s === 404 && (await get('/agentes.local.json')).s === 404 && (await get('/preferencias.json')).s === 404);
+ok('arquivo do servidor não é servido', (await get('/servidor.js')).s === 404 && (await get('/src/servidor.js')).s === 404 && (await get('/config/agentes.json')).s === 404 && (await get('/agentes.local.json')).s === 404 && (await get('/preferencias.json')).s === 404);
 ok('rota desconhecida dá 404', (await get('/api/nao-existe')).s === 404);
 
 // ---------- 2. proteções de entrada
@@ -252,5 +252,5 @@ await post('/api/nova');
 const falhas = resultados.filter((r) => !r.ok);
 console.log(`\n${resultados.length} verificações: ${resultados.length - falhas.length} passaram, ${falhas.length} falharam.`);
 for (const f of falhas) console.log(`  ✗ [${f.grupo}] ${f.nome}${f.detalhe ? ' -> ' + f.detalhe : ''}`);
-await fs.writeFile(path.join(AQUI, 'apoio', 'bateria-resultado.json'), JSON.stringify({ quando: new Date().toISOString(), total: resultados.length, falhas: falhas.length, resultados }, null, 2));
+await fs.writeFile(path.join(AQUI, 'scripts', 'bateria-resultado.json'), JSON.stringify({ quando: new Date().toISOString(), total: resultados.length, falhas: falhas.length, resultados }, null, 2));
 process.exit(falhas.length ? 1 : 0);

@@ -1,5 +1,5 @@
 // Roda um caso real em cada arquitetura pronta, com o provedor de verdade que estiver no time.
-// Uso (com a Muvuca rodando e o time num provedor real):  node apoio/arquiteturas-reais.mjs [numero do caso...]
+// Uso (com a Muvuca rodando e o time num provedor real):  node scripts/arquiteturas-reais.mjs [numero do caso...]
 // Trabalha só na pasta padrão (teste-estudio), cada caso numa subpasta de casos/. Gasta modelo de verdade.
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -38,7 +38,7 @@ const timeArquivo = times.find((t) => t.origem === 'arquivo');
 const escolhidos = process.argv.slice(2).map(Number).filter((n) => n >= 1 && n <= CASOS.length);
 const fila = escolhidos.length ? escolhidos.map((n) => CASOS[n - 1]) : CASOS;
 const relatorio = [];
-const gravar = () => fs.writeFile(path.join(AQUI, 'apoio', 'arquiteturas-reais-resultado.json'), JSON.stringify({ quando: new Date().toISOString(), projeto: PROJETO, casos: relatorio }, null, 2));
+const gravar = () => fs.writeFile(path.join(AQUI, 'scripts', 'arquiteturas-reais-resultado.json'), JSON.stringify({ quando: new Date().toISOString(), projeto: PROJETO, casos: relatorio }, null, 2));
 
 for (const caso of fila) {
   const t = times.find((x) => x.arquivo === caso.arquivo && x.origem === 'pronto');

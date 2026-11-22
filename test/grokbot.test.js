@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Muvuca, chaveMemoria } from '../orquestrador.js';
-import { criarMemoria, MAX_NOTAS } from '../memoria.js';
-import { normalizarRotinas, devidas, quando } from '../rotinas.js';
+import { Muvuca, chaveMemoria } from '../src/orquestrador.js';
+import { criarMemoria, MAX_NOTAS } from '../src/memoria.js';
+import { normalizarRotinas, devidas, quando } from '../src/rotinas.js';
 
-const cfg = JSON.parse(await fs.readFile(new URL('../agentes.json', import.meta.url), 'utf8'));
+const cfg = JSON.parse(await fs.readFile(new URL('../config/agentes.json', import.meta.url), 'utf8'));
 const pastaNova = (p = 'muvuca-gb-') => fs.mkdtemp(path.join(os.tmpdir(), p));
 const PEDIDO = 'Crie uma página de status com um endpoint /health';
 
@@ -120,7 +120,7 @@ test('trocar o provedor do time: todos mudam, modelos por nível valem, e modelo
 });
 
 test('modelo padrão por papel, e a escolha por agente vence o padrão', async () => {
-  const { nivelPadrao, nivelFixo } = await import('../orquestrador.js');
+  const { nivelPadrao, nivelFixo } = await import('../src/orquestrador.js');
   assert.equal(nivelPadrao({ funcao: 'lider' }), 'media');
   assert.equal(nivelPadrao({ funcao: 'sublider' }), 'media');
   assert.equal(nivelPadrao({ funcao: 'revisor', ferramentas: ['listar', 'ler'] }), 'alta');
@@ -145,7 +145,7 @@ test('modelo padrão por papel, e a escolha por agente vence o padrão', async (
 });
 
 test('Buzina sem rede: acha o tema certo do guia, com ou sem acento, e admite quando não sabe', async () => {
-  const { responderOffline, GUIA, sistemaBuzina } = await import('../buzina.js');
+  const { responderOffline, GUIA, sistemaBuzina } = await import('../src/buzina.js');
   const tema = (p) => responderOffline(p).titulo;
   assert.equal(tema('Como começo a usar?'), 'Como começar');
   assert.equal(tema('o que sao rotinas'), 'Rotinas');
@@ -156,7 +156,7 @@ test('Buzina sem rede: acha o tema certo do guia, com ou sem acento, e admite qu
   assert.equal(tema('os agentes tem memória?'), 'Memória dos agentes');
   assert.equal(tema('quem é você, Buzina?'), 'Quem é a Buzina');
   // as perguntas que a própria Buzina sugere têm que ter resposta
-  const { SUGESTOES } = await import('../buzina.js');
+  const { SUGESTOES } = await import('../src/buzina.js');
   for (const p of SUGESTOES) assert.notEqual(tema(p), null, `sem resposta para a sugestão "${p}"`);
   assert.equal(tema('Como monto um time?'), 'Montar um time');
   assert.equal(tema('como o time testa o código?'), 'Testes e revisão');
@@ -170,7 +170,7 @@ test('Buzina sem rede: acha o tema certo do guia, com ou sem acento, e admite qu
 test('memória com um provedor de verdade (CLI falso): o agente anota com LEMBRAR e recebe a nota no pedido seguinte', async () => {
   const { fileURLToPath } = await import('node:url');
   const c = structuredClone(cfg);
-  c.provedores.cli = { tipo: 'cli', comando: process.execPath, args: [fileURLToPath(new URL('../apoio/falso-cli-memoria.js', import.meta.url))] };
+  c.provedores.cli = { tipo: 'cli', comando: process.execPath, args: [fileURLToPath(new URL('./apoio/falso-cli-memoria.js', import.meta.url))] };
   c.agentes.find((a) => a.id === 'chevron').provedor = 'cli';
   const projeto = await pastaNova();
   const e = new Muvuca(c);

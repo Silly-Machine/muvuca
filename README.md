@@ -9,7 +9,7 @@
 [![Testes](https://github.com/Silly-Machine/muvuca/actions/workflows/testes.yml/badge.svg)](https://github.com/Silly-Machine/muvuca/actions/workflows/testes.yml)
 [![Instaladores](https://github.com/Silly-Machine/muvuca/actions/workflows/instaladores.yml/badge.svg)](https://github.com/Silly-Machine/muvuca/actions/workflows/instaladores.yml)
 ![Versão](https://img.shields.io/badge/vers%C3%A3o-0.2.2-f28a2e)
-![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-5f565c)
+![Node](https://img.shields.io/badge/node-%E2%89%A5%2022-5f565c)
 ![Dependências](https://img.shields.io/badge/depend%C3%AAncias%20do%20servidor-0-5f565c)
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-f28a2e)](LICENSE)
 
@@ -59,7 +59,7 @@ Os instaladores ainda não são assinados. Na primeira abertura, o Windows mostr
 
 ### 2. Pelo terminal, sem instalar
 
-Precisa de Node 20 ou mais novo.
+Precisa de Node 22 ou mais novo.
 
 ```sh
 npx github:Silly-Machine/muvuca
@@ -115,19 +115,20 @@ O [guia](docs/guia.md) explica cada parte em detalhe: provedores, construtor, ro
 
 ```sh
 muvuca
-    ├── servidor.js          : servidor HTTP local e API da tela
-    ├── orquestrador.js      : o protocolo do time (plano, execução, portão, revisão)
-    ├── ferramentas.js       : arquivos, comandos, foto do projeto e restauração
-    ├── provedores.js        : Claude Code, APIs compatíveis com OpenAI e demonstração
-    ├── times.js             : regras de cada arquitetura
+    ├── src/                 : o programa (servidor local e orquestração do time)
+    │   ├── servidor.js      : servidor HTTP local e API da tela
+    │   ├── orquestrador.js  : o protocolo do time (plano, execução, portão, revisão)
+    │   ├── ferramentas.js   : arquivos, comandos, foto do projeto e restauração
+    │   ├── provedores.js    : Claude Code, APIs compatíveis com OpenAI e demonstração
+    │   └── ...              : times, rotinas, memória, preferências, Buzina
     ├── public/              : a tela (um HTML só, sem framework) e os personagens
-    ├── arquiteturas/        : os sete modelos prontos de time
-    ├── bin/muvuca.js        : o comando "muvuca"
+    ├── config/              : time de fábrica, biblioteca de agentes e modelos prontos de time
+    ├── bin/                 : o comando "muvuca"
     ├── electron/            : o aplicativo de mesa
     ├── test/                : testes automáticos
-    ├── apoio/               : CLIs falsos e roteiros de teste ao vivo
-    ├── sprites/             : fontes dos personagens
-    └── docs/                : guia completo e imagens
+    ├── scripts/             : lançamento de versões e testes ao vivo
+    ├── assets/              : fontes dos personagens (não vão no aplicativo)
+    └── docs/                : guia completo, processo de versões e imagens
 ```
 
 Seus dados (preferências, projetos, rotinas, memória, times salvos) ficam em `~/.muvuca`, fora do repositório e fora da pasta do aplicativo.
@@ -136,7 +137,7 @@ Seus dados (preferências, projetos, rotinas, memória, times salvos) ficam em `
 
 ```sh
 npm test                    # 43 testes automáticos, cerca de 1 minuto
-node apoio/bateria.mjs      # 177 verificações ao vivo, com o servidor em demonstração
+npm run bateria             # 177 verificações ao vivo, com o servidor em demonstração
 ```
 
 Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada envio. Detalhes em [Bateria de testes](docs/guia.md#bateria-de-testes).
@@ -154,6 +155,7 @@ Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada 
 - [x] Comando `muvuca` e aplicativo de mesa para Windows, macOS e Linux
 - [ ] Instaladores assinados e atualização automática
 - [ ] Publicação no npm
+- [ ] Tirar do repositório as imagens-fonte dos personagens (`assets/personagens/plush/gpt/`, 41 MB dos 48 MB) e guardá-las como anexo de uma versão
 - [ ] Celular como controle remoto da Muvuca do computador (PWA com pareamento)
 
 ## Contribuir

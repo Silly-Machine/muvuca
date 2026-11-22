@@ -9,8 +9,8 @@ times/
 .pendente/
 
 # resultados de testes ao vivo
-apoio/*-resultado.json
-apoio/*.log
+scripts/*-resultado.json
+scripts/*.log
 
 node_modules/
 .env

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { proxima, comparar, secoes, notasDa, problemasDeOrdem, fecharEmAndamento, dataDeHoje, preLancamento } from '../apoio/versao.mjs';
+import { proxima, comparar, secoes, notasDa, problemasDeOrdem, fecharEmAndamento, dataDeHoje, preLancamento } from '../scripts/versao.mjs';
 
 const RAIZ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const EXEMPLO = `# Histórico de mudanças

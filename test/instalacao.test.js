@@ -7,7 +7,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalizarPreferencias } from '../ajustes.js';
+import { normalizarPreferencias } from '../src/ajustes.js';
 
 const RAIZ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -15,7 +15,7 @@ const RAIZ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 async function subir(dados, extra = {}) {
   const env = { ...process.env, MUVUCA_DADOS: dados, MUVUCA_PORTA: '0', ...extra };
   delete env.NODE_TEST_CONTEXT; delete env.MUVUCA_CONFIG; delete env.ESTUDIO_CONFIG; delete env.MUVUCA_PROJETO; delete env.ESTUDIO_PROJETO; delete env.PORTA;
-  const filho = spawn(process.execPath, [path.join(RAIZ, 'servidor.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const filho = spawn(process.execPath, [path.join(RAIZ, 'src', 'servidor.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   let saida = '';
   const porta = await new Promise((resolve, reject) => {
     const tempo = setTimeout(() => reject(new Error('o servidor não subiu: ' + saida)), 30000);
@@ -110,7 +110,7 @@ test('porta ocupada: o servidor avisa em português e sai, em vez de morrer com 
   const dados = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-dados-'));
   const s = await subir(dados);
   try {
-    const r = spawnSync(process.execPath, [path.join(RAIZ, 'servidor.js')], { env: { ...process.env, MUVUCA_DADOS: dados, MUVUCA_PORTA: String(s.porta), NODE_TEST_CONTEXT: '' }, encoding: 'utf8', timeout: 30000 });
+    const r = spawnSync(process.execPath, [path.join(RAIZ, 'src', 'servidor.js')], { env: { ...process.env, MUVUCA_DADOS: dados, MUVUCA_PORTA: String(s.porta), NODE_TEST_CONTEXT: '' }, encoding: 'utf8', timeout: 30000 });
     assert.equal(r.status, 1);
     assert.match(r.stderr, /já está em uso/);
   } finally { await s.parar(); }

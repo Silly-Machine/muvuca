@@ -3,7 +3,7 @@ name: Testes
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md', 'docs/**', 'sprites/**']
+    paths-ignore: ['**.md', 'docs/**', 'assets/**']
   pull_request:
   workflow_dispatch:
 
@@ -26,11 +26,11 @@ jobs:
         node: [22]
         include:
           - os: ubuntu-latest
-            node: 20
+            node: 24
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
       # O servidor não tem dependências: os testes rodam sem "npm install".
-      - run: node --test
+      - run: npm test

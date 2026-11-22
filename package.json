@@ -19,7 +19,7 @@
     "electron"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "main": "electron/main.cjs",
   "bin": {
@@ -27,25 +27,23 @@
   },
   "files": [
     "bin/",
+    "src/",
     "public/",
-    "arquiteturas/",
-    "*.js",
-    "agentes.json",
-    "agentes.exemplo-misto.json",
-    "catalogo-agentes.json",
+    "config/",
+    "docs/guia.md",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE",
-    "docs/guia.md"
+    "LICENSE"
   ],
   "scripts": {
     "start": "node bin/muvuca.js",
-    "servidor": "node servidor.js",
-    "test": "node --test",
-    "lancar": "node apoio/versao.mjs lancar",
+    "servidor": "node src/servidor.js",
+    "test": "node --test \"test/*.test.js\"",
+    "lancar": "node scripts/versao.mjs lancar",
     "app": "electron .",
     "instalador": "electron-builder --publish never",
-    "pasta-do-app": "electron-builder --dir --publish never"
+    "pasta-do-app": "electron-builder --dir --publish never",
+    "bateria": "node scripts/bateria.mjs"
   },
   "build": {
     "appId": "dev.sillymachine.muvuca",
@@ -60,16 +58,13 @@
       "electron/main.cjs",
       "electron/preload.cjs",
       "electron/recursos/icon.png",
+      "src/**",
       "public/**",
-      "arquiteturas/**",
-      "*.js",
-      "agentes.json",
-      "catalogo-agentes.json",
-      "README.md",
-      "package.json",
+      "config/**",
       "docs/guia.md",
-      "agentes.exemplo-misto.json",
-      "LICENSE"
+      "README.md",
+      "LICENSE",
+      "package.json"
     ],
     "win": {
       "target": [

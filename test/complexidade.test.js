@@ -3,10 +3,10 @@ import assert from 'node:assert';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { Muvuca, nivel } from '../orquestrador.js';
+import { Muvuca, nivel } from '../src/orquestrador.js';
 
 process.env.DEMO_ATRASO = '0';
-const cfg = JSON.parse(await fs.readFile(new URL('../agentes.json', import.meta.url), 'utf8'));
+const cfg = JSON.parse(await fs.readFile(new URL('../config/agentes.json', import.meta.url), 'utf8'));
 const pastaNova = () => fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-cx-'));
 
 test('nível de complexidade aceita acento e maiúscula, e rejeita o resto', () => {

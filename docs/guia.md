@@ -6,9 +6,9 @@ Referência completa: como cada parte funciona, o que foi testado e o que ficou 
 
 | Forma | Como | Porta |
 |---|---|---|
-| Aplicativo de mesa | instalador de Windows, macOS ou Linux | uma livre, escolhida na hora |
+| Aplicativo de mesa | instalador de Windows, macOS ou Linux | 43170; se estiver ocupada, uma livre |
 | Comando `muvuca` | `npx github:Silly-Machine/muvuca` ou `npm start` no código-fonte | 4317 (`--porta` troca) |
-| Só o servidor | `node servidor.js` | 4317 (`MUVUCA_PORTA` troca; 0 escolhe uma livre) |
+| Só o servidor | `node src/servidor.js` | 4317 (`MUVUCA_PORTA` troca; 0 escolhe uma livre) |
 
 Nas três, o servidor atende só em `127.0.0.1`: outra máquina da rede não alcança.
 
@@ -49,7 +49,7 @@ O roteiro erra de propósito duas vezes, para exercitar o fluxo inteiro:
 
 ## Provedores públicos e privados no mesmo time
 
-Cada agente aponta para um provedor em `agentes.json`. Três tipos:
+Cada agente aponta para um provedor em `config/agentes.json`. Três tipos:
 
 | Tipo | Para quê | Exemplos |
 |---|---|---|
@@ -57,12 +57,12 @@ Cada agente aponta para um provedor em `agentes.json`. Três tipos:
 | `cli` | aplicativo de linha de comando logado na assinatura | `claude`, `codex`, `gemini` |
 | `demo` | roteiro fixo | testes e demonstração |
 
-`agentes.exemplo-misto.json` traz um time misto (líder e Pixel no Groq, Chevron no Claude, Revisor no Codex). Para usar:
+`config/agentes.exemplo-misto.json` traz um time misto (líder e Pixel no Groq, Chevron no Claude, Revisor no Codex). Para usar:
 
 ```
 set GROQ_API_KEY=...            (PowerShell: $env:GROQ_API_KEY="...")
-set MUVUCA_CONFIG=agentes.exemplo-misto.json      (o nome antigo ESTUDIO_CONFIG também funciona)
-node servidor.js
+set MUVUCA_CONFIG=agentes.exemplo-misto.json      (nome de um arquivo de config/, ou um caminho completo)
+node src/servidor.js
 ```
 
 ## Projetos e configurações
@@ -98,23 +98,25 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 
 ## Mapa do código
 
-| Arquivo | Linhas | O que faz |
+| Caminho | Linhas | O que faz |
 |---|---|---|
-| `orquestrador.js` | ~480 | o protocolo: planejar (inclusive sub-líder), esteira, rede, consultar, executar, portão, revisar, devolver; quadro e memória |
-| `servidor.js` | ~430 | HTTP local, fluxo de eventos, API da tela, rotinas, boas-vindas |
-| `ferramentas.js` | ~230 | listar, ler, escrever, rodar; foto do projeto, diff, restauração |
-| `provedores.js` | ~90 | os três tipos de provedor atrás de uma função só |
-| `times.js` | ~110 | o validador do construtor: regras de cada arquitetura |
-| `demo.js` | ~190 | o roteiro da demonstração, mais líder e executor genéricos para times do construtor |
-| `ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~240 | preferências e anexos, notas dos agentes, agendamento, guia da mascote |
+| `src/orquestrador.js` | ~480 | o protocolo: planejar (inclusive sub-líder), esteira, rede, consultar, executar, portão, revisar, devolver; quadro e memória |
+| `src/servidor.js` | ~440 | HTTP local, fluxo de eventos, API da tela, rotinas, boas-vindas |
+| `src/ferramentas.js` | ~230 | listar, ler, escrever, rodar; foto do projeto, diff, restauração |
+| `src/provedores.js` | ~90 | os três tipos de provedor atrás de uma função só |
+| `src/times.js` | ~110 | o validador do construtor: regras de cada arquitetura |
+| `src/demo.js` | ~190 | o roteiro da demonstração, mais líder e executor genéricos para times do construtor |
+| `src/ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~240 | preferências e anexos, notas dos agentes, agendamento, guia da mascote |
 | `public/index.html` | ~2300 | a tela inteira, sem framework: palco em grafo, quadro, fichas, construtor |
 | `public/bonecos/` | 85 imagens | os personagens, 17 formas em 5 estados |
-| `arquiteturas/` | 7 arquivos | os modelos prontos de time |
+| `config/agentes.json` | | o time de fábrica e os provedores (demonstração e `claude-cli`) |
+| `config/catalogo-agentes.json` | | a biblioteca de agentes básicos do construtor |
+| `config/arquiteturas/` | 7 arquivos | os modelos prontos de time |
 | `bin/muvuca.js` | ~50 | o comando `muvuca`: sobe o servidor e abre o navegador |
-| `electron/` | ~100 | o aplicativo de mesa: janela, seletor de pasta, ícone |
-| `test/` | 6 arquivos | 43 testes automáticos |
-| `apoio/` | | CLIs falsos para os testes e os roteiros de teste ao vivo |
-| `sprites/` | | fontes dos personagens e os scripts que geram `public/bonecos/` |
+| `electron/` | ~110 | o aplicativo de mesa: janela, seletor de pasta, ícone |
+| `test/` | 7 arquivos | 49 testes automáticos; `test/apoio/` tem os aplicativos falsos |
+| `scripts/` | | `versao.mjs` (lançar versões), `bateria.mjs` e `arquiteturas-reais.mjs` (testes ao vivo) |
+| `assets/personagens/` | | fontes dos personagens e os scripts que geram `public/bonecos/` |
 
 O servidor não tem dependências. `electron` e `electron-builder` são dependências só de desenvolvimento, usadas para o aplicativo de mesa.
 
@@ -133,7 +135,7 @@ O terceiro ícone da barra lateral abre o construtor. Você parte de um modelo, 
 Em todas, o portão de testes e o revisor fecham o ciclo, e a devolução sobe o nível de complexidade.
 
 **Montar arrastando:**
-- **Biblioteca de agentes básicos** (`catalogo-agentes.json`): 14 agentes, cada um com um boneco diferente. São eles Líder, Sub-líder, Back-end, Front-end, Dados, Testes, Docs, UX, Produto, DevOps, Segurança, Pesquisa, Generalista e Revisor.
+- **Biblioteca de agentes básicos** (`config/catalogo-agentes.json`): 14 agentes, cada um com um boneco diferente. São eles Líder, Sub-líder, Back-end, Front-end, Dados, Testes, Docs, UX, Produto, DevOps, Segurança, Pesquisa, Generalista e Revisor.
 - **Adicionar:** clique numa peça ou arraste para a prévia. A função se ajusta à arquitetura: um líder numa esteira vira executor, e o segundo líder numa hierarquia vira sub-líder.
 - **Soltar sobre um agente:**
   - na hierarquia, se o agente for líder ou sub-líder, o novo entra no time dele;
@@ -181,7 +183,7 @@ Fora por enquanto: rede em que vários agentes trabalham ao mesmo tempo (hoje é
 | Tela no navegador | conferida no Chrome, Linux e Windows |
 | **Groq, Ollama ou gateway de verdade** | **não testado** (o ambiente de preparação não tem rede para eles) |
 | `claude` de verdade (2.1.284, Windows) | testado: pedidos reais, um projeto de ponta a ponta e um caso em cada arquitetura, com as opções do provedor `claude-cli` de `agentes.json` |
-| **`codex`, `gemini` de verdade** | **não testado**; as opções em `agentes.exemplo-misto.json` vieram de documentação e de guias |
+| **`codex`, `gemini` de verdade** | **não testado**; as opções em `config/agentes.exemplo-misto.json` vieram de documentação e de guias |
 | Windows 11 | testado: é onde o projeto roda desde a versão 0.1.0 |
 | Cartão de aprovação na tela | não exercitado no navegador (o roteiro da demonstração não pede comando perigoso) |
 
@@ -193,7 +195,7 @@ Os cinco primeiros apareceram de verdade enquanto eu construía. Os demais são 
 
 1. **O portão mentiu.** Um `node --test` disparado de dentro de outro `node --test` herda a variável `NODE_TEST_CONTEXT` e sai com código 0 mesmo com teste falhando. O portão aprovou código quebrado. Só apareceu porque havia um teste esperando a falha. Corrigido em `ferramentas.js` (`ambienteLimpo`). É o melhor caso da semana para "o juiz precisa ser testado".
 2. **`node --test` roda tudo que está em `test/`.** Um arquivo de apoio dentro da pasta foi executado como teste, ficou esperando a entrada padrão e travou a suíte por mais de 2 minutos. No projeto do aluno o portão vai fazer o mesmo com qualquer arquivo solto em `test/`.
-3. **`node --test test/` quebra no Node 22** (interpreta como arquivo). O comando portátil é `node --test`, sem argumento.
+3. **`node --test test/` quebra no Node 22** (interpreta como arquivo). O comando usado é `node --test "test/*.test.js"` (o `npm test`): o padrão de nomes também deixa de fora os arquivos de `test/apoio/`.
 4. **Descartar deixava pastas vazias** para trás. Corrigido.
 5. **A demonstração só funciona porque o caminho é o mesmo dos provedores reais.** Na primeira versão do desenho o roteiro falso pulava o laço de ferramentas; teria escondido todos os problemas acima.
 
@@ -260,13 +262,13 @@ A Muvuca tem uma mascote escondida: a Buzina, uma salsicha astronauta. Para solt
 - Ela fica no canto de cima, ao lado do título, e acompanha o humor do time: pensa, trabalha, comemora a entrega aprovada e fica alerta quando algo espera você.
 - Clicar nela abre uma conversa sobre o funcionamento da própria Muvuca. Com um provedor de verdade no time, quem responde é o modelo leve dele, usando este guia como guia. No modo demonstração (ou se o modelo falhar), responde o guia embutido em `buzina.js`, sem rede. Ela só explica: não executa nada nem mexe em arquivos.
 - No construtor, ela aparece na biblioteca como um agente faz-tudo que pode entrar em qualquer time.
-- As imagens estão em `public/bonecos/salsicha-*.webp`, recortadas de `sprites/plush/gpt/buzina_mascote_5_estados.png`.
+- As imagens estão em `public/bonecos/salsicha-*.webp`, recortadas de `assets/personagens/plush/gpt/buzina_mascote_5_estados.png`.
 
 ## Escolha de modelos pela tela
 
 Em **Configurações > Modelos do time** dá para trocar quem responde pelos agentes sem reiniciar o servidor nem editar arquivo.
 
-- A lista junta os provedores de `agentes.json` (que já traz o `claude-cli` testado) e os de `agentes.local.json`, na pasta de dados, e diz quais estão prontos. Um aplicativo de linha de comando precisa estar instalado; uma API precisa da variável de ambiente da chave e de endereço e modelo preenchidos.
+- A lista junta os provedores de `config/agentes.json` (que já traz o `claude-cli` testado) e os de `agentes.local.json`, na pasta de dados, e diz quais estão prontos. Um aplicativo de linha de comando precisa estar instalado; uma API precisa da variável de ambiente da chave e de endereço e modelo preenchidos.
 - Três campos definem o modelo por nível de tarefa: simples, comum e difícil. Em branco, vale o modelo padrão do provedor.
 - "Usar no time inteiro" troca todos os agentes do time atual. Agente com modelo fixo de outro provedor perde o fixo. A escolha fica em `preferencias.json` e volta ao subir o servidor.
 - Para um agente só, o construtor continua tendo os campos "Provedor" e "Modelo fixo".
@@ -289,8 +291,8 @@ Em **Configurações > Modelo de cada agente** dá para trocar o de qualquer age
 Dois níveis, os dois sem gastar modelo de verdade:
 
 - `npm test`: 43 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos e instalação). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
-- `node apoio/bateria.mjs`, com a Muvuca rodando em demonstração: 177 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
+- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 177 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
 
 ### Arquiteturas com casos reais
 
-`node apoio/arquiteturas-reais.mjs`, com a Muvuca rodando e o time num provedor de verdade, roda um caso real em cada uma das 7 arquiteturas prontas, cada um numa subpasta de `casos/` na pasta padrão. Gasta modelo de verdade. O resultado fica em `apoio/arquiteturas-reais-resultado.json`. Passe números para rodar só alguns casos, por exemplo `node apoio/arquiteturas-reais.mjs 1 3`.
+`node scripts/arquiteturas-reais.mjs`, com a Muvuca rodando e o time num provedor de verdade, roda um caso real em cada uma das 7 arquiteturas prontas, cada um numa subpasta de `casos/` na pasta padrão. Gasta modelo de verdade. O resultado fica em `apoio/arquiteturas-reais-resultado.json`. Passe números para rodar só alguns casos, por exemplo `node apoio/arquiteturas-reais.mjs 1 3`.

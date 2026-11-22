@@ -1,11 +1,11 @@
 # Fatia as faixas geradas pelo ChatGPT (um personagem, 5 estados lado a lado, PNG transparente)
 # em 80 imagens public/bonecos/<forma>-<estado>.webp, todas do mesmo tamanho e alinhadas pelo pé.
-# Uso, na pasta da Muvuca:  python sprites/plush/fatiar_gpt.py [pasta-das-faixas]
+# Uso, na pasta da Muvuca:  python assets/personagens/plush/fatiar_gpt.py [pasta-das-faixas]
 import sys, os
 from PIL import Image, ImageFilter, ImageChops
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-RAIZ = os.path.dirname(os.path.dirname(AQUI))
+RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(AQUI)))
 ORIGEM = sys.argv[1] if len(sys.argv) > 1 else os.path.join(AQUI, 'gpt')
 SAIDA = os.path.join(RAIZ, 'public', 'bonecos')
 os.makedirs(SAIDA, exist_ok=True)

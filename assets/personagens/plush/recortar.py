@@ -1,5 +1,5 @@
 # Recorta a folha de referência (16 personagens x 5 estados) em 80 imagens com fundo transparente.
-# Uso, na pasta da Muvuca:  python sprites/plush/recortar.py [folha.webp|png]
+# Uso, na pasta da Muvuca:  python assets/personagens/plush/recortar.py [folha.webp|png]
 # Saída: public/bonecos/<forma>-<estado>.webp
 # Quando chegar uma folha em alta resolução com o mesmo layout, basta rodar de novo apontando para ela.
 import sys, os
@@ -7,7 +7,7 @@ from collections import deque
 from PIL import Image, ImageFilter
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-RAIZ = os.path.dirname(os.path.dirname(AQUI))
+RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(AQUI)))
 ORIGEM = sys.argv[1] if len(sys.argv) > 1 else os.path.join(AQUI, 'referencia.webp')
 SAIDA = os.path.join(RAIZ, 'public', 'bonecos')
 os.makedirs(SAIDA, exist_ok=True)
