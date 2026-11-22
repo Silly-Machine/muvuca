@@ -76,6 +76,12 @@ test('primeira abertura: dados na pasta escolhida, boas-vindas criam a pasta do 
     assert.deepEqual([gravado.inicioFeito, gravado.projetoPadrao, gravado.provedorTime], [true, alvo, 'demo']);
     assert.equal((await s.get('/api/projetos')).projetos.some((p) => path.resolve(p.caminho) === alvo), true, 'a pasta entra na lista de projetos');
     assert.equal(path.resolve((await s.get('/api/config')).projetoPadrao), alvo);
+    // a Buzina solta fica na pasta de dados: vale para o navegador e para o aplicativo de mesa, que têm endereços diferentes
+    assert.equal((await s.get('/api/config')).buzina, false);
+    assert.deepEqual((await s.post('/api/buzina/solta', { solta: true })).j, { ok: true, solta: true });
+    assert.equal((await s.get('/api/config')).buzina, true);
+    assert.equal((await s.post('/api/buzina/solta', { solta: 'sim' })).j.solta, false, 'só o verdadeiro de verdade solta');
+    await s.post('/api/buzina/solta', { solta: true });
     const ruim = await s.post('/api/inicio', { pasta: alvo, provedor: 'nao-existe' });
     assert.ok(ruim.s === 400 && /não encontrado/.test(ruim.j.erro), JSON.stringify(ruim.j));
   } finally { await s.parar(); }
@@ -83,7 +89,10 @@ test('primeira abertura: dados na pasta escolhida, boas-vindas criam a pasta do 
 
   // segunda abertura: lembra de tudo
   const s2 = await subir(dados);
-  try { assert.equal((await s2.get('/api/inicio')).feito, true); } finally { await s2.parar(); }
+  try {
+    assert.equal((await s2.get('/api/inicio')).feito, true);
+    assert.equal((await s2.get('/api/config')).buzina, true, 'a Buzina continua solta depois de reabrir');
+  } finally { await s2.parar(); }
 });
 
 test('quem já tinha preferências de antes das boas-vindas não passa por elas', async () => {

@@ -1911,7 +1911,15 @@ $('#navConfig').onclick = () => { secao('config'); montarConfig(); };
 /* ---------- easter egg: Buzina ---------- */
 // Cinco cliques seguidos no logo, ou digitar "buzina" em qualquer lugar, soltam a mascote no palco.
 // Ela espelha o humor do time (pensando, trabalhando, pronto, esperando você) e entra na biblioteca do construtor.
-const buzinaSolta = () => { try { return localStorage.getItem('muvuca.buzina') === '1'; } catch { return false; } };
+// A escolha fica na pasta de dados (vale para o navegador e para o aplicativo de mesa); o navegador guarda uma cópia.
+let buzinaGuardada = null;   // o que o servidor tem; null até a configuração chegar
+const buzinaSolta = () => { if (buzinaGuardada !== null) return buzinaGuardada; try { return localStorage.getItem('muvuca.buzina') === '1'; } catch { return false; } };
+function guardarBuzina(liga) {
+  try { localStorage.setItem('muvuca.buzina', liga ? '1' : '0'); } catch {}
+  if (buzinaGuardada === liga) return;
+  buzinaGuardada = liga;
+  fetch('/api/buzina/solta', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ solta: liga }) }).catch(() => {});
+}
 let buzinaFesta = 0;
 // Meta-chat: a Buzina responde dúvidas sobre a própria Muvuca. Só abre quando clicam nela.
 const conversaBuzina = [];   // [{ de: 'voce' | 'buzina', texto }] — vale enquanto a página está aberta
@@ -1951,7 +1959,7 @@ function atualizarBuzina() {
   b.dataset.estado = e; b.querySelector('img').src = `/bonecos/salsicha-${e}.webp`;
 }
 function soltarBuzina(liga, comFala = true) {
-  try { localStorage.setItem('muvuca.buzina', liga ? '1' : '0'); } catch {}
+  guardarBuzina(liga);
   const b = $('#buzina');
   if (!liga) { b.hidden = true; abrirBuzinaChat(false); montarBasicos(); return; }
   b.hidden = false; delete b.dataset.estado; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; atualizarBuzina();
@@ -2296,7 +2304,10 @@ async function boasVindas(forcar = false) {
   const c = await carregarConfig();
   let salvo = ''; try { salvo = localStorage.getItem('muvuca.projeto') || localStorage.getItem('estudio.projeto') || ''; } catch {}
   $('#projeto').value = salvo || c.projetoPadrao; vazio(); lerProjetos();
-  if (buzinaSolta()) soltarBuzina(true, false);
+  // quem soltou a Buzina num navegador antes de a escolha ir para a pasta de dados leva a escolha junto
+  let noNavegador = false; try { noNavegador = localStorage.getItem('muvuca.buzina') === '1'; } catch {}
+  buzinaGuardada = c.buzina === true;
+  if (buzinaGuardada || noNavegador) soltarBuzina(true, false);
   for (const [v, t] of Object.entries(c.arquiteturas || {})) { const o = el('option', '', NOME_ARQ[v] || v); o.value = v; o.title = t; $('#cArq').append(o); }
   // ?vitrine=pensando,trabalhando,concluido,aguardando,disponivel mostra os estados sem rodar nada
   const vitrine = new URLSearchParams(location.search).get('vitrine');

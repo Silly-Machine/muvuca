@@ -194,7 +194,7 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/config') {
       const atual = muvuca.cfg;   // o construtor pode ter trocado o time
       return json(res, 200, {
-        versao: VERSAO, rodando: muvuca.rodando, config: path.basename(arquivoCfg), projetoPadrao: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || prefs.projetoPadrao,
+        versao: VERSAO, buzina: prefs.buzina, rodando: muvuca.rodando, config: path.basename(arquivoCfg), projetoPadrao: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || prefs.projetoPadrao,
         nomeTime: atual.nomeTime || timeDoArquivo.nome, arquitetura: muvuca.arquitetura, arquiteturas: ARQUITETURAS,
         // provedores sem chave nem argumentos: a tela só precisa do nome e dos modelos
         provedores: Object.entries(cfg.provedores).map(([nome, p]) => ({ nome, tipo: p.tipo, modelo: p.modelo || '', modelos: p.modelos || null })),
@@ -333,6 +333,14 @@ const servidor = http.createServer(async (req, res) => {
         }
       }
       return json(res, 200, { texto: responderOffline(pergunta).texto, fonte: 'guia embutido' });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/buzina/solta') {
+      // Guarda na pasta de dados se a mascote está solta. No navegador isso ficava só no próprio navegador,
+      // e o aplicativo de mesa (outro endereço) não a encontrava.
+      const b = await corpo(req);
+      prefs = normalizarPreferencias({ ...prefs, buzina: b.solta === true }, opcoesPrefs);
+      await gravarJson(ARQ_PREFS, prefs);
+      return json(res, 200, { ok: true, solta: prefs.buzina });
     }
     if (req.method === 'POST' && url.pathname === '/api/anexos') {
       // arquivos e pastas mandados junto com o pedido: gravados em anexos/ dentro da pasta do projeto, antes de o time começar

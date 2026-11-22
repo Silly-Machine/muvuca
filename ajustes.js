@@ -37,7 +37,8 @@ export function normalizarPreferencias(p, { raiz, cfg = {}, padrao } = {}) {
     provedorTime: texto(p.provedorTime, 60),
     modelos,
     niveis,
-    inicioFeito: p.inicioFeito === true,   // já passou pela tela de boas-vindas
+    inicioFeito: p.inicioFeito === true,
+    buzina: p.buzina === true,   // a mascote já foi solta (easter egg); vale para o navegador e para o aplicativo de mesa   // já passou pela tela de boas-vindas
   };
 }
 

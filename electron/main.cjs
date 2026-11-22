@@ -20,9 +20,21 @@ function completarPath() {
   process.env.PATH = [...atual, ...extras.filter((p) => !atual.includes(p))].join(path.delimiter);
 }
 
+// O aplicativo prefere sempre a mesma porta: o que a tela guarda no navegador (pasta escolhida, conversa recolhida)
+// vale por endereço, e com porta sorteada tudo se perdia a cada abertura. Se ela estiver ocupada, usa uma livre.
+const PORTA_DO_APP = 43170;
+function portaDoApp() {
+  return new Promise((resolve) => {
+    const s = require('node:net').createServer();
+    s.once('error', () => resolve(0));
+    s.once('listening', () => s.close(() => resolve(PORTA_DO_APP)));
+    s.listen(PORTA_DO_APP, '127.0.0.1');
+  });
+}
+
 async function subirServidor() {
   completarPath();
-  if (!process.env.MUVUCA_PORTA) process.env.MUVUCA_PORTA = '0';
+  if (!process.env.MUVUCA_PORTA) process.env.MUVUCA_PORTA = String(await portaDoApp());
   const { pronto } = await import(pathToFileURL(path.join(RAIZ, 'servidor.js')).href);
   return pronto;
 }
