@@ -51,7 +51,7 @@ Baixe o instalador do seu sistema na página de [Releases](https://github.com/Si
 
 | Sistema | Arquivo |
 |---|---|
-| Windows | `Muvuca Setup x.y.z.exe` |
+| Windows | `Muvuca.Setup.x.y.z.exe` |
 | macOS | `Muvuca-x.y.z-arm64.dmg` (Apple Silicon) ou `Muvuca-x.y.z.dmg` (Intel) |
 | Linux | `Muvuca-x.y.z.AppImage` |
 
