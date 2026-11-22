@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: repositório reorganizado
+## 0.3.0 (22/11/2026): repositório reorganizado
 
 Nada muda na tela nem no jeito de usar. Muda onde cada arquivo fica.
 
