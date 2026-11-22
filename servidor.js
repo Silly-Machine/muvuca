@@ -15,13 +15,22 @@ import { caminhoAnexo, LIMITES_ANEXO } from './ajustes.js';
 import { lerJson, gravarJson, normalizarPreferencias, normalizarProjetos, infoProjeto, pastaPadrao } from './ajustes.js';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
-const PORTA = Number(process.env.PORTA || 4317);
+const PORTA = Number(process.env.MUVUCA_PORTA ?? process.env.PORTA ?? 4317);   // 0 = qualquer porta livre
+// Pasta de dados de quem usa (preferências, projetos, rotinas, memória, times salvos). Fica fora da pasta do app,
+// que num aplicativo instalado não pode ser escrita.
+const DADOS = path.resolve(process.env.MUVUCA_DADOS || path.join(os.homedir(), '.muvuca'));
+const ARQUIVOS_DE_DADOS = ['preferencias.json', 'projetos.json', 'rotinas.json', 'decisoes.log', 'agentes.local.json', 'memoria', 'times', '.pendente'];
+if (!await fs.stat(DADOS).catch(() => null)) {
+  await fs.mkdir(DADOS, { recursive: true });
+  // Quem já usava a Muvuca com os dados dentro da pasta do app leva tudo junto, uma vez só. Os originais ficam onde estão.
+  for (const n of ARQUIVOS_DE_DADOS) await fs.cp(path.join(AQUI, n), path.join(DADOS, n), { recursive: true, errorOnExist: false }).catch(() => {});
+}
 const arquivoCfg = path.resolve(AQUI, process.env.MUVUCA_CONFIG || process.env.ESTUDIO_CONFIG || 'agentes.json');
 const cfg = JSON.parse(await fs.readFile(arquivoCfg, 'utf8'));
 // Provedores dos outros arquivos de agentes entram na lista também: dá para trocar de provedor pela tela,
-// sem subir o servidor de novo com outro arquivo. Os do arquivo em uso têm prioridade.
-for (const extra of ['agentes.json', 'agentes.local.json']) {
-  const outros = (await lerJsonSimples(path.join(AQUI, extra)))?.provedores || {};
+// sem subir o servidor de novo com outro arquivo. Os do arquivo em uso têm prioridade; depois, os seus (agentes.local.json na pasta de dados).
+for (const extra of [path.join(DADOS, 'agentes.local.json'), path.join(AQUI, 'agentes.json')]) {
+  const outros = (await lerJsonSimples(extra))?.provedores || {};
   for (const [nome, p] of Object.entries(outros)) if (!cfg.provedores[nome]) cfg.provedores[nome] = p;
 }
 async function lerJsonSimples(arq) { try { return JSON.parse(await fs.readFile(arq, 'utf8')); } catch { return null; } }
@@ -29,7 +38,7 @@ const muvuca = new Muvuca(cfg);
 const BOOT = Date.now().toString(36);
 const VERSAO = JSON.parse(await fs.readFile(path.join(AQUI, 'package.json'), 'utf8')).version;
 // Ponto de restauração em disco: se o servidor cair com mudanças esperando decisão, elas voltam a aparecer ao subir.
-const PASTA_PENDENTE = path.join(AQUI, '.pendente');
+const PASTA_PENDENTE = path.join(DADOS, '.pendente');
 muvuca.aoMudarFoto = (foto, projeto) => salvarFoto(PASTA_PENDENTE, projeto, foto);
 {
   const guardado = await carregarFoto(PASTA_PENDENTE);
@@ -56,24 +65,51 @@ async function situacaoProvedor(nome, p) {
       const r = await rodar(process.platform === 'win32' ? 'where' : 'which', { args: [String(p.comando)], limiteMs: 8000 });
       comandoExiste.set(p.comando, r.codigo === 0);
     }
-    return comandoExiste.get(p.comando) ? { pronto: true, motivo: `usa o aplicativo "${p.comando}" logado neste computador` } : { pronto: false, motivo: `o comando "${p.comando}" não está instalado` };
+    if (!comandoExiste.get(p.comando)) return { pronto: false, motivo: `o comando "${p.comando}" não está instalado` };
+    const falta = await opcoesQueFaltam(p);
+    if (falta.length) return { pronto: false, motivo: `a versão instalada de "${p.comando}" não tem ${falta.length > 1 ? 'as opções' : 'a opção'} ${falta.join(', ')}: atualize o aplicativo` };
+    return { pronto: true, motivo: `usa o aplicativo "${p.comando}" logado neste computador` };
   }
   if (/TROQUE/i.test(`${p.baseUrl} ${p.modelo}`)) return { pronto: false, motivo: 'falta preencher endereço ou modelo no arquivo de agentes' };
   if (p.chaveEnv && !process.env[p.chaveEnv]) return { pronto: false, motivo: `falta a variável de ambiente ${p.chaveEnv}` };
   return { pronto: true, motivo: p.baseUrl || '' };
 }
+// As opções que a Muvuca passa ao aplicativo existem na versão instalada? Confere contra a ajuda dele ("--help"),
+// uma vez por comando. Sem isso, uma versão antiga falharia no meio do pedido com um erro difícil de entender.
+const ajudaDe = new Map();
+async function opcoesQueFaltam(p) {
+  if (process.env.MUVUCA_SEM_CONFERIR_CLI) return [];
+  if (!ajudaDe.has(p.comando)) {
+    const r = await rodar(String(p.comando), { args: ['--help'], limiteMs: 15000 });
+    ajudaDe.set(p.comando, r.codigo === 0 ? r.saida : null);
+  }
+  const ajuda = ajudaDe.get(p.comando);
+  if (!ajuda) return [];   // sem ajuda legível não dá para conferir: segue como antes
+  const usadas = [...new Set([...(p.args || []), ...(p.argsLeitura || []), p.argModelo].filter((a) => /^--[a-z]/.test(String(a))))];
+  return usadas.filter((o) => !new RegExp(`(^|[\\s,])${o}([\\s,=<\\[]|$)`, 'm').test(ajuda));
+}
+async function versaoDe(comando) {
+  const r = await rodar(String(comando), { args: ['--version'], limiteMs: 15000 });
+  return r.codigo === 0 ? r.saida.trim().split('\n')[0].slice(0, 60) : '';
+}
 const PASTA_PRONTOS = path.join(AQUI, 'arquiteturas');
-const PASTA_SALVOS = path.join(AQUI, 'times');
-// Configurações (aba da engrenagem) e projetos (aba da pasta): JSON simples na pasta do app.
-const ARQ_PREFS = path.join(AQUI, 'preferencias.json');
-const ARQ_PROJETOS = path.join(AQUI, 'projetos.json');
-let prefs = normalizarPreferencias(await lerJson(ARQ_PREFS, {}), { raiz: AQUI, cfg });
+const PASTA_SALVOS = path.join(DADOS, 'times');
+// Configurações (aba da engrenagem) e projetos (aba da pasta): JSON simples na pasta de dados.
+const ARQ_PREFS = path.join(DADOS, 'preferencias.json');
+const ARQ_PROJETOS = path.join(DADOS, 'projetos.json');
+// Pasta de projeto de fábrica: a irmã "teste-estudio" quando existe (quem roda do código-fonte); senão, uma pasta na casa do usuário.
+const PROJETO_FABRICA = await fs.stat(pastaPadrao(AQUI)).then((s) => s.isDirectory()).catch(() => false) ? pastaPadrao(AQUI) : path.join(os.homedir(), 'Muvuca', 'primeiro-projeto');
+const opcoesPrefs = { raiz: AQUI, cfg, padrao: PROJETO_FABRICA };
+const prefsGravadas = await lerJson(ARQ_PREFS, null);
+let prefs = normalizarPreferencias(prefsGravadas ?? {}, opcoesPrefs);
+// Quem já tinha preferências gravadas antes de existir a tela de boas-vindas não precisa passar por ela.
+if (prefsGravadas && prefsGravadas.inicioFeito === undefined) prefs.inicioFeito = true;
 const aplicarPrefs = () => { muvuca.maxCiclos = prefs.maxCiclos; muvuca.maxPassos = prefs.maxPassos; };
 aplicarPrefs();
 // Memória por agente (notas por projeto) e rotinas (pedidos agendados).
-const memoria = criarMemoria(path.join(AQUI, 'memoria'));
+const memoria = criarMemoria(path.join(DADOS, 'memoria'));
 muvuca.memoria = memoria;
-const ARQ_ROTINAS = path.join(AQUI, 'rotinas.json');
+const ARQ_ROTINAS = path.join(DADOS, 'rotinas.json');
 let rotinas = [];
 try {
   const bruto = await lerJson(ARQ_ROTINAS, []);
@@ -109,7 +145,7 @@ if (prefs.provedorTime && cfg.provedores[prefs.provedorTime] && (await situacaoP
 // escolhas de modelo por agente feitas na tela, para quem ainda está no time
 for (const [id, v] of Object.entries(prefs.niveis)) if (muvuca.agente(id)) muvuca.definirNivel(id, v);
 muvuca.eventos = muvuca.eventos.filter((e) => e.tipo !== 'nivel_agente');
-const lerProjetos = async () => { try { return normalizarProjetos(await lerJson(ARQ_PROJETOS, null) ?? [{ nome: 'teste-estudio', caminho: pastaPadrao(AQUI) }]); } catch { return []; } };
+const lerProjetos = async () => { try { return normalizarProjetos(await lerJson(ARQ_PROJETOS, null) ?? [{ nome: path.basename(prefs.projetoPadrao), caminho: prefs.projetoPadrao }]); } catch { return []; } };
 
 async function lerTimes(pasta, origem) {
   const nomes = (await fs.readdir(pasta).catch(() => [])).filter((n) => n.endsWith('.json')).sort();
@@ -186,15 +222,54 @@ const servidor = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, arquivo, time: t });
     }
     if (req.method === 'GET' && url.pathname === '/api/preferencias') {
-      return json(res, 200, { preferencias: prefs, pastaPadrao: pastaPadrao(AQUI), config: path.basename(arquivoCfg), deAmbiente: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || '' });
+      return json(res, 200, { preferencias: prefs, pastaPadrao: PROJETO_FABRICA, pastaDados: DADOS, config: path.basename(arquivoCfg), deAmbiente: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || '' });
     }
     if (req.method === 'POST' && url.pathname === '/api/preferencias') {
       const b = await corpo(req);
       if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
-      prefs = normalizarPreferencias({ ...prefs, ...b.preferencias }, { raiz: AQUI, cfg });
+      prefs = normalizarPreferencias({ ...prefs, ...b.preferencias }, opcoesPrefs);
       await gravarJson(ARQ_PREFS, prefs);
       aplicarPrefs();
       return json(res, 200, { ok: true, preferencias: prefs });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/inicio') {
+      // Tela de boas-vindas: o que já está pronto nesta máquina
+      const cli = Object.entries(cfg.provedores).find(([, p]) => p.tipo === 'cli' && p.comando === 'claude');
+      const s = cli ? await situacaoProvedor(cli[0], cli[1]) : { pronto: false, motivo: 'nenhum provedor usa o aplicativo "claude"' };
+      const instalado = !!cli && comandoExiste.get('claude') === true;
+      // logado? Só o sim ou não sai daqui: a resposta do aplicativo traz e-mail e organização, que não interessam à tela.
+      let logado = null;
+      if (instalado) { const r = await rodar('claude', { args: ['auth', 'status'], limiteMs: 15000 }); try { logado = JSON.parse(r.saida).loggedIn === true; } catch { logado = r.codigo === 0 ? null : false; } }
+      return json(res, 200, {
+        feito: prefs.inicioFeito, pasta: prefs.projetoPadrao, pastaExiste: !!(await infoProjeto(prefs.projetoPadrao)).existe, pastaDados: DADOS,
+        provedorAtual: provedorPadrao,
+        claude: { provedor: cli?.[0] || '', instalado, logado, pronto: s.pronto && logado !== false, motivo: logado === false ? 'o aplicativo "claude" está instalado, mas sem login: rode "claude" num terminal e entre na sua conta' : s.motivo, versao: instalado ? await versaoDe('claude') : '' },
+      });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/inicio') {
+      // Conclui as boas-vindas: cria a pasta do projeto se preciso, guarda como padrão e liga o provedor escolhido
+      const b = await corpo(req);
+      if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
+      const pasta = String(b.pasta || '').trim();
+      if (!pasta || !path.isAbsolute(pasta)) return json(res, 400, { erro: 'informe o caminho completo da pasta do projeto' });
+      const alvo = path.resolve(pasta);
+      const st = await fs.stat(alvo).catch(() => null);
+      if (st && !st.isDirectory()) return json(res, 400, { erro: 'esse caminho é um arquivo, não uma pasta' });
+      if (!st) await fs.mkdir(alvo, { recursive: true });
+      let provedor = '';
+      if (b.provedor && !cfg.provedores[b.provedor]) return json(res, 400, { erro: `provedor não encontrado: ${b.provedor}` });
+      if (b.provedor) {
+        const s = await situacaoProvedor(b.provedor, cfg.provedores[b.provedor]);
+        if (!s.pronto) return json(res, 400, { erro: `${b.provedor} não está pronto: ${s.motivo}` });
+        const p = cfg.provedores[b.provedor];
+        muvuca.usarProvedor(b.provedor, prefs.modelos[b.provedor] || p.modelos);
+        provedorPadrao = provedor = b.provedor;
+      }
+      prefs = normalizarPreferencias({ ...prefs, projetoPadrao: alvo, inicioFeito: true, ...(provedor && { provedorTime: provedor }) }, opcoesPrefs);
+      await gravarJson(ARQ_PREFS, prefs);
+      const lista = await lerProjetos();
+      if (!lista.some((x) => path.resolve(x.caminho) === alvo)) await gravarJson(ARQ_PROJETOS, normalizarProjetos([...lista, { nome: path.basename(alvo), caminho: alvo }]));
+      return json(res, 200, { ok: true, pasta: alvo, criada: !st, provedor });
     }
     if (req.method === 'GET' && url.pathname === '/api/projetos') {
       const lista = await lerProjetos();
@@ -221,7 +296,7 @@ const servidor = http.createServer(async (req, res) => {
       if (!s.pronto) return json(res, 400, { erro: `${b.nome} não está pronto: ${s.motivo}` });
       muvuca.usarProvedor(b.nome, b.modelos);
       provedorPadrao = b.nome;
-      prefs = normalizarPreferencias({ ...prefs, provedorTime: b.nome, modelos: { ...prefs.modelos, ...(p.modelos ? { [b.nome]: p.modelos } : {}) } }, { raiz: AQUI, cfg });
+      prefs = normalizarPreferencias({ ...prefs, provedorTime: b.nome, modelos: { ...prefs.modelos, ...(p.modelos ? { [b.nome]: p.modelos } : {}) } }, opcoesPrefs);
       await gravarJson(ARQ_PREFS, prefs);
       return json(res, 200, { ok: true });
     }
@@ -229,7 +304,7 @@ const servidor = http.createServer(async (req, res) => {
       const b = await corpo(req);
       muvuca.definirNivel(String(b.id || ''), String(b.nivel || ''));
       const niveis = { ...prefs.niveis }; if (b.nivel) niveis[b.id] = b.nivel; else delete niveis[b.id];
-      prefs = normalizarPreferencias({ ...prefs, niveis }, { raiz: AQUI, cfg });
+      prefs = normalizarPreferencias({ ...prefs, niveis }, opcoesPrefs);
       await gravarJson(ARQ_PREFS, prefs);
       return json(res, 200, { ok: true });
     }
@@ -248,7 +323,7 @@ const servidor = http.createServer(async (req, res) => {
           const historico = (Array.isArray(b.historico) ? b.historico : []).slice(-8)
             .map((m) => ({ role: m?.de === 'buzina' ? 'assistant' : 'user', content: String(m?.texto || '').slice(0, 1500) })).filter((m) => m.content);
           const pasta = path.join(os.tmpdir(), 'muvuca-buzina'); await fs.mkdir(pasta, { recursive: true });   // longe de qualquer projeto
-          const readme = await fs.readFile(path.join(AQUI, 'README.md'), 'utf8').catch(() => '');
+          const readme = await fs.readFile(path.join(AQUI, 'docs', 'guia.md'), 'utf8').catch(() => fs.readFile(path.join(AQUI, 'README.md'), 'utf8')).catch(() => '');
           const r = await chamar(prov, { sistema: sistemaBuzina(readme), mensagens: [...historico, { role: 'user', content: pergunta }], ferramentas: [], sinal: AbortSignal.timeout(90000), cwd: pasta, agente: { id: 'buzina', nome: 'Buzina', ferramentas: [] } });
           const texto = String(r.texto || '').trim();
           if (texto) return json(res, 200, { texto: texto.slice(0, 4000), fonte: prov.modelo || prov.nome });
@@ -339,7 +414,7 @@ const servidor = http.createServer(async (req, res) => {
       const b = await corpo(req); const pasta = muvuca.projeto;
       await muvuca.decidir(b.acao);
       // registro em disco: a conversa some ao reiniciar, e sem isto não dá para saber depois o que foi decidido
-      await fs.appendFile(path.join(AQUI, 'decisoes.log'), `${new Date().toISOString()}	${b.acao}	${pasta}
+      await fs.appendFile(path.join(DADOS, 'decisoes.log'), `${new Date().toISOString()}	${b.acao}	${pasta}
 `).catch(() => {});
       return json(res, 200, { ok: true });
     }
@@ -348,4 +423,9 @@ const servidor = http.createServer(async (req, res) => {
   } catch (e) { json(res, 400, { erro: e.message, ...(e.codigo && { codigo: e.codigo }) }); }
 });
 
-servidor.listen(PORTA, '127.0.0.1', () => console.log(`Muvuca em http://localhost:${PORTA}  (config: ${path.basename(arquivoCfg)})`));
+// "pronto" entrega a porta em uso: o comando "muvuca" e o aplicativo de mesa esperam por ela para abrir a tela.
+export const pronto = new Promise((resolve, reject) => {
+  servidor.once('error', (e) => { console.error(e.code === 'EADDRINUSE' ? `A porta ${PORTA} já está em uso. A Muvuca já está aberta? Para usar outra: MUVUCA_PORTA=4318` : e.message); reject(e); });
+  servidor.listen(PORTA, '127.0.0.1', () => { const porta = servidor.address().port; console.log(`Muvuca em http://localhost:${porta}  (dados em ${DADOS})`); resolve(porta); });
+});
+pronto.catch(() => { if (!process.versions.electron) process.exit(1); });

@@ -11,10 +11,10 @@ export async function lerJson(arquivo, padrao) {
 }
 export const gravarJson = (arquivo, dados) => fs.writeFile(arquivo, JSON.stringify(dados, null, 2) + '\n');
 
-// Pasta padrão: a irmã "teste-estudio", a mesma usada desde o começo.
+// Pasta padrão de quem roda do código-fonte: a irmã "teste-estudio". O servidor troca por uma pasta na casa do usuário quando ela não existe.
 export const pastaPadrao = (raiz) => path.resolve(raiz, '..', 'teste-estudio');
 
-export function normalizarPreferencias(p, { raiz, cfg = {} } = {}) {
+export function normalizarPreferencias(p, { raiz, cfg = {}, padrao } = {}) {
   p = p && typeof p === 'object' ? p : {};
   const projeto = texto(p.projetoPadrao, 400);
   // modelos escolhidos na tela, por provedor: { "claude-cli": { baixa, media, alta } }
@@ -30,13 +30,14 @@ export function normalizarPreferencias(p, { raiz, cfg = {} } = {}) {
     if (/^[a-z][a-z0-9-]*$/.test(id) && ['auto', 'baixa', 'media', 'alta'].includes(v)) niveis[id] = v;
   }
   return {
-    projetoPadrao: projeto ? path.resolve(projeto) : pastaPadrao(raiz),
+    projetoPadrao: projeto ? path.resolve(projeto) : (padrao || pastaPadrao(raiz)),
     comandoTeste: texto(p.comandoTeste, 200),
     maxCiclos: inteiro(p.maxCiclos, 0, 10, cfg.maxCiclos ?? 3),
     maxPassos: inteiro(p.maxPassos, 1, 60, cfg.maxPassos ?? 12),
     provedorTime: texto(p.provedorTime, 60),
     modelos,
     niveis,
+    inicioFeito: p.inicioFeito === true,   // já passou pela tela de boas-vindas
   };
 }
 

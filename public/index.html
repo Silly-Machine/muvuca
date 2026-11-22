@@ -426,6 +426,26 @@
   .barra-setas .hist { padding:4px 10px; font-size:13px; }
   #previa .agente.origem .mascote { filter:drop-shadow(0 0 9px var(--holofote)); } #previa .agente.origem .nome { color:var(--holofote); }
 
+  /* boas-vindas (primeira abertura) */
+  #boasVindas { border:0; padding:0; width:min(620px, calc(100vw - 32px)); max-height:calc(100vh - 32px); color:inherit; border-radius:28px;
+    background:var(--feltro), linear-gradient(180deg, #33292f, #2a2229); box-shadow:var(--fofo), 0 30px 80px -20px #000, 0 0 0 1.5px #f28a2e55; }
+  #boasVindas::backdrop { background:rgba(20,14,18,.72); backdrop-filter:blur(3px); }
+  #boasVindas form { padding:22px 26px 20px; display:flex; flex-direction:column; gap:14px; }
+  #boasVindas .topo { display:flex; align-items:center; gap:14px; } #boasVindas .topo img { width:74px; height:76px; flex:none; }
+  #boasVindas h2 { margin:0; font:600 24px var(--titulo); color:#f5a45a; } #boasVindas .topo p { margin:3px 0 0; color:var(--apagado); font-size:13.5px; }
+  #boasVindas h3 { margin:4px 0 0; font:600 15px var(--titulo); }
+  #boasVindas .opcoes { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  #boasVindas .opcao { display:block; padding:12px 14px; border-radius:18px; background:#00000026; box-shadow:inset 0 0 0 1.5px #ffffff14; cursor:pointer; }
+  #boasVindas .opcao:has(input:checked) { box-shadow:inset 0 0 0 2px #f28a2e; background:#f28a2e14; }
+  #boasVindas .opcao:has(input:disabled) { cursor:not-allowed; opacity:.62; }
+  #boasVindas .opcao b { display:block; font:600 15px var(--titulo); } #boasVindas .opcao small { display:block; color:var(--apagado); font-size:12.5px; margin-top:3px; line-height:1.35; }
+  #boasVindas .opcao input { float:right; accent-color:#f28a2e; }
+  #boasVindas .pasta { display:flex; gap:8px; } #boasVindas .pasta input { flex:1; min-width:0; }
+  #boasVindas .nota { color:var(--apagado); font-size:12.5px; margin:-6px 0 0; }
+  #boasVindas .fim { display:flex; align-items:center; gap:12px; justify-content:flex-end; } #boasVindas .fim span { flex:1; color:var(--rosa); font-size:13px; }
+  #bvConferir { font-size:12px; padding:3px 10px; margin-top:6px; }
+  @media (max-width:560px) { #boasVindas .opcoes { grid-template-columns:1fr; } }
+
   /* quadro de tarefas */
   .colunas { display:grid; grid-template-columns:repeat(5, minmax(150px, 1fr)); gap:10px; align-items:start; min-width:780px; }
   .coluna { background:#1d181c; border-radius:20px; box-shadow:inset 0 2px 8px rgba(0,0,0,.35); padding:10px 8px; min-height:140px; }
@@ -682,6 +702,22 @@
   <div id="fluxo" aria-live="polite"></div>
 </aside>
 
+<dialog id="boasVindas" aria-labelledby="bvTitulo">
+  <form method="dialog" id="bvForm">
+    <div class="topo"><img src="/bonecos/cartola-disponivel.webp" alt="">
+      <div><h2 id="bvTitulo">Boas-vindas à Muvuca</h2><p>Duas escolhas e o time já pode trabalhar. Tudo pode ser mudado depois, em Configurações.</p></div></div>
+    <h3>1. Quem faz o trabalho</h3>
+    <div class="opcoes">
+      <label class="opcao"><input type="radio" name="bvProv" value="claude" id="bvClaude"><b>Claude de verdade</b><small id="bvClaudeInfo">conferindo…</small>
+        <button type="button" id="bvConferir" hidden>Conferir de novo</button></label>
+      <label class="opcao"><input type="radio" name="bvProv" value="demo" id="bvDemo"><b>Demonstração</b><small>Roteiro simulado: sem conta, sem rede e sem custo. Bom para conhecer a tela.</small></label>
+    </div>
+    <h3>2. Onde o time trabalha</h3>
+    <div class="pasta"><input id="bvPasta" type="text" spellcheck="false" autocomplete="off" aria-label="Pasta do projeto"><button type="button" id="bvEscolher" hidden>Escolher…</button></div>
+    <p class="nota">O time só lê e escreve dentro dessa pasta. Se ela não existir, a Muvuca cria. No fim de cada pedido você vê o que mudou e decide se mantém.</p>
+    <div class="fim"><span id="bvErro" role="alert"></span><button type="submit" id="bvComecar">Começar</button></div>
+  </form>
+</dialog>
 <script>
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
@@ -2219,6 +2255,43 @@ async function carregarConfig() {
 $('#texto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
 document.addEventListener('keydown', (e) => { if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#texto').focus(); } });
 
+/* ---------- boas-vindas: primeira abertura ---------- */
+// No aplicativo de mesa, "window.muvucaDesktop" traz o seletor de pasta do sistema.
+const desktop = window.muvucaDesktop || null;
+async function escolherPastaEm(campo) { const p = await desktop.escolherPasta(campo.value); if (p) { campo.value = p; campo.dispatchEvent(new Event('input', { bubbles: true })); } }
+if (desktop) for (const id of ['pCaminho', 'cfProjeto']) {
+  const campo = $('#' + id); if (!campo) continue;
+  const b = el('button', 'pequeno', 'Escolher…'); b.type = 'button'; b.onclick = () => escolherPastaEm(campo); campo.after(b);
+}
+async function boasVindas(forcar = false) {
+  const ler = async () => (await fetch('/api/inicio')).json();
+  let j = await ler(); if (j.feito && !forcar) return;
+  const pintar = () => {
+    const c = j.claude, info = $('#bvClaudeInfo');
+    $('#bvClaude').disabled = !c.pronto; $('#bvConferir').hidden = c.pronto;
+    info.textContent = c.pronto ? `Usa o aplicativo "claude" logado neste computador (${c.versao || 'versão não informada'}). Vale a sua assinatura.`
+      : !c.instalado ? 'O aplicativo "claude" (Claude Code) não foi encontrado. Instale, faça login e clique em "Conferir de novo".' : c.motivo + '.';
+    if (c.pronto && !$('#bvDemo').checked) $('#bvClaude').checked = true; else if (!c.pronto) $('#bvDemo').checked = true;
+  };
+  $('#bvPasta').value = j.pasta; $('#bvEscolher').hidden = !desktop; pintar();
+  $('#bvEscolher').onclick = () => escolherPastaEm($('#bvPasta'));
+  $('#bvConferir').onclick = async (e) => { e.preventDefault(); $('#bvClaudeInfo').textContent = 'conferindo…'; j = await ler(); pintar(); };
+  const d = $('#boasVindas');
+  d.addEventListener('cancel', (e) => e.preventDefault());   // Esc não pula as escolhas
+  $('#bvForm').onsubmit = async (e) => {
+    e.preventDefault(); $('#bvErro').textContent = ''; $('#bvComecar').disabled = true;
+    try {
+      const provedor = $('#bvClaude').checked ? j.claude.provedor : 'demo';
+      const r = await fetch('/api/inicio', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pasta: $('#bvPasta').value.trim(), provedor }) });
+      const k = await r.json(); if (!r.ok) throw new Error(k.erro || 'não deu para concluir');
+      $('#projeto').value = k.pasta; try { localStorage.setItem('muvuca.projeto', k.pasta); } catch {}
+      await carregarConfig(); await lerProjetos(); d.close();
+    } catch (err) { $('#bvErro').textContent = err.message; }
+    $('#bvComecar').disabled = false;
+  };
+  d.showModal();
+}
+
 (async () => {
   const c = await carregarConfig();
   let salvo = ''; try { salvo = localStorage.getItem('muvuca.projeto') || localStorage.getItem('estudio.projeto') || ''; } catch {}
@@ -2228,6 +2301,7 @@ document.addEventListener('keydown', (e) => { if (e.ctrlKey && e.key.toLowerCase
   // ?vitrine=pensando,trabalhando,concluido,aguardando,disponivel mostra os estados sem rodar nada
   const vitrine = new URLSearchParams(location.search).get('vitrine');
   if (vitrine) { vitrine.split(',').forEach((e, i) => agentes[i] && estado(agentes[i].id, e)); return; }
+  boasVindas(new URLSearchParams(location.search).has('boasvindas')).catch(() => {});
   const fonte = new EventSource('/api/eventos'); const luz = $('#conexao');
   fonte.onopen = () => { luz.classList.add('viva'); luz.title = 'conectado ao servidor'; };
   fonte.onerror = () => { luz.classList.remove('viva'); luz.title = 'sem conexão com o servidor'; };

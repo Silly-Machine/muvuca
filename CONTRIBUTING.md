@@ -1,0 +1,52 @@
+# Como contribuir
+
+Obrigado pelo interesse na Muvuca. Este arquivo mostra como rodar o projeto, o que conferir antes de mandar uma mudança e as convenções do código.
+
+## Rodar
+
+Precisa de Node 20 ou mais novo.
+
+```sh
+git clone https://github.com/Silly-Machine/muvuca.git
+cd muvuca
+npm start
+```
+
+O servidor não tem dependências, então `npm install` só é necessário para o aplicativo de mesa:
+
+```sh
+npm install
+npm run app            # abre o aplicativo de mesa em modo de desenvolvimento
+npm run instalador     # gera o instalador do sistema em que você está (pasta dist/)
+```
+
+A tela (`public/index.html`) é lida do disco a cada pedido: basta recarregar a página. Mudanças nos arquivos do servidor pedem reinício.
+
+Para não misturar testes com os seus dados, use outra pasta de dados: `npm start -- --dados ./dados-de-teste --porta 4320`.
+
+## Antes de mandar
+
+1. `npm test` passa. São 43 testes, cerca de 1 minuto.
+2. Se a mudança mexe em rotas do servidor, rode a bateria ao vivo: com o servidor em modo demonstração e a pasta padrão vazia, `node apoio/bateria.mjs`.
+3. Se a mudança aparece na tela, abra e confira no navegador. Diga no pull request o que você conferiu.
+4. Comportamento novo vem com teste. Correção de erro vem com um teste que falhava antes.
+5. Atualize o `CHANGELOG.md` e, quando o comportamento muda para quem usa, o `docs/guia.md`.
+
+## Convenções
+
+- **Português do Brasil** em nomes, comentários, mensagens e documentação, com todos os acentos.
+- **Sem dependências no servidor.** Só módulos do próprio Node. Dependência nova, só de desenvolvimento e com motivo.
+- **Sem framework na tela.** HTML, CSS e JavaScript num arquivo só.
+- **Comentário explica o porquê**, não repete o que a linha faz.
+- **Nenhuma chave em arquivo.** Provedores por API leem a chave de uma variável de ambiente.
+- **O time só escreve na pasta do projeto.** Toda ferramenta nova passa pela função `dentro()` de `ferramentas.js`.
+
+## Relatar um erro
+
+Abra uma issue com: o que você fez, o que esperava, o que aconteceu, a versão (aparece ao lado do título, na tela), o sistema operacional e, se usou o Claude de verdade, a saída de `claude --version`. Se o erro apareceu na conversa, copie o texto dele.
+
+Para falhas de segurança, não abra issue pública: escreva para os mantenedores pela aba Security do repositório.
+
+## Versões
+
+O número segue `maior.menor.correção`. Uma tag `v1.2.3` no repositório dispara a geração dos instaladores e a publicação na página de Releases.

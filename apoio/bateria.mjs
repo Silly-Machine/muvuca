@@ -37,6 +37,7 @@ if (!c0.agentes.every((a) => a.tipo === 'demo')) { console.log('O time não est�
 if (!(await vazia(PROJETO))) { console.log(`A pasta ${PROJETO} não está vazia: a bateria não mexe em pasta com conteúdo.`); process.exit(2); }
 if ((await eventos())[0]?.pendente) { console.log('Há mudanças esperando decisão: decida antes de rodar.'); process.exit(2); }
 const prefs0 = (await get('/api/preferencias')).j.preferencias;
+const DADOS = (await get('/api/preferencias')).j.pastaDados;   // onde o servidor guarda preferências e o ponto de restauração
 const rotinas0 = (await get('/api/rotinas')).j.rotinas;
 const projetos0 = (await get('/api/projetos')).j.projetos.map(({ nome, caminho }) => ({ nome, caminho }));
 const times0 = (await get('/api/times')).j;
@@ -93,11 +94,11 @@ ok('os arquivos existem na pasta', (await fs.readdir(PROJETO)).sort().join() ===
 // com decisão pendente
 ok('nova conversa com decisão pendente é recusada', (await post('/api/nova')).s === 400);
 { const r = await post('/api/time', { time: timeArquivo }); ok('trocar time com decisão pendente pede a decisão (código "decisao")', r.s === 400 && r.j?.codigo === 'decisao', JSON.stringify(r)); }
-ok('ponto de restauração gravado em disco', await fs.stat(path.join(AQUI, '.pendente', 'manifesto.json')).then(() => true, () => false));
+ok('ponto de restauração gravado em disco', await fs.stat(path.join(DADOS, '.pendente', 'manifesto.json')).then(() => true, () => false));
 ok('decisão inválida é recusada', (await post('/api/decidir', { acao: 'talvez' })).s === 400);
 ok('descartar funciona', (await post('/api/decidir', { acao: 'descartar' })).s === 200);
 ok('a pasta voltou a ficar vazia', await vazia(PROJETO));
-ok('o ponto de restauração saiu do disco', await fs.stat(path.join(AQUI, '.pendente')).then(() => false, () => true));
+ok('o ponto de restauração saiu do disco', await fs.stat(path.join(DADOS, '.pendente')).then(() => false, () => true));
 
 // ---------- 5. manter mudanças e pedido direto
 secao('Manter mudanças e pedido direto');

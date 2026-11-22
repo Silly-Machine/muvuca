@@ -70,3 +70,28 @@ Primeira versão: orquestração com líder, subagentes, portão de testes e rev
 - `agentes.exemplo-claude.json`: a configuração do aplicativo `claude` que foi testada, pronta para copiar para `agentes.local.json`.
 - README com o começo reescrito e a tabela do que foi testado em dia.
 - Limitação conhecida: descartar as mudanças não apaga a pasta `anexos/`, porque os anexos são seus, não do time.
+
+## 0.2.0 (22/11/2026): instalável e pronta para compartilhar
+
+### Novo
+
+- **Aplicativo de mesa** (Electron) para Windows, macOS e Linux. Sobe o mesmo servidor local numa porta livre e mostra a tela numa janela, com seletor de pasta do sistema e aviso ao fechar no meio de um pedido. Os instaladores são gerados pelo GitHub Actions a cada tag de versão.
+- **Comando `muvuca`**: `npx github:Silly-Machine/muvuca` ou `npm start` sobem o servidor e abrem o navegador. Opções `--porta`, `--dados`, `--sem-abrir`.
+- **Boas-vindas na primeira abertura**: duas escolhas, quem faz o trabalho (Claude de verdade ou demonstração) e a pasta do projeto, que a Muvuca cria se não existir.
+- **O Claude Code já vem configurado.** O provedor `claude-cli` testado faz parte de `agentes.json`; não é mais preciso copiar arquivo à mão.
+- **Conferência da versão do `claude`**: a Muvuca compara as opções que usa com a ajuda do aplicativo instalado e, se faltar alguma, diz qual em vez de falhar no meio do pedido. Também avisa quando ele está instalado mas sem login.
+- Testes automáticos em Windows, macOS e Linux a cada envio.
+
+### Mudou
+
+- **Seus dados saíram da pasta do aplicativo** e foram para `~/.muvuca` (preferências, projetos, rotinas, memória, times salvos, `agentes.local.json`). Na primeira abertura, o que existia na pasta antiga é copiado. `MUVUCA_DADOS` ou `--dados` trocam o lugar.
+- A pasta de projeto de fábrica passou a ser `~/Muvuca/primeiro-projeto` (quem roda do código-fonte com a pasta irmã `teste-estudio` continua nela).
+- `MUVUCA_PORTA` escolhe a porta (0 pega uma livre); porta ocupada vira um aviso claro.
+- README reescrito; o conteúdo técnico foi para `docs/guia.md`, que a Buzina usa para responder.
+- Licença MIT.
+
+### Limitações conhecidas
+
+- Os instaladores não são assinados: Windows e macOS avisam na primeira abertura.
+- Sem atualização automática: para atualizar, baixe o instalador novo.
+- O pacote ainda não está no npm.

@@ -1,12 +1,104 @@
 {
   "name": "muvuca",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Reconstrução didática de um painel multiagente (líder + subagentes + portão de teste)",
-  "engines": { "node": ">=20" },
+  "description": "Painel local para trabalhar com um time de agentes de IA: líder, subagentes, portão de testes e revisor.",
+  "author": "Silly Machine",
+  "license": "MIT",
+  "homepage": "https://github.com/Silly-Machine/muvuca",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Silly-Machine/muvuca.git"
+  },
+  "keywords": [
+    "claude",
+    "agentes",
+    "multiagente",
+    "orquestração",
+    "electron"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "electron/main.cjs",
+  "bin": {
+    "muvuca": "bin/muvuca.js"
+  },
+  "files": [
+    "bin/",
+    "public/",
+    "arquiteturas/",
+    "*.js",
+    "agentes.json",
+    "agentes.exemplo-misto.json",
+    "catalogo-agentes.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "docs/guia.md"
+  ],
   "scripts": {
-    "start": "node servidor.js",
-    "test": "node --test"
+    "start": "node bin/muvuca.js",
+    "servidor": "node servidor.js",
+    "test": "node --test",
+    "app": "electron .",
+    "instalador": "electron-builder --publish never",
+    "pasta-do-app": "electron-builder --dir --publish never"
+  },
+  "build": {
+    "appId": "dev.sillymachine.muvuca",
+    "productName": "Muvuca",
+    "copyright": "Copyright © 2026 Silly Machine",
+    "asar": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "electron/recursos"
+    },
+    "files": [
+      "electron/main.cjs",
+      "electron/preload.cjs",
+      "electron/recursos/icon.png",
+      "public/**",
+      "arquiteturas/**",
+      "*.js",
+      "agentes.json",
+      "catalogo-agentes.json",
+      "README.md",
+      "package.json",
+      "docs/guia.md",
+      "agentes.exemplo-misto.json",
+      "LICENSE"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "electron/recursos/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Muvuca"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "electron/recursos/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development",
+      "icon": "electron/recursos/icon.png"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
   }
 }
