@@ -158,7 +158,7 @@ Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada 
 
 ## Contribuir
 
-Ideias, relatos de erro e correções são bem-vindos. Veja [CONTRIBUTING.md](CONTRIBUTING.md) para rodar o projeto e os testes, e o [histórico de mudanças](CHANGELOG.md) para o que já entrou.
+Ideias, relatos de erro e correções são bem-vindos. Veja [CONTRIBUTING.md](CONTRIBUTING.md) para rodar o projeto e os testes, o [histórico de mudanças](CHANGELOG.md) para o que já entrou e [como as versões são lançadas](docs/versoes.md).
 
 ## Licença
 

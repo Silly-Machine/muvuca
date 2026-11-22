@@ -49,4 +49,4 @@ Para falhas de segurança, não abra issue pública: escreva para os mantenedore
 
 ## Versões
 
-O número segue `maior.menor.correção`. Uma tag `v1.2.3` no repositório dispara a geração dos instaladores e a publicação na página de Releases.
+O número segue `maior.menor.correção`. Cada mudança que quem usa vai notar ganha uma linha na seção "Em andamento" do `CHANGELOG.md`. Para lançar: `npm run lancar -- correcao` (ou `menor`, `maior`). A tag criada dispara a geração dos instaladores e a publicação na página de Releases. O processo completo está em [docs/versoes.md](docs/versoes.md).

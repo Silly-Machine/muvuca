@@ -42,6 +42,7 @@
     "start": "node bin/muvuca.js",
     "servidor": "node servidor.js",
     "test": "node --test",
+    "lancar": "node apoio/versao.mjs lancar",
     "app": "electron .",
     "instalador": "electron-builder --publish never",
     "pasta-do-app": "electron-builder --dir --publish never"

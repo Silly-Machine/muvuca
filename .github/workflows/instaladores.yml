@@ -1,18 +1,38 @@
 name: Instaladores
 
 # Gera os instaladores do aplicativo de mesa. Roda quando uma versão é marcada (tag "v1.2.3")
-# ou à mão, pela aba Actions. Com tag, os arquivos vão para a página de Releases.
+# ou à mão, pela aba Actions. Com tag, os arquivos vão para a página de Releases, com as notas
+# tiradas do CHANGELOG.md. Como lançar: docs/versoes.md.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
+# Duas publicações da mesma versão nunca correm juntas.
+concurrency:
+  group: instaladores-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
 jobs:
+  conferir:
+    name: Conferir a versão
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Com tag: ela tem de bater com o package.json. Sempre: a versão precisa de notas no CHANGELOG.
+      - name: Tag, package.json e CHANGELOG batem?
+        run: node apoio/versao.mjs conferir ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+
   instalador:
     name: ${{ matrix.nome }}
+    needs: conferir
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -50,15 +70,41 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: instalador
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/download-artifact@v4
         with:
           path: arquivos
           merge-multiple: true
-      - name: Criar a versão com os instaladores
-        run: gh release create "$TAG" arquivos/* --repo "$GITHUB_REPOSITORY" --title "Muvuca ${TAG#v}" --generate-notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+      - name: Somas de verificação
+        working-directory: arquivos
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Notas da versão
+        run: |
+          VERSAO="${TAG#v}"
+          {
+            node apoio/versao.mjs notas "$VERSAO"
+            cat .github/notas-de-instalacao.md
+          } > notas.md
+          cat notas.md
+      - name: Publicar
+        run: |
+          OPCOES=()
+          # versão com sufixo (1.0.0-beta.1) sai como pré-lançamento e não vira a "mais recente"
+          case "$TAG" in *-*) OPCOES+=(--prerelease --latest=false) ;; esac
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            # reexecução: troca os arquivos e as notas da versão que já existe
+            gh release upload "$TAG" arquivos/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Muvuca ${TAG#v}" --notes-file notas.md
+          else
+            gh release create "$TAG" arquivos/* --repo "$GITHUB_REPOSITORY" --verify-tag --title "Muvuca ${TAG#v}" --notes-file notas.md "${OPCOES[@]}"
+          fi
