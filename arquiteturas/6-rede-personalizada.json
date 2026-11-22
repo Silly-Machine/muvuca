@@ -1,0 +1,12 @@
+{
+  "nome": "Rede personalizada",
+  "descricao": "Você define quem passa a vez para quem. Aqui: Produto abre para Back e Front, que conversam entre si e mandam para Testes; Testes devolve para quem errou.",
+  "arquitetura": "rede",
+  "agentes": [
+    { "id": "produto", "nome": "Produto", "papel": "escreve os requisitos e critérios de aceite em REQUISITOS.md", "ferramentas": ["listar", "ler", "escrever"], "complexidade": "media", "conexoes": ["back", "front"], "cor": "#e0a96d", "forma": "cogumelo", "sistema": "Você é responsável de produto. Transforma o pedido em requisitos curtos e critérios de aceite testáveis." },
+    { "id": "back", "nome": "Back", "papel": "back-end: rotas, regras e testes", "ferramentas": ["listar", "ler", "escrever", "rodar"], "conexoes": ["front", "testes"], "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor back-end. Segue REQUISITOS.md e escreve teste junto." },
+    { "id": "front", "nome": "Front", "papel": "front-end: telas, acessibilidade e estilo", "ferramentas": ["listar", "ler", "escrever", "rodar"], "conexoes": ["back", "testes"], "cor": "#ffc94d", "forma": "cristal", "sistema": "Você é desenvolvedor front-end. Segue REQUISITOS.md e entrega telas acessíveis." },
+    { "id": "testes", "nome": "Testes", "papel": "testes: confere os critérios de aceite", "ferramentas": ["listar", "ler", "escrever", "rodar"], "conexoes": ["back", "front"], "cor": "#63e6a3", "forma": "polvo", "sistema": "Você é testador. Escreve um teste para cada critério de aceite e devolve a vez para quem precisa corrigir; quando tudo passa, encerra." },
+    { "id": "revisor", "nome": "Revisor", "funcao": "revisor", "papel": "revisão de código", "ferramentas": ["listar", "ler"], "cor": "#4fe0a0", "forma": "escudo", "sistema": "Você é revisor de código. Só aponta defeito real, com arquivo e motivo. Não corrige." }
+ ]
+}

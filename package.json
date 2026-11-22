@@ -1,0 +1,12 @@
+{
+  "name": "muvuca",
+  "version": "0.1.6",
+  "private": true,
+  "type": "module",
+  "description": "Reconstrução didática de um painel multiagente (líder + subagentes + portão de teste)",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node servidor.js",
+    "test": "node --test"
+  }
+}

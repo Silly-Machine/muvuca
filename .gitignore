@@ -1,0 +1,18 @@
+# arquivos desta máquina (a Muvuca recria com valores de fábrica)
+agentes.local.json
+preferencias.json
+projetos.json
+rotinas.json
+decisoes.log
+memoria/
+times/
+.pendente/
+
+# resultados de testes ao vivo
+apoio/*-resultado.json
+apoio/*.log
+
+node_modules/
+.env
+.env.*
+.claude/

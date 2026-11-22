@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="mascote" data-estado="disponivel" width="320" height="340" viewBox="0 0 160 170" role="img" aria-label="Cristal lapidado (front-end)">
+    <style>
+  .mascote * { transform-box:fill-box; transform-origin:center; }
+
+  /* animações por parte do corpo */
+  .corpo { animation:respirar 3.4s ease-in-out infinite; animation-delay:calc(var(--i) * -700ms); }
+  .sombra { animation:sombra 3.4s ease-in-out infinite; animation-delay:calc(var(--i) * -700ms); }
+  .o-normal { animation:piscar 5s infinite; animation-delay:calc(var(--i) * -1300ms); }
+  .antena, .tufo { transform-origin:50% 100%; animation:balancar 2.8s ease-in-out infinite; }
+  .led { animation:led 1.6s infinite; } .led:nth-of-type(2n) { animation-delay:.5s; } .led:nth-of-type(3n) { animation-delay:.9s; }
+  .faceta-brilho { animation:brilho 3.6s ease-in-out infinite; }
+  .giro { animation:girar 10s linear infinite; } [data-estado=trabalhando] .giro { animation-duration:2.4s; }
+  @keyframes girar { to { transform:rotate(360deg); } }
+  .pupila { animation:olhar 6s ease-in-out infinite; }
+  @keyframes respirar { 50% { transform:translateY(-5px); } }
+  @keyframes sombra { 50% { transform:scaleX(.88); opacity:.7; } }
+  @keyframes piscar { 0%, 93%, 100% { transform:scaleY(1); } 96% { transform:scaleY(.08); } }
+  @keyframes balancar { 0%, 100% { transform:rotate(-7deg); } 50% { transform:rotate(7deg); } }
+  @keyframes led { 0%, 100% { opacity:.25; } 40% { opacity:1; } }
+  @keyframes brilho { 0%, 100% { opacity:.15; } 50% { opacity:.6; } }
+  @keyframes olhar { 0%, 30%, 100% { transform:translateX(0); } 40%, 55% { transform:translateX(-5px); } 65%, 85% { transform:translateX(5px); } }
+
+  .o-foco, .o-feliz, .o-susto, .b-reta, .b-aberta, .bochecha, .notebook, .digitando, .alerta, .estrelas { display:none; }
+  /* pensando: inclina, olha para cima, bolha de três pontos */
+  [data-estado=pensando] .corpo { animation:pensar 1.6s ease-in-out infinite; }
+  [data-estado=pensando] .o-normal { animation:none; transform:translateY(-3px); }
+  [data-estado=pensando] .digitando { display:inline; }
+  .digitando circle { animation:ponto 1.1s infinite; } .digitando circle:nth-of-type(2) { animation-delay:.18s; } .digitando circle:nth-of-type(3) { animation-delay:.36s; }
+  @keyframes pensar { 0%, 100% { transform:rotate(-4deg) translateY(-2px); } 50% { transform:rotate(4deg) translateY(-6px); } }
+  @keyframes ponto { 0%, 60%, 100% { transform:translateY(0); opacity:.4; } 30% { transform:translateY(-3px); opacity:1; } }
+  /* trabalhando: olhos de foco, notebook, mãos e pés batucando */
+  [data-estado=trabalhando] .corpo { animation:digitar .32s ease-in-out infinite; }
+  [data-estado=trabalhando] :is(.o-normal, .b-curva) { display:none; }
+  [data-estado=trabalhando] :is(.o-foco, .b-reta, .notebook) { display:inline; }
+  [data-estado=trabalhando] .mao-e { animation:tecla .22s ease-in-out infinite; } [data-estado=trabalhando] .mao-d { animation:tecla .22s ease-in-out -.11s infinite; }
+  [data-estado=trabalhando] .pe-e { animation:tecla .44s ease-in-out infinite; } [data-estado=trabalhando] .pe-d { animation:tecla .44s ease-in-out -.22s infinite; }
+  [data-estado=trabalhando] .led { animation-duration:.35s; } [data-estado=trabalhando] .pupila { animation-duration:1.2s; }
+  .tela-linha { animation:codigo 1s steps(4) infinite; transform-origin:0 50%; } .tela-linha:nth-of-type(2n) { animation-delay:-.4s; }
+  @keyframes digitar { 50% { transform:translateY(1.5px); } }
+  @keyframes tecla { 50% { transform:translateY(-3px); } }
+  @keyframes codigo { from { transform:scaleX(.2); } to { transform:scaleX(1); } }
+  /* concluído: pulo, olhos felizes, bochechas, estrelinhas */
+  [data-estado=concluido] .corpo { animation:pular .7s cubic-bezier(.3,1.6,.5,1) 2; }
+  [data-estado=concluido] :is(.o-normal, .b-curva) { display:none; }
+  [data-estado=concluido] :is(.o-feliz, .b-aberta, .bochecha, .estrelas) { display:inline; }
+  .estrelas circle { animation:estourar .9s ease-out both; } .estrelas circle:nth-of-type(2) { animation-delay:.1s; } .estrelas circle:nth-of-type(3) { animation-delay:.2s; } .estrelas circle:nth-of-type(4) { animation-delay:.15s; }
+  @keyframes pular { 40% { transform:translateY(-18px) scale(.97, 1.04); } 70% { transform:translateY(0) scale(1.04, .96); } }
+  @keyframes estourar { from { transform:scale(0); opacity:1; } to { transform:scale(1.4) translateY(-14px); opacity:0; } }
+  /* aguardando você: olhos arregalados, tremidinha, alerta */
+  [data-estado=aguardando] .corpo { animation:tremer .28s linear infinite; }
+  [data-estado=aguardando] :is(.o-normal, .b-curva) { display:none; }
+  [data-estado=aguardando] :is(.o-susto, .b-reta, .alerta) { display:inline; }
+  .alerta { animation:pular .8s ease-in-out infinite; }
+  @keyframes tremer { 25% { transform:translateX(-1.5px); } 75% { transform:translateX(1.5px); } }
+  @media (prefers-reduced-motion: reduce) { .mascote * { animation:none !important; transition:none !important; } }
+</style>
+    <defs>
+      <radialGradient id="g-cristal" cx="34%" cy="26%" r="85%"><stop offset="0" stop-color="#ffde91"/><stop offset=".55" stop-color="#ffc94d"/><stop offset="1" stop-color="#9f7b3e"/></radialGradient>
+      <linearGradient id="g-cristall" x1="0" x2="1"><stop offset="0" stop-color="#ffc94d"/><stop offset=".55" stop-color="#ffc94d"/><stop offset="1" stop-color="#9f7b3e"/></linearGradient>
+    </defs>
+    <ellipse class="sombra" cx="80" cy="158" rx="46" ry="8" fill="#000" opacity=".45"/>
+    <g class="corpo"><ellipse class="pe-e" cx="66" cy="152" rx="11" ry="6.5" fill="#9f7b3e"/><ellipse class="pe-d" cx="94" cy="152" rx="11" ry="6.5" fill="#9f7b3e"/>
+    <polygon points="80,26 124,56 80,80 36,56" fill="#ffde91"/>
+    <polygon points="36,56 80,80 80,148 44,120" fill="#ffc94d"/>
+    <polygon points="124,56 80,80 80,148 116,120" fill="#9f7b3e"/>
+    <polygon class="faceta-brilho" points="80,26 102,41 80,54 58,41" fill="#fff"/>
+    <g transform="translate(-18 6) skewY(14)"><g class="rosto">
+    <g class="o-normal"><g><ellipse cx="64" cy="86" rx="5.8" ry="7.25" fill="#1d1620"/><circle cx="66.03" cy="83.1" r="1.914" fill="#fff"/></g><g><ellipse cx="86" cy="86" rx="5.8" ry="7.25" fill="#1d1620"/><circle cx="88.03" cy="83.1" r="1.914" fill="#fff"/></g></g>
+    <g class="o-foco" fill="none" stroke="#1d1620" stroke-width="4.5" stroke-linecap="round"><path d="M58.2 86h11.6"/><path d="M80.2 86h11.6"/></g>
+    <g class="o-feliz" fill="none" stroke="#1d1620" stroke-width="4.5" stroke-linecap="round"><path d="M58.2 89q5.8 -9.86 11.6 0"/><path d="M80.2 89q5.8 -9.86 11.6 0"/></g>
+    <g class="o-susto"><circle cx="64" cy="86" r="7.83" fill="#fff"/><circle cx="64" cy="86" r="3.19" fill="#1d1620"/><circle cx="86" cy="86" r="7.83" fill="#fff"/><circle cx="86" cy="86" r="3.19" fill="#1d1620"/></g>
+    <ellipse class="bochecha" cx="56.46" cy="97.02" rx="5.8" ry="3.48" fill="#ff7b96" opacity=".55"/><ellipse class="bochecha" cx="93.54" cy="97.02" rx="5.8" ry="3.48" fill="#ff7b96" opacity=".55"/>
+    <path class="b-curva" d="M70 100.5q5 5 10 0" fill="none" stroke="#1d1620" stroke-width="3" stroke-linecap="round"/>
+    <path class="b-reta" d="M71 101.5h8" fill="none" stroke="#1d1620" stroke-width="3" stroke-linecap="round"/>
+    <path class="b-aberta" d="M68 99.5h14a7 7 0 0 1 -14 0z" fill="#1d1620"/>
+  </g></g>
+    <circle class="mao-e" cx="30" cy="104" r="7.5" fill="#ffde91"/><circle class="mao-d" cx="130" cy="104" r="7.5" fill="#ffde91"/>
+      <g class="notebook"><path d="M50 150h60l5 9h-70z" fill="#cfcbe0"/><rect x="54" y="122" width="52" height="30" rx="4" fill="#2a2638"/><rect x="58" y="126" width="44" height="22" rx="2" fill="#16131f"/>
+        <rect class="tela-linha" x="62" y="130" width="30" height="2.5" rx="1" fill="#ffde91"/><rect class="tela-linha" x="62" y="136" width="22" height="2.5" rx="1" fill="#63e6a3"/><rect class="tela-linha" x="62" y="142" width="34" height="2.5" rx="1" fill="#ffd27a"/></g>
+    </g>
+    <g class="digitando"><rect x="104" y="6" width="46" height="22" rx="11" fill="#f1ecdf"/><circle cx="116" cy="17" r="3" fill="#4a4460"/><circle cx="127" cy="17" r="3" fill="#4a4460"/><circle cx="138" cy="17" r="3" fill="#4a4460"/></g>
+    <g class="alerta"><circle cx="130" cy="20" r="13" fill="#ff7b96"/><path d="M130 12v9" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/><circle cx="130" cy="26.5" r="2" fill="#fff"/></g>
+    <g class="estrelas"><circle cx="30" cy="40" r="4" fill="#ffd27a"/><circle cx="134" cy="36" r="5" fill="#63e6a3"/><circle cx="20" cy="84" r="3" fill="#ff7b96"/><circle cx="142" cy="80" r="3.5" fill="#ffde91"/></g>
+  </svg>
