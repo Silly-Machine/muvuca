@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: a tela deixou de ser um arquivo só
+## 0.3.1 (22/11/2026): a tela deixou de ser um arquivo só
 
 Nada muda no que você vê nem no jeito de usar.
 
