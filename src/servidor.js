@@ -183,15 +183,17 @@ const servidor = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
       return res.end(await fs.readFile(path.join(RAIZ, 'public', 'index.html')));
     }
-    // imagens dos personagens: só nomes do tipo forma-estado.webp, sem caminho
-    const boneco = req.method === 'GET' && /^\/bonecos\/([a-z]+-[a-z]+\.webp)$/.exec(url.pathname);
-    if (boneco) {
-      const arq = path.join(RAIZ, 'public', 'bonecos', boneco[1]);
+    // Arquivos da tela: imagens dos personagens (forma-estado.webp), estilos e scripts. Só nomes simples dentro
+    // das três pastas conhecidas; nada de subir de pasta nem de servir outro tipo de arquivo.
+    const estatico = req.method === 'GET' && (/^\/(bonecos)\/([a-z]+-[a-z]+\.webp)$/.exec(url.pathname) || /^\/(css)\/([a-z0-9-]+\.css)$/.exec(url.pathname) || /^\/(js)\/((?:[a-z0-9-]+\/)?[a-z0-9-]+\.js)$/.exec(url.pathname));
+    if (estatico) {
+      const tipo = { bonecos: 'image/webp', css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8' }[estatico[1]];
+      const arq = path.join(RAIZ, 'public', estatico[1], estatico[2]);
       const st = await fs.stat(arq).catch(() => null);
-      if (!st) { res.writeHead(404); return res.end(); }
+      if (!st?.isFile()) { res.writeHead(404); return res.end(); }
       const etag = `"${st.size}-${Math.round(st.mtimeMs)}"`;
       if (req.headers['if-none-match'] === etag) { res.writeHead(304, { etag, 'cache-control': 'no-cache' }); return res.end(); }
-      res.writeHead(200, { 'content-type': 'image/webp', 'cache-control': 'no-cache', etag });
+      res.writeHead(200, { 'content-type': tipo, 'cache-control': 'no-cache', etag, 'x-content-type-options': 'nosniff' });
       return res.end(await fs.readFile(arq));
     }
     if (req.method === 'GET' && url.pathname === '/api/config') {

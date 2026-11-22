@@ -107,14 +107,17 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `src/times.js` | ~110 | o validador do construtor: regras de cada arquitetura |
 | `src/demo.js` | ~190 | o roteiro da demonstração, mais líder e executor genéricos para times do construtor |
 | `src/ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~240 | preferências e anexos, notas dos agentes, agendamento, guia da mascote |
-| `public/index.html` | ~2300 | a tela inteira, sem framework: palco em grafo, quadro, fichas, construtor |
+| `public/index.html` | ~230 | a estrutura da página, sem framework |
+| `public/css/` | ~500 | `estilo.css` (estrutura) e `tema.css` (tema pelúcia) |
+| `public/js/` | ~1600 | um arquivo por parte da tela: base, personagens, palco, construtor, conversa, buzina, quadro, abas, inicio |
+| `public/js/regras/` | ~110 | lógica sem tela, com testes: regras das setas e histórico do desfazer |
 | `public/bonecos/` | 85 imagens | os personagens, 17 formas em 5 estados |
 | `config/agentes.json` | | o time de fábrica e os provedores (demonstração e `claude-cli`) |
 | `config/catalogo-agentes.json` | | a biblioteca de agentes básicos do construtor |
 | `config/arquiteturas/` | 7 arquivos | os modelos prontos de time |
 | `bin/muvuca.js` | ~50 | o comando `muvuca`: sobe o servidor e abre o navegador |
 | `electron/` | ~110 | o aplicativo de mesa: janela, seletor de pasta, ícone |
-| `test/` | 7 arquivos | 49 testes automáticos; `test/apoio/` tem os aplicativos falsos |
+| `test/` | 8 arquivos | 57 testes automáticos; `test/apoio/` tem os aplicativos falsos |
 | `scripts/` | | `versao.mjs` (lançar versões), `bateria.mjs` e `arquiteturas-reais.mjs` (testes ao vivo) |
 | `assets/personagens/` | | fontes dos personagens e os scripts que geram `public/bonecos/` |
 
@@ -290,8 +293,8 @@ Em **Configurações > Modelo de cada agente** dá para trocar o de qualquer age
 
 Dois níveis, os dois sem gastar modelo de verdade:
 
-- `npm test`: 43 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos e instalação). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
-- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 177 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
+- `npm test`: 57 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões e as regras da tela). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
+- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 181 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
 
 ### Arquiteturas com casos reais
 

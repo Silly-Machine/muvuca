@@ -51,6 +51,13 @@ secao('Página e imagens');
   const estados = ['disponivel', 'pensando', 'trabalhando', 'concluido', 'aguardando']; const faltam = [];
   for (const f of formas) for (const e of estados) { const r = await fetch(`${BASE}/bonecos/${f}-${e}.webp`); if (r.status !== 200 || r.headers.get('content-type') !== 'image/webp') faltam.push(`${f}-${e}`); await r.arrayBuffer(); }
   ok('as 85 imagens dos bonecos existem', !faltam.length, faltam.join(', ')); }
+{ const html = (await get('/')).t; const pedidos = [...html.matchAll(/(?:src|href)="(\/(?:js|css)\/[^"]+)"/g)].map((m) => m[1]); const ruins = [];
+  for (const p of pedidos) { const r = await fetch(BASE + p); const t = r.headers.get('content-type') || ''; if (r.status !== 200 || !(p.endsWith('.css') ? t.startsWith('text/css') : t.startsWith('text/javascript'))) ruins.push(p + ' ' + r.status + ' ' + t); await r.arrayBuffer(); }
+  ok('estilos e scripts da tela são servidos com o tipo certo', pedidos.length >= 10 && !ruins.length, ruins.join(', ') || 'só ' + pedidos.length + ' arquivos');
+  ok('módulos de regras são servidos', (await get('/js/regras/setas.js')).s === 200 && (await get('/js/regras/historico.js')).s === 200);
+  const e1 = await fetch(BASE + '/js/base.js'); const etag = e1.headers.get('etag'); await e1.arrayBuffer();
+  ok('arquivo que não mudou responde 304', !!etag && (await fetch(BASE + '/js/base.js', { headers: { 'if-none-match': etag } })).status === 304); }
+ok('pasta de scripts não deixa subir de nível nem servir outro tipo', (await get('/js/..%2F..%2Fsrc%2Fservidor.js')).s === 404 && (await get('/js/../../package.json')).s === 404 && (await get('/js/regras/../../index.html')).s === 404 && (await get('/css/estilo.css.map')).s === 404 && (await get('/js/a/b/c.js')).s === 404 && (await get('/js/')).s === 404);
 ok('imagem que não existe dá 404', (await get('/bonecos/nada-nada.webp')).s === 404);
 ok('caminho fora da pasta de imagens não é servido', (await get('/bonecos/..%2F..%2Fservidor.js')).s === 404 && (await get('/bonecos/../servidor.js')).s === 404);
 ok('arquivo do servidor não é servido', (await get('/servidor.js')).s === 404 && (await get('/src/servidor.js')).s === 404 && (await get('/config/agentes.json')).s === 404 && (await get('/agentes.local.json')).s === 404 && (await get('/preferencias.json')).s === 404);

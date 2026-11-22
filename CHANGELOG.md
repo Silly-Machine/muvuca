@@ -2,6 +2,15 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: a tela deixou de ser um arquivo só
+
+Nada muda no que você vê nem no jeito de usar.
+
+- **A tela foi dividida.** O `index.html` tinha 2.335 linhas com tudo dentro; agora tem 229, só com a estrutura da página. Os estilos foram para `public/css/` (2 arquivos) e o programa para `public/js/` (9 arquivos, um por parte da tela). Continua sem framework e sem etapa de build.
+- **Primeiros testes da tela.** As regras das setas do construtor e o histórico do desfazer saíram do meio do código da tela e viraram módulos em `public/js/regras/`, com 8 testes.
+- **Refazer mais correto.** Depois de desfazer e fazer uma mudança nova, Ctrl+Y não traz mais de volta um estado antigo que já não fazia sentido.
+- O servidor passou a servir os estilos e os scripts da tela, só de `css/` e `js/`, com o tipo de arquivo declarado.
+
 ## 0.3.0 (22/11/2026): repositório reorganizado
 
 Nada muda na tela nem no jeito de usar. Muda onde cada arquivo fica.

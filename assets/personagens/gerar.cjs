@@ -1,7 +1,11 @@
 // Exporta os personagens da Muvuca como SVGs independentes, uma folha com todos os estados e o código-fonte.
 const fs = require('fs'); const vm = require('vm'); const path = require('path');
 const R = path.join(__dirname, '..', '..') + '/';   // pasta do projeto, onde quer que ela esteja
-const html = fs.readFileSync(R + 'public/index.html', 'utf8');
+// A tela é dividida em arquivos: junta o HTML, os estilos e os scripts dos personagens num texto só,
+// como era quando tudo ficava no index.html. Os marcadores de seção continuam os mesmos.
+const ler = (arq) => fs.readFileSync(R + 'public/' + arq, 'utf8');
+const estilos = fs.readdirSync(R + 'public/css').filter((n) => n.endsWith('.css')).sort().map((n) => ler('css/' + n)).join('\n');
+const html = [ler('index.html'), '<style>', estilos, '</style>', ler('js/personagens.js'), ler('js/palco.js')].join('\n');
 const SAIDA = R + 'assets/personagens/';
 fs.mkdirSync(SAIDA, { recursive: true });
 

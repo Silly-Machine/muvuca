@@ -121,7 +121,11 @@ muvuca
     │   ├── ferramentas.js   : arquivos, comandos, foto do projeto e restauração
     │   ├── provedores.js    : Claude Code, APIs compatíveis com OpenAI e demonstração
     │   └── ...              : times, rotinas, memória, preferências, Buzina
-    ├── public/              : a tela (um HTML só, sem framework) e os personagens
+    ├── public/              : a tela, sem framework
+    │   ├── index.html       : a estrutura da página
+    │   ├── css/             : estrutura e tema
+    │   ├── js/              : um arquivo por parte da tela; js/regras/ tem a lógica com testes
+    │   └── bonecos/         : os personagens
     ├── config/              : time de fábrica, biblioteca de agentes e modelos prontos de time
     ├── bin/                 : o comando "muvuca"
     ├── electron/            : o aplicativo de mesa
@@ -136,8 +140,8 @@ Seus dados (preferências, projetos, rotinas, memória, times salvos) ficam em `
 ## Testes
 
 ```sh
-npm test                    # 43 testes automáticos, cerca de 1 minuto
-npm run bateria             # 177 verificações ao vivo, com o servidor em demonstração
+npm test                    # 57 testes automáticos, cerca de 1 minuto
+npm run bateria             # 181 verificações ao vivo, com o servidor em demonstração
 ```
 
 Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada envio. Detalhes em [Bateria de testes](docs/guia.md#bateria-de-testes).
