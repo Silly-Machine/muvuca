@@ -1,7 +1,6 @@
 {
   "name": "muvuca",
   "version": "0.3.1",
-  "private": true,
   "type": "module",
   "description": "Painel local para trabalhar com um time de agentes de IA: líder, subagentes, portão de testes e revisor.",
   "author": "Silly Machine",
@@ -11,12 +10,17 @@
     "type": "git",
     "url": "git+https://github.com/Silly-Machine/muvuca.git"
   },
+  "bugs": {
+    "url": "https://github.com/Silly-Machine/muvuca/issues"
+  },
   "keywords": [
     "claude",
+    "claude-code",
     "agentes",
     "multiagente",
+    "ai-agents",
     "orquestração",
-    "electron"
+    "cli"
   ],
   "engines": {
     "node": ">=22"
@@ -35,6 +39,9 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "start": "node bin/muvuca.js",
     "servidor": "node src/servidor.js",
@@ -43,7 +50,8 @@
     "app": "electron .",
     "instalador": "electron-builder --publish never",
     "pasta-do-app": "electron-builder --dir --publish never",
-    "bateria": "node scripts/bateria.mjs"
+    "bateria": "node scripts/bateria.mjs",
+    "prepublishOnly": "node scripts/versao.mjs conferir && npm test"
   },
   "build": {
     "appId": "dev.sillymachine.muvuca",

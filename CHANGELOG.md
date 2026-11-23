@@ -2,6 +2,11 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: pronta para o npm
+
+- **Pacote preparado para publicação no npm.** Saiu a trava que impedia publicar, e antes de cada publicação o pacote confere a versão e roda os testes. Depois de publicado, quem tem Node 22 roda com `npx muvuca`.
+- A barra de linguagens do GitHub deixou de contar as fontes dos personagens como código.
+
 ## 0.3.1 (22/11/2026): a tela deixou de ser um arquivo só
 
 Nada muda no que você vê nem no jeito de usar.
