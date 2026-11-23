@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: conexões com muitas ferramentas
+## 0.4.1 (22/11/2026): conexões com muitas ferramentas
 
 - **O teste de uma conexão conta todas as ferramentas.** Antes a lista era cortada em 100, e um servidor grande aparecia com o número errado. Agora a tela mostra o total, as 12 primeiras e quantas ficaram de fora; o nome de todas aparece ao passar o mouse.
 
