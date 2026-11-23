@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento
+## 1.0.1 (23/11/2026)
 
 - **O time em uso volta quando a Muvuca reabre.** Antes, o time montado no construtor vivia só na memória: fechar, reiniciar ou atualizar a Muvuca voltava ao time do arquivo, e um agente como a Buzina sumia do palco. Agora o time da conversa principal fica em `time-em-uso.json`, na pasta de dados. Se ele deixar de valer numa versão nova, a Muvuca sobe com o time do arquivo e guarda o antigo como `time-em-uso.json.invalido`.
 
