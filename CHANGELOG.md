@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento
+## 1.0.0 (23/11/2026)
 
 A primeira versão estável, e a primeira com o repositório aberto. Não traz função nova em relação à 0.9.0: traz a prova, com o Claude de verdade, dos fluxos que só tinham rodado em demonstração, e a correção do que essa prova encontrou. O que ainda falta para um produto maduro está no roteiro do README: instaladores assinados, atualização automática e publicação no npm.
 

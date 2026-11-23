@@ -8,7 +8,7 @@
 
 [![Testes](https://github.com/Silly-Machine/muvuca/actions/workflows/testes.yml/badge.svg)](https://github.com/Silly-Machine/muvuca/actions/workflows/testes.yml)
 [![Instaladores](https://github.com/Silly-Machine/muvuca/actions/workflows/instaladores.yml/badge.svg)](https://github.com/Silly-Machine/muvuca/actions/workflows/instaladores.yml)
-![Versão](https://img.shields.io/badge/vers%C3%A3o-0.9.0-f28a2e)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.0.0-f28a2e)
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2022-5f565c)
 ![Dependências](https://img.shields.io/badge/depend%C3%AAncias%20do%20servidor-0-5f565c)
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-f28a2e)](LICENSE)
