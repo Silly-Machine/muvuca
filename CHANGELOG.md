@@ -2,6 +2,21 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento
+
+- **Vigia de "mudança" não se confunde mais com o relógio.** Tempos de execução na saída do comando (como os do `node --test`) deixaram de contar como mudança; antes, um vigia desse tipo sobre um comando de teste chamaria o time em toda verificação. O cartão do vigia passa a resumir pelo placar dos testes.
+
+### Conferido com o Claude de verdade em 23/11/2026
+
+Quatro provas com o time real (Maestro, Chevron no haiku, Revisor no fable), na pasta de teste, com o isolamento dos testes ligado:
+
+- **Pedido completo do time:** plano, três arquivos escritos, portão `npm test` isolado e revisão aprovada, em 40 s.
+- **Dois pedidos ao mesmo tempo:** duas conversas trabalhando juntas, cada uma na própria pasta, sem misturar arquivos nem conversa.
+- **Especificação em etapas:** o líder planejou duas etapas e o time cumpriu as duas, cada uma com portão e revisão, em 100 s.
+- **Vigia chamando o time:** com uma fórmula quebrada de propósito, o vigia percebeu a falha em 21 s e chamou o time, que consertou; depois do conserto, não chamou de novo.
+
+Ainda sem prova com o Claude: o login vencendo no meio de um pedido, uma etapa de especificação que falha e pausa, e a aprovação de comandos por um agente.
+
 ## 0.9.0 (23/11/2026)
 
 Três ideias trazidas da análise do Kiro Crew.

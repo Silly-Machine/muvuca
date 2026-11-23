@@ -62,8 +62,16 @@ export function vigiasDevidos(rotinas, agora = new Date()) {
   return rotinas.filter((r) => r.tipo === 'vigia' && r.ativa && (!r.vigia?.verificada || agora - new Date(r.vigia.verificada) >= r.intervaloMin * 60000));
 }
 
-const marcaDe = (saida) => crypto.createHash('sha1').update(String(saida).replace(/\r\n/g, '\n').trim()).digest('hex').slice(0, 16);
-const resumoDe = (saida) => String(saida).replace(/\r\n/g, '\n').trim().split('\n').slice(-3).join(' / ').slice(-200);
+// Tempos de execução ("(0.52ms)", "duration_ms 90.6", "in 1.2s") mudam a cada rodada sem que nada tenha mudado:
+// ficam fora da marca, senão um vigia de "mudança" sobre um comando de teste acordaria o time em toda verificação.
+const semTempos = (saida) => String(saida).replace(/\r\n/g, '\n').replace(/\bduration_ms\s+[\d.]+/g, 'duration_ms').replace(/\b\d+(?:[.,]\d+)?\s?(?:ms|s|seg|segundos?)\b/g, '~').trim();
+const marcaDe = (saida) => crypto.createHash('sha1').update(semTempos(saida)).digest('hex').slice(0, 16);
+// Resumo para o cartão: o placar dos testes quando houver (linhas de pass/fail), senão as últimas linhas.
+const resumoDe = (saida) => {
+  const linhas = String(saida).replace(/\r\n/g, '\n').trim().split('\n').map((l) => l.trim()).filter(Boolean);
+  const placar = linhas.filter((l) => /^(?:ℹ|#)?\s*(?:pass|fail|tests|passed|failed)\b/i.test(l));
+  return (placar.length ? placar : linhas.slice(-3)).join(' / ').slice(-200);
+};
 
 // O que fazer com o resultado de uma verificação: devolve o estado novo do vigia e se é para acordar o time.
 //   falha     acorda quando o comando passa a falhar (na transição: enquanto continuar falhando, não acorda de novo);

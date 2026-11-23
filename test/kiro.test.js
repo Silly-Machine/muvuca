@@ -278,3 +278,14 @@ test('servidor: a especificação é planejada, roda as etapas, pausa e é retom
     assert.equal((await s.cru('/api/especificacao')).status, 401);
   } finally { await s.parar(); }
 });
+
+test('vigia de mudança ignora tempos de execução e resume pelo placar', () => {
+  const v = normalizarRotinas([{ nome: 'M', tipo: 'vigia', texto: 'Veja', comando: 'node --test', intervaloMin: 1, dispara: 'mudanca' }])[0];
+  const saida = (ms, falhas) => `✔ soma (${ms}ms)\nℹ tests 3\nℹ pass ${3 - falhas}\nℹ fail ${falhas}\nℹ duration_ms ${ms * 40}.5`;
+  const a = avaliarVigia(v, { codigo: 0, saida: saida(0.52, 0) });
+  const b = avaliarVigia({ ...v, vigia: a.vigia }, { codigo: 0, saida: saida(1.9, 0) });
+  assert.equal(b.disparar, false, 'só o tempo mudou: não é mudança');
+  assert.equal(b.vigia.resumo, 'ℹ tests 3 / ℹ pass 3 / ℹ fail 0');
+  const c = avaliarVigia({ ...v, vigia: b.vigia }, { codigo: 1, saida: saida(0.7, 1) });
+  assert.equal(c.disparar, true, 'um teste passou a falhar: é mudança');
+});
