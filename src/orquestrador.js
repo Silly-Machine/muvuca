@@ -490,7 +490,7 @@ export class Muvuca {
     if (para && para !== 'time' && !this.agente(para)) throw new Error(`agente "${para}" não existe neste time`);
     // A foto pendente é de outra pasta: descartar depois restauraria os arquivos de um projeto dentro do outro.
     if (this.foto && this.projeto && pasta !== this.projeto) throw Object.assign(new Error(`há mudanças esperando sua decisão em ${this.projeto}: escolha manter ou descartar antes de trabalhar em outra pasta`), { codigo: 'decisao' });
-    this.rodando = true; this.projeto = pasta; this.comandoTeste = comandoTeste || null;
+    this.rodando = true; this.projeto = pasta; this.comandoTeste = comandoTeste || null; this.pedidoAtual = String(texto || '');
     this.abort = new AbortController(); this.autores = new Map(); this.niveis = new Map(); this.ultimaEdicao = 0;
     this.quadro = new Map(); this.tarefaDe = new Map(); this.seqTarefa = 0;
     if (!this.foto) await this.definirFoto(await fotografar(pasta));   // mudanças acumulam até o humano decidir

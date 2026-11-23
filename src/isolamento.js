@@ -86,7 +86,10 @@ export async function prepararIsolamento(projeto) {
   // Libera o caminho como foi dado e o caminho verdadeiro: quando há um link simbólico no meio (no macOS, /var é um
   // atalho para /private/var, e a pasta temporária fica ali), o Node confere a permissão pelo caminho verdadeiro.
   const real = async (p) => fs.realpath(p).catch(() => p);
-  const liberadas = [...new Set([pasta, await real(pasta), tmp, await real(tmp)])];
+  // Terceira forma: a pasta-mãe pelo caminho verdadeiro, com o nome da pasta como foi dado. Cobre o projeto que é ele
+  // mesmo um link dentro de um caminho com nome abreviado (no Windows, "RUNNER~1" no lugar do nome inteiro do usuário).
+  const maeReal = async (p) => path.join(await real(path.dirname(p)), path.basename(p));
+  const liberadas = [...new Set([pasta, await real(pasta), await maeReal(pasta), tmp, await real(tmp), await maeReal(tmp)])];
   return {
     ok: true, tmp,
     // TMP, TEMP e TMPDIR levam os.tmpdir() para a pasta liberada: teste que cria arquivo temporário continua funcionando

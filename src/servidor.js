@@ -191,7 +191,7 @@ const qualquerRodando = () => [...sessoes.values()].some((x) => x.muvuca.rodando
 const pastaEmUso = (pasta, menos) => [...sessoes.values()].find((x) => x.id !== menos && x.muvuca.projeto && path.resolve(x.muvuca.projeto) === path.resolve(pasta) && (x.muvuca.rodando || x.muvuca.foto));
 const resumoDaConversa = (x) => {
   const ultimo = [...x.muvuca.eventos].reverse().find((e) => e.tipo === 'pedido');
-  return { id: x.id, rodando: x.muvuca.rodando, pendente: !!x.muvuca.foto, projeto: x.muvuca.projeto || '', titulo: ultimo ? String(ultimo.texto).split('\n')[0].slice(0, 80) : '', aguardando: x.muvuca.pendentes.size > 0 };
+  return { id: x.id, rodando: x.muvuca.rodando, pendente: !!x.muvuca.foto, projeto: x.muvuca.projeto || '', titulo: String((x.muvuca.rodando && x.muvuca.pedidoAtual) || ultimo?.texto || '').split('\n')[0].slice(0, 80), aguardando: x.muvuca.pendentes.size > 0 };
 };
 const ARQ_ROTINAS = path.join(DADOS, 'rotinas.json');
 let rotinas = [];

@@ -2,6 +2,12 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: ajustes do isolamento e das conversas
+
+- O isolamento dos testes reconhece mais uma forma do caminho do projeto no Windows (pasta que é um link, dentro de um caminho com nome abreviado).
+- A faixa de conversas mostra o pedido de uma conversa assim que ela começa a trabalhar; antes havia um instante em que aparecia sem texto.
+- As versões 0.6.0 a 0.6.2 foram marcadas, mas não tiveram instaladores publicados: os testes automáticos no GitHub barraram as três, cada vez por um motivo que só aparecia noutro sistema.
+
 ## 0.6.2 (23/11/2026): isolamento no macOS
 
 - **O isolamento dos testes funciona no macOS e em projetos acessados por link simbólico.** O Node confere a permissão pelo caminho verdadeiro da pasta, e a Muvuca liberava só o caminho como foi escrito. No macOS a pasta temporária fica atrás de um atalho, então todo teste era bloqueado. Achado pelos testes automáticos no GitHub; por isso a 0.6.1 também não chegou a ter instaladores publicados.
