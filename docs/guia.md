@@ -120,12 +120,13 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `src/times.js` | ~110 | o validador do construtor: regras de cada arquitetura |
 | `src/demo.js` | ~190 | o roteiro da demonstração, mais líder e executor genéricos para times do construtor |
 | `src/aberta.js` | ~20 | descobre se já há uma Muvuca aberta com a mesma pasta de dados |
+| `src/isolamento.js` | ~110 | isolamento dos testes: sonda o Node, monta o ambiente restrito e decide o que dá para isolar |
 | `src/conexoes.js` | ~200 | conexões (servidores MCP): validação, configuração sem segredos e teste de conexão |
 | `src/ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~240 | preferências e anexos, notas dos agentes, agendamento, guia da mascote |
 | `public/index.html` | ~230 | a estrutura da página, sem framework |
 | `public/css/` | ~520 | `fontes.css`, `estilo.css` (estrutura) e `tema.css` (tema pelúcia) |
 | `public/fontes/` | 5 arquivos | Fredoka e Nunito, servidas daqui (licença OFL na mesma pasta) |
-| `public/js/` | ~1600 | um arquivo por parte da tela: base, personagens, palco, construtor, conversa, buzina, quadro, abas, conexoes, historico, inicio |
+| `public/js/` | ~1700 | um módulo por parte da tela, carregados em ordem por `principal.js`: base, personagens, palco, construtor, conversa, buzina, quadro, abas, conexoes, historico, abertas, inicio. `estado.js` guarda o que mais de uma parte altera; `tardias.js`, as chamadas a partes carregadas depois |
 | `public/js/regras/` | ~110 | lógica sem tela, com testes: regras das setas e histórico do desfazer |
 | `public/bonecos/` | 85 imagens | os personagens, 17 formas em 5 estados |
 | `config/agentes.json` | | o time de fábrica e os provedores (demonstração e `claude-cli`) |
@@ -133,7 +134,7 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `config/arquiteturas/` | 7 arquivos | os modelos prontos de time |
 | `bin/muvuca.js` | ~50 | o comando `muvuca`: sobe o servidor e abre o navegador |
 | `electron/` | ~110 | o aplicativo de mesa: janela, seletor de pasta, ícone |
-| `test/` | 11 arquivos | 77 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos e o apoio que sobe um servidor de teste |
+| `test/` | 13 arquivos | 93 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos e o apoio que sobe um servidor de teste |
 | `scripts/` | | `versao.mjs` (lançar versões), `bateria.mjs` e `arquiteturas-reais.mjs` (testes ao vivo) |
 | `assets/personagens/` | | fontes dos personagens e os scripts que geram `public/bonecos/` |
 
@@ -290,6 +291,42 @@ Ao começar um pedido, a Muvuca tira uma foto da pasta do projeto. "Descartar" d
 
 Quando há algo que o descarte não desfaz, o cartão do diff mostra um aviso antes dos botões.
 
+## Isolamento dos testes
+
+O código de teste que um agente escreve é código como outro qualquer, e roda no seu computador. Com o isolamento (ligado de fábrica, em Configurações), o processo dos testes:
+
+| O quê | Com isolamento |
+|---|---|
+| Ler e escrever dentro da pasta do projeto | sim |
+| Criar arquivos temporários (`os.tmpdir()`) | sim, numa pasta criada para aquela execução e apagada depois |
+| Ler ou escrever em qualquer outro lugar (sua pasta de usuário, outros projetos) | não: `ERR_ACCESS_DENIED` |
+| Abrir outro processo | não |
+| Subir um servidor no mesmo processo e chamá-lo | sim |
+| Acessar a rede | sim: o Node não restringe, e por isso a leitura fora da pasta é bloqueada |
+
+Como funciona: o isolamento usa o modelo de permissões do próprio Node (`--permission`), passado pela variável `NODE_OPTIONS`. Uma sonda, na primeira vez, confere que o Node instalado aceita as opções e que elas de fato bloqueiam; se não, a tela diz que o isolamento está indisponível e por quê (é preciso o Node 24 ou mais novo).
+
+- **No portão**, vale para `node --test`, direto ou quando é isso que o `npm test` do projeto chama. Qualquer outro comando (pytest, jest, um script composto) roda como antes, e o cartão do portão diz "Sem isolamento" com o motivo.
+- **Nos testes que o próprio agente roda**, com o Claude Code: o agente recebe o mesmo ambiente, e a permissão dele vira o comando exato `node --test`. Sem isso, uma opção a mais na linha de comando reabriria tudo.
+- **Aplicativo de provedor feito em Node** (instalado pelo npm) não sobe com essas opções. A Muvuca sonda isso; se for o caso, os testes que o agente roda por ele ficam sem isolamento, a conversa avisa, e o portão continua isolado.
+- **Teste bloqueado** falha com uma explicação no lugar do erro cru, dizendo como escrever o teste ou como desligar o isolamento.
+
+Testes que abrem outro processo (subir o servidor do projeto com `spawn`, por exemplo) não passam com o isolamento ligado. O caminho é subir o servidor no mesmo processo; os agentes são instruídos a escrever assim.
+
+## Conversas abertas: vários pedidos ao mesmo tempo
+
+A faixa no topo, abaixo do título, mostra as conversas abertas. "+ outra conversa" abre mais uma, até quatro.
+
+- **Cada conversa é independente**: time, pasta do projeto, pedidos, quadro e mudanças esperando decisão. Trocar o time de uma não muda o da outra.
+- **Elas trabalham ao mesmo tempo.** O ponto ao lado do nome pisca enquanto a conversa trabalha e fica laranja quando há mudanças esperando decisão.
+- **Uma pasta, uma conversa.** Duas conversas não trabalham na mesma pasta, nem enquanto uma tem mudanças pendentes nela: o diff e o "Descartar" de uma atropelariam a outra. O pedido é recusado dizendo qual conversa está com a pasta.
+- **Trocar de conversa** recarrega a página no endereço dela (`?conversa=2`). Dá para abrir cada uma numa janela.
+- **Fechar** (o "×") manda a conversa para o histórico. Só fecha parada e sem decisão pendente; a principal não fecha.
+- **Preferências e conexões valem para todas**, e só mudam com todas paradas.
+- Se a Muvuca fechar com mudanças pendentes numa conversa extra, ela reaparece na próxima abertura.
+
+Rotinas disparam sempre na conversa principal.
+
 ## Histórico, uso e limites de tempo
 
 - **Histórico.** Ao clicar em "Nova conversa", a conversa que termina vai para o histórico (botão "Histórico", no topo da conversa). Ficam as 100 mais recentes, com os acontecimentos e a lista de arquivos alterados, sem o diff linha a linha.
@@ -352,8 +389,8 @@ Em **Configurações > Modelo de cada agente** dá para trocar o de qualquer age
 
 Dois níveis, os dois sem gastar modelo de verdade:
 
-- `npm test`: 77 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras da tela, conexões, acesso e o que o Descartar cobre). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
-- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 215 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
+- `npm test`: 93 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras e estrutura da tela, conexões, acesso, o que o Descartar cobre, isolamento dos testes e conversas paralelas). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
+- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 225 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
 
 ### Arquiteturas com casos reais
 

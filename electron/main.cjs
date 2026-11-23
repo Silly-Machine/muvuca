@@ -48,7 +48,7 @@ async function subirServidor() {
 }
 
 async function trabalhando() {
-  try { return (await (await fetch(`${endereco}/api/config`, { headers: { 'x-muvuca-token': token } })).json()).rodando === true; } catch { return false; }
+  try { return (await (await fetch(`${endereco}/api/sessoes`, { headers: { 'x-muvuca-token': token } })).json()).conversas.some((c) => c.rodando); } catch { return false; }
 }
 
 function abrirJanela() {

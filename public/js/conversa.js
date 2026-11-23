@@ -1,7 +1,7 @@
 // Conversa com o time: envio do pedido, eventos, anexos e painel retrátil.
 import { compartilhado } from './estado.js';
 import { depois } from './tardias.js';
-import { $, el, textoDoUso } from './base.js';
+import { $, CONVERSA, chaveProjeto, el, pedir, textoDoUso } from './base.js';
 import { NOME_ARQ, NOME_CX, ag, ajustarEscala, alarme, balao, desenharArestas, estado, modeloPadrao, montarDestinos, noPalco, rotuloModelo, viagem } from './palco.js';
 import { abrirConstrutor } from './construtor.js';
 
@@ -21,7 +21,7 @@ function atualizarAndamento() {
   const espera = ativos.some(([, e]) => e === 'aguardando');
   $('#andTexto').textContent = ativos.length ? ativos.map(([a, e]) => a.nome + ' ' + (e === 'aguardando' ? 'aguarda você' : e)).join(' · ') : 'Time trabalhando…';
   $('#andTempo').textContent = mmss(Date.now() - inicioPedido);
-  document.title = (compartilhado.rodando ? (espera ? '⚠ ' : '● ') : terminouLonge ? '✓ ' : '') + 'Muvuca';
+  document.title = (compartilhado.rodando ? (espera ? '⚠ ' : '● ') : terminouLonge ? '✓ ' : '') + 'Muvuca' + (CONVERSA !== '1' ? ` · conversa ${CONVERSA}` : '');
 }
 function ocupado(v, desde) {
   const antes = compartilhado.rodando; compartilhado.rodando = v; $('#enviar').disabled = v; $('#parar').hidden = !v; $('#andamento').hidden = !v;
@@ -137,14 +137,14 @@ const trata = {
 };
 
 async function post(url, corpo) {
-  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo || {}) });
+  const r = await pedir(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo || {}) });
   const j = await r.json().catch(() => ({})); if (!r.ok) por(el('div', 'linha ruim', 'Erro: ' + (j.erro || r.status))); return j;
 }
 async function enviar() {
   const texto = $('#texto').value.trim(); if (!texto || compartilhado.rodando) return;
   const projeto = $('#projeto').value.trim(); $('#erroEnvio').textContent = '';
   if (!projeto) { $('#erroEnvio').textContent = 'Escolha o projeto, embaixo da caixa de texto, antes de enviar.'; $('#projetoChip').focus(); return; }
-  try { localStorage.setItem('muvuca.projeto', projeto); } catch {}
+  try { localStorage.setItem(chaveProjeto, projeto); } catch {}
   $('#enviar').disabled = true;
   let r, j = {}, textoFinal = texto;
   if (anexos.length) {
@@ -152,7 +152,7 @@ async function enviar() {
     $('#erroEnvio').className = ''; $('#erroEnvio').textContent = `Enviando ${anexos.length} anexo(s)…`;
     try {
       const arquivos = []; for (const a of anexos) arquivos.push({ caminho: a.caminho, dados: await emBase64(a.file) });
-      const up = await fetch('/api/anexos', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projeto, arquivos }) });
+      const up = await pedir('/api/anexos', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projeto, arquivos }) });
       const uj = await up.json().catch(() => ({}));
       $('#erroEnvio').className = 'ruim';
       if (!up.ok) { $('#erroEnvio').textContent = 'Não deu para anexar: ' + (uj.erro || up.status); $('#enviar').disabled = compartilhado.rodando; return; }
@@ -162,7 +162,7 @@ async function enviar() {
     } catch (e) { $('#erroEnvio').className = 'ruim'; $('#erroEnvio').textContent = 'Não deu para anexar: ' + e.message; $('#enviar').disabled = compartilhado.rodando; return; }
     $('#erroEnvio').textContent = '';
   }
-  try { r = await fetch('/api/pedido', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texto: textoFinal, projeto, para: compartilhado.destino }) }); j = await r.json().catch(() => ({})); }
+  try { r = await pedir('/api/pedido', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texto: textoFinal, projeto, para: compartilhado.destino }) }); j = await r.json().catch(() => ({})); }
   catch { $('#erroEnvio').textContent = 'Sem conexão com o servidor da Muvuca. Ele está rodando?'; $('#enviar').disabled = compartilhado.rodando; return; }
   // só limpa a caixa quando o pedido foi aceito: recusa não faz perder o que você digitou
   if (!r.ok) { $('#erroEnvio').textContent = 'Não deu: ' + (j.erro || r.status); $('#enviar').disabled = compartilhado.rodando; return; }

@@ -1,5 +1,5 @@
 // Aba Conexões: servidores MCP que dão aos agentes acesso a coisas fora da pasta do projeto.
-import { $, el, lerDoServidor } from './base.js';
+import { $, el, lerDoServidor, pedir } from './base.js';
 import { secao } from './conversa.js';
 
 
@@ -7,7 +7,7 @@ import { secao } from './conversa.js';
 let conexoes = { conexoes: [], agentes: {}, time: [] };
 const testesConexao = {};   // id -> resultado do último teste, só nesta sessão da tela
 async function gravarConexoes(novo) {
-  const r = await fetch('/api/conexoes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(novo) });
+  const r = await pedir('/api/conexoes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(novo) });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.erro || r.status);
   conexoes = j;
 }
@@ -28,7 +28,7 @@ function mostrarTeste(onde, r) {
 async function testarConexao(corpo, onde, botao) {
   botao.disabled = true; onde.className = 'situacao'; onde.textContent = 'Testando… (pode levar alguns segundos na primeira vez)';
   let r;
-  try { const x = await fetch('/api/conexoes/testar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) }); r = await x.json(); if (!x.ok) r = { ok: false, erro: r.erro || x.status }; }
+  try { const x = await pedir('/api/conexoes/testar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) }); r = await x.json(); if (!x.ok) r = { ok: false, erro: r.erro || x.status }; }
   catch (e) { r = { ok: false, erro: e.message }; }
   botao.disabled = false; mostrarTeste(onde, r); return r;
 }

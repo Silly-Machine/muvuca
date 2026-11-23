@@ -1,7 +1,7 @@
 // Buzina, a mascote: easter egg e conversa sobre a própria Muvuca.
 import { compartilhado } from './estado.js';
 import { depois } from './tardias.js';
-import { $, el, lerDoServidor } from './base.js';
+import { $, el, lerDoServidor, pedir } from './base.js';
 import { noPalco } from './palco.js';
 import { montarBiblioteca } from './construtor.js';
 import { secao } from './conversa.js';
@@ -16,7 +16,7 @@ function guardarBuzina(liga) {
   try { localStorage.setItem('muvuca.buzina', liga ? '1' : '0'); } catch {}
   if (compartilhado.buzinaGuardada === liga) return;
   compartilhado.buzinaGuardada = liga;
-  fetch('/api/buzina/solta', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ solta: liga }) }).catch(() => {});
+  pedir('/api/buzina/solta', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ solta: liga }) }).catch(() => {});
 }
 compartilhado.buzinaFesta = 0;
 // Meta-chat: a Buzina responde dúvidas sobre a própria Muvuca. Só abre quando clicam nela.
@@ -41,7 +41,7 @@ async function perguntarBuzina(pergunta) {
   const espera = linhaBuzina('buzina pensando', 'farejando a resposta…');
   let j = null;
   try {
-    const r = await fetch('/api/buzina', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pergunta, historico: conversaBuzina }) });
+    const r = await pedir('/api/buzina', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pergunta, historico: conversaBuzina }) });
     j = await r.json().catch(() => null); if (!r.ok) j = { texto: 'Não consegui responder: ' + (j?.erro || r.status) + '.' };
   } catch { j = { texto: 'Não consegui falar com o servidor da Muvuca. Ele está rodando?' }; }
   espera.remove();

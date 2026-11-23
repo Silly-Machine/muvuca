@@ -32,6 +32,12 @@ async function eventos() {
   ctl.abort();
   return buf.split('\n').filter((l) => l.startsWith('data: ')).map((l) => JSON.parse(l.slice(6)));
 }
+// acontecimentos das conversas já encerradas pela bateria (histórico), mais os da conversa em andamento
+async function eventosGuardados() {
+  const todos = [...(await eventos())];
+  for (const c of ((await get('/api/conversas')).j?.conversas || []).slice(0, 6)) todos.push(...(((await get('/api/conversas/' + c.id)).j?.eventos) || []));
+  return todos;
+}
 const config = async () => (await get('/api/config')).j;
 async function esperarParar(maxMs = 120000) { const fim = Date.now() + maxMs; while (Date.now() < fim) { if (!(await config()).rodando) return true; await dormir(600); } return false; }
 const vazia = async (pasta) => (await fs.readdir(pasta)).length === 0;
@@ -289,6 +295,32 @@ secao('Histórico e limites');
   const mudou = await post('/api/preferencias', { preferencias: { limiteAgenteMin: 9999, limiteTestesMin: 0 } });
   ok('limites fora da faixa são ajustados', mudou.j?.preferencias?.limiteAgenteMin === 180 && mudou.j?.preferencias?.limiteTestesMin === 1, JSON.stringify(mudou.j?.preferencias));
   await post('/api/preferencias', { preferencias: prefs0 }); }
+
+// ---------- conversas abertas e isolamento dos testes
+secao('Conversas abertas e isolamento');
+{ const de = (id) => ({ 'x-muvuca-conversa': id });
+  const lista = async () => (await get('/api/sessoes')).j;
+  const ini = await lista();
+  ok('a principal existe sempre', ini.conversas.some((c) => c.id === '1') && ini.maximo >= 2, JSON.stringify(ini));
+  const abriu = await post('/api/sessoes', { acao: 'abrir' });
+  const id = abriu.j?.id;
+  ok('abre outra conversa', abriu.s === 200 && /^[2-9]$/.test(id || ''), JSON.stringify(abriu.j));
+  const cfg2 = await (await fetch(BASE + '/api/config', { headers: de(id) })).json();
+  ok('a conversa nova tem o próprio time, parado', Array.isArray(cfg2.agentes) && cfg2.agentes.length >= 1 && cfg2.rodando === false);
+  const ev2 = await fetch(BASE + '/api/eventos?conversa=' + id); const leitor = ev2.body.getReader(); const pedaco = new TextDecoder().decode((await leitor.read()).value || new Uint8Array()); leitor.cancel().catch(() => {});
+  ok('o fluxo de eventos dela começa vazio', /"tipo":"ola"/.test(pedaco) && !/"tipo":"pedido"/.test(pedaco), pedaco.slice(0, 200));
+  ok('conversa que não está aberta é recusada (404)', (await fetch(BASE + '/api/config', { headers: de('9') })).status === 404);
+  ok('a principal não fecha', (await post('/api/sessoes', { acao: 'fechar', id: '1' })).s === 400);
+  ok('ação desconhecida é recusada', (await post('/api/sessoes', { acao: 'explodir' })).s === 400);
+  const fechou = await post('/api/sessoes', { acao: 'fechar', id });
+  ok('fecha a conversa que abriu', fechou.s === 200 && !(await lista()).conversas.some((c) => c.id === id), JSON.stringify(fechou.j));
+  const pr = (await get('/api/preferencias')).j;
+  ok('preferências dizem se o isolamento dos testes está disponível', typeof pr.isolamento?.disponivel === 'boolean' && typeof pr.preferencias.isolarTestes === 'boolean', JSON.stringify(pr.isolamento));
+  if (pr.isolamento?.disponivel && pr.preferencias.isolarTestes) {
+    // conversa gravada no histórico por uma versão anterior não traz o campo: essas ficam de fora da conta
+    const portoes = (await eventosGuardados()).filter((e) => e.tipo === 'portao' && e.isolado !== undefined);
+    ok('os testes do portão rodaram isolados', portoes.length >= 1 && portoes.every((p) => p.isolado === true), JSON.stringify(portoes.map((p) => [p.isolado, p.semIsolamento])));
+  } }
 
 // ---------- conexões (servidores MCP)
 secao('Conexões');

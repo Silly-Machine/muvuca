@@ -49,9 +49,16 @@ const BOOT = Date.now().toString(36);
 const VERSAO = JSON.parse(await fs.readFile(path.join(RAIZ, 'package.json'), 'utf8')).version;
 // Ponto de restauração em disco: se o servidor cair com mudanças esperando decisão, elas voltam a aparecer ao subir.
 const PASTA_PENDENTE = path.join(DADOS, '.pendente');
-muvuca.aoMudarFoto = (foto, projeto) => salvarFoto(PASTA_PENDENTE, projeto, foto);
-{
-  const guardado = await carregarFoto(PASTA_PENDENTE);
+// Cada conversa aberta tem o próprio orquestrador: time, pasta de projeto, eventos e mudanças pendentes. A "1" é a
+// principal e existe sempre. As outras nascem pela tela, para tocar mais de um pedido ao mesmo tempo, cada um na
+// sua pasta. Duas conversas não trabalham na mesma pasta: o diff e o "Descartar" de uma atropelariam a outra.
+const MAX_CONVERSAS_ABERTAS = 4;
+const sessoes = new Map();   // id -> { id, muvuca, anexos }
+const pastaPendente = (id) => (id === '1' ? PASTA_PENDENTE : `${PASTA_PENDENTE}-${id}`);
+sessoes.set('1', { id: '1', muvuca, anexos: [] });
+// Se o servidor caiu com mudanças esperando decisão numa conversa, elas voltam a aparecer nela ao subir.
+async function restaurarPendente(muvuca, dir) {
+  const guardado = await carregarFoto(dir);
   const pasta = guardado && await fs.stat(guardado.projeto).catch(() => null);
   if (pasta?.isDirectory()) {
     const arquivos = await diferencas(guardado.projeto, guardado.foto);
@@ -59,9 +66,13 @@ muvuca.aoMudarFoto = (foto, projeto) => salvarFoto(PASTA_PENDENTE, projeto, foto
       muvuca.foto = guardado.foto; muvuca.projeto = guardado.projeto;
       muvuca.emitir({ tipo: 'aviso', texto: `O servidor foi reiniciado com mudanças esperando decisão em ${guardado.projeto}. Elas continuam aqui: escolha manter ou descartar.` });
       muvuca.emitir({ tipo: 'diff', arquivos, avisos: arquivos.avisos || [], autores: {} });
-    } else await salvarFoto(PASTA_PENDENTE, null, null);
-  } else if (guardado) await salvarFoto(PASTA_PENDENTE, null, null);
+      return true;
+    } else await salvarFoto(dir, null, null);
+  } else if (guardado) await salvarFoto(dir, null, null);
+  return false;
 }
+muvuca.aoMudarFoto = (foto, projeto) => salvarFoto(PASTA_PENDENTE, projeto, foto);
+await restaurarPendente(muvuca, PASTA_PENDENTE);
 // Time que veio no arquivo de configuração: fica na galeria para voltar a ele.
 const timeDoArquivo = { nome: `Time do arquivo (${path.basename(arquivoCfg)})`, descricao: 'O time com que o servidor subiu.', arquitetura: cfg.arquitetura || 'centralizada', agentes: cfg.agentes };
 // Agente de modelo pronto que não diz o provedor usa o do líder do arquivo.
@@ -114,7 +125,7 @@ const prefsGravadas = await lerJson(ARQ_PREFS, null);
 let prefs = normalizarPreferencias(prefsGravadas ?? {}, opcoesPrefs);
 // Quem já tinha preferências gravadas antes de existir a tela de boas-vindas não precisa passar por ela.
 if (prefsGravadas && prefsGravadas.inicioFeito === undefined) prefs.inicioFeito = true;
-const aplicarPrefs = () => { muvuca.maxCiclos = prefs.maxCiclos; muvuca.maxPassos = prefs.maxPassos; muvuca.limiteAgenteS = prefs.limiteAgenteMin * 60; muvuca.limiteTestesMs = prefs.limiteTestesMin * 60000; muvuca.isolarTestes = prefs.isolarTestes; };
+const aplicarPrefs = () => { for (const { muvuca } of sessoes.values()) { muvuca.maxCiclos = prefs.maxCiclos; muvuca.maxPassos = prefs.maxPassos; muvuca.limiteAgenteS = prefs.limiteAgenteMin * 60; muvuca.limiteTestesMs = prefs.limiteTestesMin * 60000; muvuca.isolarTestes = prefs.isolarTestes; } };
 aplicarPrefs();
 // Memória por agente (notas por projeto) e rotinas (pedidos agendados).
 const memoria = criarMemoria(path.join(DADOS, 'memoria'));
@@ -131,12 +142,13 @@ function situacaoConexoes(a) {
   if (!Array.isArray(p?.argsMcp)) return { pode: false, motivo: p?.tipo === 'demo' ? 'em demonstração as conexões não são usadas' : `o provedor ${a.provedor} não recebe conexões` };
   return { pode: true, motivo: '' };
 }
-muvuca.conexoesDe = async (ag) => {
+const conexoesDe = async (ag) => {
   if (!situacaoConexoes(ag).pode) return null;
   // conexão com variável de ambiente faltando fica de fora, em vez de derrubar a chamada inteira
   return prepararMcp(path.join(DADOS, '.mcp'), ag.id, conexoesDoAgente(conexoes, ag.id).filter((c) => !variaveisQueFaltam(c).length));
 };
-const verConexoes = () => ({
+muvuca.conexoesDe = conexoesDe;
+const verConexoes = (muvuca) => ({
   conexoes: conexoes.conexoes.map((c) => ({ ...c, faltam: variaveisQueFaltam(c) })),
   agentes: conexoes.agentes,
   time: muvuca.cfg.agentes.map((a) => ({ id: a.id, nome: a.nome, papel: a.papel || '', ...situacaoConexoes(a) })),
@@ -144,7 +156,7 @@ const verConexoes = () => ({
 // Histórico: ao começar uma conversa nova, a anterior é guardada na pasta de dados. Ficam as 100 mais recentes.
 const PASTA_CONVERSAS = path.join(DADOS, 'conversas');
 const MAX_CONVERSAS = 100;
-muvuca.aoArquivar = (eventos) => {
+const aoArquivar = (eventos) => {
   const pedidos = eventos.filter((e) => e.tipo === 'pedido');
   const fim = [...eventos].reverse().find((e) => ['final', 'parado', 'erro'].includes(e.tipo));
   // o diff linha a linha pode ser enorme: no histórico fica só a lista de arquivos de cada um
@@ -160,8 +172,27 @@ muvuca.aoArquivar = (eventos) => {
     for (const velha of todas.slice(0, Math.max(0, todas.length - MAX_CONVERSAS))) await fs.rm(path.join(PASTA_CONVERSAS, velha), { force: true });
   })().catch(() => {});
 };
-// Anexos mandados desde a última decisão: se as mudanças forem descartadas, eles saem junto.
-let anexosPendentes = [];
+muvuca.aoArquivar = aoArquivar;
+// Abre uma conversa nova, com o time e o provedor de fábrica e as mesmas regras da principal.
+async function abrirConversa(id) {
+  const m = new Muvuca({ ...cfg, agentes: structuredClone(cfg.agentes) });
+  const sessao = { id, muvuca: m, anexos: [] };
+  sessoes.set(id, sessao);
+  m.memoria = memoria; m.conexoesDe = conexoesDe; m.aoArquivar = aoArquivar;
+  m.aoMudarFoto = (foto, projeto) => salvarFoto(pastaPendente(id), projeto, foto);
+  aplicarPrefs();
+  if (provedorPadrao && cfg.provedores[provedorPadrao] && (await situacaoProvedor(provedorPadrao, cfg.provedores[provedorPadrao])).pronto) m.usarProvedor(provedorPadrao, prefs.modelos[provedorPadrao]);
+  for (const [ag, v] of Object.entries(prefs.niveis)) if (m.agente(ag)) m.definirNivel(ag, v);
+  m.eventos = [];
+  return sessao;
+}
+const qualquerRodando = () => [...sessoes.values()].some((x) => x.muvuca.rodando);
+// A pasta está em uso por outra conversa (trabalhando nela, ou com mudanças dela esperando decisão)?
+const pastaEmUso = (pasta, menos) => [...sessoes.values()].find((x) => x.id !== menos && x.muvuca.projeto && path.resolve(x.muvuca.projeto) === path.resolve(pasta) && (x.muvuca.rodando || x.muvuca.foto));
+const resumoDaConversa = (x) => {
+  const ultimo = [...x.muvuca.eventos].reverse().find((e) => e.tipo === 'pedido');
+  return { id: x.id, rodando: x.muvuca.rodando, pendente: !!x.muvuca.foto, projeto: x.muvuca.projeto || '', titulo: ultimo ? String(ultimo.texto).split('\n')[0].slice(0, 80) : '', aguardando: x.muvuca.pendentes.size > 0 };
+};
 const ARQ_ROTINAS = path.join(DADOS, 'rotinas.json');
 let rotinas = [];
 try {
@@ -198,6 +229,11 @@ if (prefs.provedorTime && cfg.provedores[prefs.provedorTime] && (await situacaoP
 // escolhas de modelo por agente feitas na tela, para quem ainda está no time
 for (const [id, v] of Object.entries(prefs.niveis)) if (muvuca.agente(id)) muvuca.definirNivel(id, v);
 muvuca.eventos = muvuca.eventos.filter((e) => e.tipo !== 'nivel_agente');
+for (const nome of await fs.readdir(DADOS).catch(() => [])) {
+  const m = /^\.pendente-([2-9])$/.exec(nome); if (!m) continue;
+  const x = await abrirConversa(m[1]);
+  if (!(await restaurarPendente(x.muvuca, pastaPendente(m[1])))) sessoes.delete(m[1]);
+}
 const lerProjetos = async () => { try { return normalizarProjetos(await lerJson(ARQ_PROJETOS, null) ?? [{ nome: path.basename(prefs.projetoPadrao), caminho: prefs.projetoPadrao }]); } catch { return []; } };
 
 async function lerTimes(pasta, origem) {
@@ -252,6 +288,32 @@ const servidor = http.createServer(async (req, res) => {
         if (url.pathname !== '/') return json(res, 401, { erro: 'sem acesso: abra a Muvuca pelo link do terminal ou pelo aplicativo' });
         res.writeHead(401, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(SEM_ACESSO);
       }
+    }
+    // De qual conversa é esta chamada: cabeçalho (a tela manda em toda chamada) ou parâmetro (fluxo de eventos). Sem nada, a principal.
+    const idConversa = String(req.headers['x-muvuca-conversa'] || url.searchParams.get('conversa') || '1');
+    const sessao = sessoes.get(idConversa);
+    if (!sessao && url.pathname.startsWith('/api/') && url.pathname !== '/api/sessoes') return json(res, 404, { codigo: 'conversa', erro: `a conversa ${idConversa} não está aberta` });
+    const muvuca = (sessao || sessoes.get('1')).muvuca;
+    if (req.method === 'GET' && url.pathname === '/api/sessoes') return json(res, 200, { conversas: [...sessoes.values()].map(resumoDaConversa), maximo: MAX_CONVERSAS_ABERTAS });
+    if (req.method === 'POST' && url.pathname === '/api/sessoes') {
+      const b = await corpo(req);
+      if (b.acao === 'abrir') {
+        if (sessoes.size >= MAX_CONVERSAS_ABERTAS) return json(res, 400, { erro: `no máximo ${MAX_CONVERSAS_ABERTAS} conversas abertas ao mesmo tempo: feche uma antes` });
+        const id = ['2', '3', '4', '5', '6', '7', '8', '9'].find((n) => !sessoes.has(n));
+        await abrirConversa(id);
+        return json(res, 200, { ok: true, id });
+      }
+      if (b.acao === 'fechar') {
+        const x = sessoes.get(String(b.id || ''));
+        if (!x) return json(res, 404, { erro: 'conversa não encontrada' });
+        if (x.id === '1') return json(res, 400, { erro: 'a conversa principal não fecha' });
+        if (x.muvuca.rodando) return json(res, 409, { erro: 'essa conversa está no meio de um pedido: pare o pedido antes de fechar' });
+        if (x.muvuca.foto) return json(res, 400, { codigo: 'decisao', erro: 'essa conversa tem mudanças esperando decisão: escolha manter ou descartar antes de fechar' });
+        x.muvuca.nova();   // manda a conversa para o histórico
+        sessoes.delete(x.id);
+        return json(res, 200, { ok: true });
+      }
+      return json(res, 400, { erro: 'ação desconhecida' });
     }
     // Só aceita chamadas da própria página: bloqueia sites abertos no navegador tentando comandar o servidor local.
     if (req.method === 'POST') {
@@ -312,7 +374,7 @@ const servidor = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && url.pathname === '/api/preferencias') {
       const b = await corpo(req);
-      if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
+      if (qualquerRodando()) return json(res, 409, { erro: 'há um pedido em andamento em alguma conversa' });
       prefs = normalizarPreferencias({ ...prefs, ...b.preferencias }, opcoesPrefs);
       await gravarJson(ARQ_PREFS, prefs);
       aplicarPrefs();
@@ -435,15 +497,15 @@ const servidor = http.createServer(async (req, res) => {
       const c = await lerJson(path.join(PASTA_CONVERSAS, umaConversa[1] + '.json'), null);
       return c ? json(res, 200, c) : json(res, 404, { erro: 'conversa não encontrada' });
     }
-    if (req.method === 'GET' && url.pathname === '/api/conexoes') return json(res, 200, verConexoes());
+    if (req.method === 'GET' && url.pathname === '/api/conexoes') return json(res, 200, verConexoes(muvuca));
     if (req.method === 'POST' && url.pathname === '/api/conexoes') {
       const b = await corpo(req);
-      if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
+      if (qualquerRodando()) return json(res, 409, { erro: 'há um pedido em andamento em alguma conversa' });
       conexoes = normalizarConexoes({ conexoes: b.conexoes ?? conexoes.conexoes, agentes: b.agentes ?? conexoes.agentes });
       // agente do time atual que não pode usar conexão não fica na lista: se um dia passasse a poder, ganharia a conexão sem ninguém marcar
       for (const a of muvuca.cfg.agentes) if (!situacaoConexoes(a).pode && a.provedor && cfg.provedores[a.provedor]?.tipo !== 'demo') delete conexoes.agentes[a.id];
       await gravarJson(ARQ_CONEXOES, conexoes);
-      return json(res, 200, { ok: true, ...verConexoes() });
+      return json(res, 200, { ok: true, ...verConexoes(muvuca) });
     }
     if (req.method === 'POST' && url.pathname === '/api/conexoes/testar') {
       // Sobe o servidor da conexão, pede a lista de ferramentas e encerra. Aceita uma conexão já salva (id) ou uma ainda no formulário.
@@ -480,7 +542,7 @@ const servidor = http.createServer(async (req, res) => {
         if (total > LIMITES_ANEXO.total) return json(res, 400, { erro: `os anexos passam de ${LIMITES_ANEXO.total / 1048576} MB no total` });
         prontos.push([rel, dentro(projeto, rel), dados]);
       }
-      for (const [, abs, dados] of prontos) { await fs.mkdir(path.dirname(abs), { recursive: true }); await fs.writeFile(abs, dados); anexosPendentes.push({ projeto, abs }); }
+      for (const [, abs, dados] of prontos) { await fs.mkdir(path.dirname(abs), { recursive: true }); await fs.writeFile(abs, dados); sessao.anexos.push({ projeto, abs }); }
       return json(res, 200, { ok: true, salvos: prontos.map(([rel]) => rel) });
     }
     if (req.method === 'GET' && url.pathname === '/api/rotinas') return json(res, 200, { rotinas, padrao: prefs.projetoPadrao });
@@ -527,6 +589,9 @@ const servidor = http.createServer(async (req, res) => {
       if (!b.texto?.trim()) return json(res, 400, { erro: 'pedido vazio' });
       if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
       // quem valida é o pedido(): se ele recusar antes de começar, o erro volta na resposta (a tela mantém o texto digitado)
+      // duas conversas na mesma pasta se atropelariam: o diff e o "Descartar" de uma mexeriam no trabalho da outra
+      const ocupada = b.projeto && pastaEmUso(String(b.projeto), sessao.id);
+      if (ocupada) return json(res, 409, { codigo: 'pasta', erro: `essa pasta está em uso na conversa ${ocupada.id}${ocupada.muvuca.rodando ? ' (trabalhando)' : ' (mudanças esperando decisão)'}: use outra pasta ou resolva lá primeiro` });
       const andamento = muvuca.pedido({ ...b, comandoTeste: prefs.comandoTeste || undefined });
       let recusa = null, acabou = false;
       andamento.then(() => { acabou = true; }, (e) => { recusa = e; });
@@ -540,11 +605,11 @@ const servidor = http.createServer(async (req, res) => {
       const b = await corpo(req); const pasta = muvuca.projeto;
       await muvuca.decidir(b.acao);
       // descartou: os anexos mandados com esses pedidos saem também (e as pastas que ficarem vazias, até a "anexos/")
-      if (b.acao === 'descartar') for (const { projeto, abs } of anexosPendentes) {
+      if (b.acao === 'descartar') for (const { projeto, abs } of sessao.anexos) {
         await fs.rm(abs, { force: true }).catch(() => {});
         for (let d = path.dirname(abs); d !== projeto && d.startsWith(projeto + path.sep); d = path.dirname(d)) { try { await fs.rmdir(d); } catch { break; } }
       }
-      anexosPendentes = [];
+      sessao.anexos = [];
       // registro em disco: a conversa some ao reiniciar, e sem isto não dá para saber depois o que foi decidido
       await fs.appendFile(path.join(DADOS, 'decisoes.log'), `${new Date().toISOString()}	${b.acao}	${pasta}
 `).catch(() => {});

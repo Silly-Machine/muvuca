@@ -2,6 +2,24 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: testes isolados, conversas paralelas e tela em módulos
+
+### Novo
+
+- **Testes isolados.** O código de teste que um agente escreve só lê e escreve dentro da pasta do projeto e de uma pasta temporária, e não abre outros processos. Vale para `node --test`, no portão e nos testes que o próprio agente roda. Outros comandos de teste rodam como antes, e o cartão do portão avisa. Liga e desliga em Configurações; precisa do Node 24 ou mais novo.
+- **Vários pedidos ao mesmo tempo.** A faixa "Conversas abertas", no topo, abre até quatro conversas. Cada uma tem o próprio time, a própria pasta e os próprios pedidos, e elas trabalham em paralelo. Duas conversas não usam a mesma pasta.
+- A Buzina responde pelo guia embutido quando o aplicativo do provedor falha (login vencido, por exemplo), em vez de mostrar o erro dele.
+
+### Mudou
+
+- **A tela virou um conjunto de módulos.** Os scripts que dividiam um escopo só passaram a ter cada um o seu, com importações explícitas e sem ciclos. Nada mais vai para o escopo global do navegador. Para quem usa, nada muda.
+- Com o isolamento ligado, os agentes do Claude Code rodam os testes só com `node --test`; `npm test` deixa de ser aceito para eles.
+- Testes de projeto que abrem outro processo não passam com o isolamento ligado.
+
+### Não conferido
+
+- O isolamento **nos testes que o agente roda pelo Claude Code** foi verificado só em partes: o `claude` funciona com o ambiente restrito, e o Node bloqueia como esperado. O caminho completo (o agente rodando `node --test` e sendo bloqueado ao tentar outra forma) não foi exercitado, porque o login do Claude Code na máquina de desenvolvimento estava vencido.
+
 ## 0.5.0 (22/11/2026): revisão de segurança e de uso
 
 Resultado de uma rodada de busca por falhas. Três foram confirmadas com teste e corrigidas; o resto são reforços e melhorias.

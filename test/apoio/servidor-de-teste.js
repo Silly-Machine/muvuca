@@ -25,6 +25,11 @@ export async function subir(dados, extra = {}) {
     porta, base, token, pid: filho.pid, saida: () => saida,
     get: async (u) => (await fetch(base + u, { headers: chave })).json(),
     post: async (u, corpo) => { const r = await fetch(base + u, { method: 'POST', headers: { 'content-type': 'application/json', ...chave }, body: JSON.stringify(corpo) }); return { s: r.status, j: await r.json() }; },
+    // as mesmas chamadas, falando com uma conversa específica (a tela manda este cabeçalho em toda chamada)
+    de: (conversa) => ({
+      get: async (u) => (await fetch(base + u, { headers: { ...chave, 'x-muvuca-conversa': conversa } })).json(),
+      post: async (u, corpo) => { const r = await fetch(base + u, { method: 'POST', headers: { 'content-type': 'application/json', ...chave, 'x-muvuca-conversa': conversa }, body: JSON.stringify(corpo) }); return { s: r.status, j: await r.json() }; },
+    }),
     // sem a chave, para testar o que o servidor responde a quem não tem acesso
     cru: (u, opcoes = {}) => fetch(base + u, { redirect: 'manual', ...opcoes }),
     parar: () => new Promise((r) => { filho.once('exit', r); filho.kill(); }),

@@ -2,6 +2,12 @@
 import { compartilhado } from './estado.js';
 
 const $ = (s) => document.querySelector(s);
+// Cada página mostra uma conversa (a principal, ou a do endereço "?conversa=2"). Toda chamada à API leva esse número,
+// para o servidor saber de qual time, de qual pasta e de quais pedidos se trata.
+const CONVERSA = /^[1-9]$/.test(new URLSearchParams(location.search).get('conversa') || '') ? new URLSearchParams(location.search).get('conversa') : '1';
+const pedir = (url, opcoes = {}) => fetch(url, String(url).startsWith('/api/') ? { ...opcoes, headers: { 'x-muvuca-conversa': CONVERSA, ...(opcoes.headers || {}) } } : opcoes);
+// a pasta de projeto escolhida é lembrada por conversa: duas conversas não trabalham na mesma pasta
+const chaveProjeto = CONVERSA === '1' ? 'muvuca.projeto' : `muvuca.projeto.${CONVERSA}`;
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 const ESTADOS = { disponivel:'Disponível', pensando:'Pensando', trabalhando:'Trabalhando', concluido:'Concluído', aguardando:'Aguarda você' };
 compartilhado.agentes = []; compartilhado.destino = 'time'; compartilhado.rodando = false; compartilhado.baloes = {};
@@ -10,9 +16,11 @@ compartilhado.agentes = []; compartilhado.destino = 'time'; compartilhado.rodand
 // quebrava mais adiante sem dizer nada.
 async function lerDoServidor(url) {
   let r;
-  try { r = await fetch(url); } catch { throw new Error('a Muvuca não respondeu. Ela continua aberta?'); }
+  try { r = await pedir(url); } catch { throw new Error('a Muvuca não respondeu. Ela continua aberta?'); }
   const j = await r.json().catch(() => null);
   if (r.status === 401) throw new Error('este navegador perdeu o acesso: reabra a Muvuca pelo link do terminal ou pelo aplicativo');
+  // a conversa desta página foi fechada (em outra janela, ou o servidor reiniciou sem ela): volta para a principal
+  if (r.status === 404 && j?.codigo === 'conversa' && CONVERSA !== '1') { location.replace('/'); throw new Error(j.erro); }
   if (!r.ok || j === null) throw new Error(j?.erro || `o servidor respondeu ${r.status}`);
   return j;
 }
@@ -31,4 +39,4 @@ const textoDoUso = (e) => {
   return `Tempo total: ${tempo} · ${e.chamadas} chamada(s) ao provedor` + (e.custo !== undefined ? ` · ${milhares(e.entrada)} tokens lidos e ${milhares(e.saida)} escritos · US$ ${e.custo.toFixed(2)} pela tabela da API` : '');
 };
 
-export { $, ESTADOS, avisar, el, lerDoServidor, textoDoUso };
+export { $, CONVERSA, ESTADOS, avisar, chaveProjeto, el, lerDoServidor, pedir, textoDoUso };

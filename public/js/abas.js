@@ -1,7 +1,7 @@
 // Abas Rotinas, Agentes, Projetos e Configurações.
 import { compartilhado } from './estado.js';
 import { depois } from './tardias.js';
-import { $, el, lerDoServidor } from './base.js';
+import { $, chaveProjeto, el, lerDoServidor, pedir } from './base.js';
 import { PERSONAGENS, mascote } from './personagens.js';
 import { NOME_CX, NOME_FUNCAO, ROTULO_NIVEL, desenharArestas, modeloDoNivel, montarTime } from './palco.js';
 import { abrirConstrutor, adicionarDoCatalogo, aplicarTime, limparHistorico, montarEditor, novoAgente } from './construtor.js';
@@ -13,7 +13,7 @@ const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 let rotinas = [];
 const quandoRotina = (r) => (r.dias.length === 7 ? 'todo dia' : r.dias.map((d) => DIAS[d]).join(', ')) + ' às ' + r.hora;
 async function gravarRotinas(lista) {
-  const r = await fetch('/api/rotinas', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rotinas: lista }) });
+  const r = await pedir('/api/rotinas', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rotinas: lista }) });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.erro || r.status);
   rotinas = j.rotinas;
 }
@@ -29,7 +29,7 @@ async function montarRotinas() {
       el('div', 'situacao' + (/^(não aprovada|erro|recusada|interrompida)/.test(r.resultado) ? ' ruim' : ''), r.ultima ? `Última vez: ${new Date(r.ultima).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` + (r.resultado ? ` · ${r.resultado}` : '') : 'Ainda não rodou'));
     const bs = el('div', 'botoes');
     const agora = el('button', 'primario', 'Rodar agora'); agora.disabled = compartilhado.rodando;
-    agora.onclick = async () => { const x = await fetch('/api/rotinas/rodar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }) }); if (x.ok) secao('time'); else $('#rErro').textContent = 'Não deu: ' + ((await x.json().catch(() => ({}))).erro || x.status); };
+    agora.onclick = async () => { const x = await pedir('/api/rotinas/rodar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }) }); if (x.ok) secao('time'); else $('#rErro').textContent = 'Não deu: ' + ((await x.json().catch(() => ({}))).erro || x.status); };
     const pausa = el('button', '', r.ativa ? 'Pausar' : 'Ativar');
     pausa.onclick = async () => { try { await gravarRotinas(rotinas.map((x) => (x === r ? { ...x, ativa: !x.ativa } : x))); } catch (e) { $('#rErro').textContent = 'Não deu: ' + e.message; } montarRotinas(); };
     const tirar = el('button', '', 'Excluir');
@@ -77,7 +77,7 @@ async function montarMemoria() {
     m.append(el('h4', '', notas.length ? `Memória neste projeto (${notas.length})` : 'Memória neste projeto: nenhuma nota ainda'));
     const ul = el('ul');
     notas.forEach((n, k) => { const li = el('li'); const x = el('button', '', 'apagar'); x.setAttribute('aria-label', 'Apagar nota: ' + n);
-      x.onclick = async () => { await fetch('/api/memoria', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projeto, agente: a.id, notas: notas.filter((_, q) => q !== k) }) }); montarMemoria(); };
+      x.onclick = async () => { await pedir('/api/memoria', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projeto, agente: a.id, notas: notas.filter((_, q) => q !== k) }) }); montarMemoria(); };
       li.append(el('span', '', n), x); ul.append(li); });
     if (notas.length) m.append(ul);
     f.lastElementChild.append(m);
@@ -89,7 +89,7 @@ let projetos = [], prefs = null;
 const mesmaPasta = (a, b) => !!a && !!b && a.replace(/[\\/]+$/, '').toLowerCase() === b.replace(/[\\/]+$/, '').toLowerCase();
 const haQuanto = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'agora há pouco' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} dia(s)`; };
 function usarProjeto(caminho) {
-  $('#projeto').value = caminho; try { localStorage.setItem('muvuca.projeto', caminho); } catch {}
+  $('#projeto').value = caminho; try { localStorage.setItem(chaveProjeto, caminho); } catch {}
   montarChipProjeto();
 }
 // Seletor de projeto embaixo da caixa de texto: os projetos da lista, a pasta atual (se não estiver na lista) e o atalho para a aba Projetos.
@@ -117,7 +117,7 @@ async function lerProjetos() {
   return j;
 }
 async function gravarProjetos(lista) {
-  const r = await fetch('/api/projetos', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projetos: lista.map(({ nome, caminho }) => ({ nome, caminho })) }) });
+  const r = await pedir('/api/projetos', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projetos: lista.map(({ nome, caminho }) => ({ nome, caminho })) }) });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.erro || r.status);
 }
 async function montarProjetos() {
@@ -190,7 +190,7 @@ function montarNiveis() {
     sel.disabled = sel.disabled || compartilhado.rodando;
     sel.onchange = async () => {
       const m = $('#cfNivelMsg'); m.textContent = ''; m.className = '';
-      const r = await fetch('/api/agentes/nivel', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: a.id, nivel: sel.value }) });
+      const r = await pedir('/api/agentes/nivel', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: a.id, nivel: sel.value }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { m.className = 'ruim'; m.textContent = 'Não deu: ' + (j.erro || r.status); }
       await carregarConfig(); montarNiveis();
@@ -202,7 +202,7 @@ function montarNiveis() {
 $('#cfProv').onchange = preencherModelos;
 $('#cfProvUsar').onclick = async () => {
   const nome = $('#cfProv').value; const m = $('#cfProvMsg'); m.textContent = ''; m.className = '';
-  const r = await fetch('/api/provedores/usar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome, modelos: { baixa: $('#cfMBaixa').value, media: $('#cfMMedia').value, alta: $('#cfMAlta').value } }) });
+  const r = await pedir('/api/provedores/usar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nome, modelos: { baixa: $('#cfMBaixa').value, media: $('#cfMMedia').value, alta: $('#cfMAlta').value } }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { m.className = 'ruim'; m.textContent = 'Não deu: ' + (j.erro || r.status); return; }
   await carregarConfig(); await montarProvedores(nome); montarNiveis();
@@ -213,7 +213,7 @@ $('#cfProvUsar').onclick = async () => {
 async function lerPrefs() { const j = await lerDoServidor('/api/preferencias'); prefs = j.preferencias; return j; }
 async function salvarPrefs(novas) {
   const antigo = prefs?.projetoPadrao;
-  const r = await fetch('/api/preferencias', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ preferencias: novas }) });
+  const r = await pedir('/api/preferencias', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ preferencias: novas }) });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.erro || r.status);
   prefs = j.preferencias;
   // o palco acompanha o novo padrão se ainda estava no padrão antigo (ou vazio)

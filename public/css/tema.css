@@ -243,6 +243,17 @@ body.sem-conversa #alternarConversa { right:14px; } body.sem-conversa #alternarC
 .aba { flex:1; display:none; min-height:0; overflow:auto; padding:14px 2px 10px; scrollbar-width:thin; scrollbar-color:var(--borda) transparent; }
 body.ver-projetos #projetos, body.ver-config #configuracoes, body.ver-quadro #quadro, body.ver-rotinas #rotinas, body.ver-conexoes #conexoes { display:block; }
 body:is(.ver-projetos, .ver-config, .ver-quadro, .ver-rotinas, .ver-conexoes) :is(#time, #entrada) { display:none; }
+/* conversas abertas: faixa para alternar entre pedidos que andam ao mesmo tempo */
+#abertas { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+#abertas:empty { display:none; }
+.aberta { display:inline-flex; align-items:center; gap:7px; padding:4px 11px 4px 9px; font-size:12.5px; border-radius:999px; }
+.aberta i { width:8px; height:8px; border-radius:50%; background:#6b5f68; flex:none; }
+.aberta.rodando i { background:var(--holofote); animation:pulsar 1.2s ease-in-out infinite; } .aberta.pendente i { background:#f28a2e; }
+.aberta small { color:var(--apagado); max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .aberta small:empty { display:none; }
+.aberta.atual { box-shadow:var(--fofo), 0 0 0 1.5px #f28a2e; cursor:default; } .aberta.nova { color:var(--apagado); padding:4px 11px; }
+.aberta .fechar { margin-left:2px; padding:0 4px; border-radius:50%; color:var(--apagado); cursor:pointer; } .aberta .fechar:hover { color:var(--rosa); background:#00000040; }
+@keyframes pulsar { 50% { opacity:.35; } }
+@media (prefers-reduced-motion: reduce) { .aberta.rodando i { animation:none; } }
 /* portão: isolamento dos testes; configurações: caixa de marcar */
 .cartao .isolamento { margin-top:6px; font-size:12px; color:var(--menta); } .cartao .isolamento.sem { color:var(--apagado); } .cartao .isolamento:empty { display:none; }
 .campo.marcar { flex-direction:row; align-items:flex-start; gap:8px; grid-column:1 / -1; } .campo.marcar input { width:auto; margin-top:3px; accent-color:#f28a2e; } .campo.marcar small { color:var(--apagado); }

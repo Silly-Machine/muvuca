@@ -2,7 +2,7 @@
 import { compartilhado } from './estado.js';
 import { depois } from './tardias.js';
 import * as Regras from './regras/indice.js';
-import { $, el, lerDoServidor } from './base.js';
+import { $, el, lerDoServidor, pedir } from './base.js';
 import { mascote } from './personagens.js';
 import { NOME_ARQ, NOME_FORMA, NOME_FUNCAO, SEM_LIDER, camadas, chefeDe, montarGrafo, ns, vizinhosDe } from './palco.js';
 
@@ -427,7 +427,7 @@ function novoAgente() {
 const limpar = (t) => ({ nome: t.nome, descricao: t.descricao, arquitetura: t.arquitetura, agentes: t.agentes.map((a) => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== '' && v != null))) });
 async function aplicarTime(salvar) {
   $('#cErro').className = 'ruim'; $('#cErro').textContent = '';
-  const r = await fetch('/api/time', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ time: limpar(compartilhado.rascunho), salvar }) });
+  const r = await pedir('/api/time', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ time: limpar(compartilhado.rascunho), salvar }) });
   const j = await r.json().catch(() => ({}));
   $('#cDecidir').hidden = true;
   if (j.codigo === 'decisao') {
@@ -438,7 +438,7 @@ async function aplicarTime(salvar) {
       const b = el('button', acao === 'aceitar' ? 'primario' : '', rot);
       b.onclick = async () => {
         caixa.querySelectorAll('button').forEach((x) => (x.disabled = true));
-        const d = await fetch('/api/decidir', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ acao }) });
+        const d = await pedir('/api/decidir', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ acao }) });
         if (!d.ok) { $('#cErro').textContent = 'Não deu: ' + ((await d.json().catch(() => ({}))).erro || d.status); caixa.hidden = true; return; }
         aplicarTime(salvar);
       };

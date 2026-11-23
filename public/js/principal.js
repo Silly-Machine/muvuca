@@ -10,4 +10,5 @@ import './quadro.js';
 import './abas.js';
 import './conexoes.js';
 import './historico.js';
+import './abertas.js';
 import './inicio.js';
