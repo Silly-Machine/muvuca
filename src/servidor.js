@@ -30,6 +30,8 @@ const PORTA = Number(process.env.MUVUCA_PORTA ?? process.env.PORTA ?? 4317);   /
 // que num aplicativo instalado não pode ser escrita.
 const DADOS = path.resolve(process.env.MUVUCA_DADOS || path.join(os.homedir(), '.muvuca'));
 const ARQUIVOS_DE_DADOS = ['preferencias.json', 'projetos.json', 'rotinas.json', 'decisoes.log', 'agentes.local.json', 'memoria', 'times', '.pendente'];
+// O time em uso na conversa principal: sem isto, fechar e abrir a Muvuca (ou atualizá-la) voltava ao time do arquivo.
+const ARQ_TIME_EM_USO = path.join(DADOS, 'time-em-uso.json');
 if (!await fs.stat(DADOS).catch(() => null)) {
   await fs.mkdir(DADOS, { recursive: true });
   // Quem já usava a Muvuca com os dados dentro da pasta do app leva tudo junto, uma vez só. Os originais ficam onde estão.
@@ -80,6 +82,20 @@ await restaurarPendente(muvuca, PASTA_PENDENTE);
 const timeDoArquivo = { nome: `Time do arquivo (${path.basename(arquivoCfg)})`, descricao: 'O time com que o servidor subiu.', arquitetura: cfg.arquitetura || 'centralizada', agentes: cfg.agentes };
 // Agente de modelo pronto que não diz o provedor usa o do líder do arquivo.
 let provedorPadrao = (cfg.agentes.find((a) => a.funcao === 'lider') || cfg.agentes[0]).provedor;
+// Volta o time que estava em uso. Guardado como a tela mandou e validado de novo: se um provedor sumiu ou o formato
+// mudou numa versão nova, fica o time do arquivo, e o arquivo com problema é deixado de lado (não apagado).
+{
+  const guardado = await lerJson(ARQ_TIME_EM_USO, null);
+  if (guardado?.time) {
+    try {
+      const t = validarTime(guardado.time, cfg.provedores, provedorPadrao);
+      muvuca.cfg = { ...muvuca.cfg, nomeTime: t.nome, arquitetura: t.arquitetura, agentes: t.agentes };
+    } catch (e) {
+      console.log(`O time em uso guardado não vale mais (${e.message}); ficou o time do arquivo.`);
+      await fs.rename(ARQ_TIME_EM_USO, ARQ_TIME_EM_USO + '.invalido').catch(() => {});
+    }
+  }
+}
 // Um provedor está pronto para uso? CLI precisa do comando instalado; API precisa da chave e de endereço/modelo preenchidos.
 const comandoExiste = new Map();
 async function situacaoProvedor(nome, p) {
@@ -524,6 +540,7 @@ const servidor = http.createServer(async (req, res) => {
       const b = await corpo(req);
       const t = validarTime(b.time, cfg.provedores, provedorPadrao);
       muvuca.trocarTime(t);
+      if (sessao.id === '1') await gravarJson(ARQ_TIME_EM_USO, { time: b.time, gravado: new Date().toISOString() });
       let arquivo = null;
       if (b.salvar) {
         arquivo = (fatiar(t.nome) || 'time') + '.json';

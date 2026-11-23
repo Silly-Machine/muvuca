@@ -2,6 +2,10 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento
+
+- **O time em uso volta quando a Muvuca reabre.** Antes, o time montado no construtor vivia só na memória: fechar, reiniciar ou atualizar a Muvuca voltava ao time do arquivo, e um agente como a Buzina sumia do palco. Agora o time da conversa principal fica em `time-em-uso.json`, na pasta de dados. Se ele deixar de valer numa versão nova, a Muvuca sobe com o time do arquivo e guarda o antigo como `time-em-uso.json.invalido`.
+
 ## 1.0.0 (23/11/2026)
 
 A primeira versão estável, e a primeira com o repositório aberto. Não traz função nova em relação à 0.9.0: traz a prova, com o Claude de verdade, dos fluxos que só tinham rodado em demonstração, e a correção do que essa prova encontrou. O que ainda falta para um produto maduro está no roteiro do README: instaladores assinados, atualização automática e publicação no npm.

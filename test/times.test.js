@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Muvuca } from '../src/orquestrador.js';
+import { subir } from './apoio/servidor-de-teste.js';
 import { validarTime } from '../src/times.js';
 
 process.env.DEMO_ATRASO = '0';
@@ -155,4 +156,31 @@ test('pedido direto para agente que não existe é recusado antes de começar', 
   await assert.rejects(e.pedido({ texto: 'oi', projeto: await pastaNova(), para: 'fantasma' }), /não existe neste time/);
   assert.strictEqual(e.rodando, false);
   assert.strictEqual(e.foto, null);
+});
+
+test('o time em uso volta quando a Muvuca reabre (a Buzina não some do palco)', async () => {
+  const dados = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-time-em-uso-'));
+  const servidores = [];
+  try {
+    let s = await subir(dados); servidores.push(s);
+    const time = { nome: 'Time com a Buzina', arquitetura: 'centralizada', agentes: [
+      { id: 'lider', nome: 'Líder', funcao: 'lider', forma: 'cartola', papel: 'coordena' },
+      { id: 'buzina', nome: 'Buzina', funcao: '', forma: 'salsicha', papel: 'farejar bugs', ferramentas: ['listar', 'ler', 'escrever', 'rodar'] }] };
+    assert.equal((await s.post('/api/time', { time, salvar: false })).s, 200);
+    await s.parar();
+    s = await subir(dados); servidores.push(s);
+    const c = await s.get('/api/config');
+    assert.deepEqual(c.agentes.map((a) => a.id), ['lider', 'buzina']);
+    assert.equal(c.agentes.find((a) => a.id === 'buzina').forma, 'salsicha');
+    // time guardado que não vale mais: sobe com o do arquivo e guarda o arquivo ruim de lado
+    await s.parar();
+    await fs.writeFile(path.join(dados, 'time-em-uso.json'), JSON.stringify({ time: { nome: 'x', agentes: [] } }));
+    s = await subir(dados); servidores.push(s);
+    assert.ok((await s.get('/api/config')).agentes.length >= 2);
+    assert.ok(await fs.stat(path.join(dados, 'time-em-uso.json.invalido')));
+  } finally {
+    // servidor que ficou de pé por um erro no meio do teste não pode prender o processo
+    for (const x of servidores) await Promise.race([x.parar(), new Promise((r) => setTimeout(r, 3000))]);
+    await fs.rm(dados, { recursive: true, force: true });
+  }
 });

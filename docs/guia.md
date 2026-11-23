@@ -28,6 +28,7 @@ Tudo o que é seu fica na **pasta de dados**, fora da pasta do aplicativo: `~/.m
 | `preferencias.json` | pasta padrão, comando de teste, limites, provedor e modelos escolhidos |
 | `projetos.json` | a lista de pastas de projeto |
 | `rotinas.json` | os pedidos agendados e os vigias |
+| `time-em-uso.json` | o time da conversa principal, para voltar a ele quando a Muvuca reabre |
 | `especificacoes/` | o andamento da especificação em etapas de cada conversa |
 | `conexoes.json`, `.mcp/` | as conexões (servidores MCP), quem pode usar cada uma e a configuração entregue a cada agente |
 | `memoria/` | as notas de cada agente, por projeto |
