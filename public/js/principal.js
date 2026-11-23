@@ -11,4 +11,5 @@ import './abas.js';
 import './conexoes.js';
 import './historico.js';
 import './abertas.js';
+import './entrar.js';
 import './inicio.js';

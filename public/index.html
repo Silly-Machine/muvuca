@@ -230,6 +230,17 @@
   <header><button type="button" id="hVoltar" class="pequeno" hidden>← Todas</button><b id="hTitulo">Conversas anteriores</b><button type="button" id="hFechar" class="pequeno">fechar</button></header>
   <div id="hCorpo"></div>
 </dialog>
+<dialog id="dlgEntrar" aria-labelledby="enTitulo">
+  <div class="entrar">
+    <img src="/bonecos/cartola-aguardando.webp" alt="">
+    <h2 id="enTitulo">Entrar com o Claude</h2>
+    <p id="enTexto" aria-live="polite"></p>
+    <button type="button" id="enBotao" class="primario">Entrar com o Claude</button>
+    <a id="enLink" target="_blank" rel="noreferrer" hidden>A página não abriu? Abrir o login do Claude</a>
+    <button type="button" id="enDepois" class="pequeno">Agora não</button>
+    <small>A senha é digitada na página da Anthropic. A Muvuca não vê nem guarda o seu acesso: quem cuida disso é o Claude Code.</small>
+  </div>
+</dialog>
 <dialog id="boasVindas" aria-labelledby="bvTitulo">
   <form method="dialog" id="bvForm">
     <div class="topo"><img src="/bonecos/cartola-disponivel.webp" alt="">
@@ -237,6 +248,7 @@
     <h3>1. Quem faz o trabalho</h3>
     <div class="opcoes">
       <label class="opcao"><input type="radio" name="bvProv" value="claude" id="bvClaude"><b>Claude de verdade</b><small id="bvClaudeInfo">conferindo…</small>
+        <button type="button" id="bvEntrar" class="primario" hidden>Entrar com o Claude</button>
         <button type="button" id="bvConferir" hidden>Conferir de novo</button></label>
       <label class="opcao"><input type="radio" name="bvProv" value="demo" id="bvDemo"><b>Demonstração</b><small>Roteiro simulado: sem conta, sem rede e sem custo. Bom para conhecer a tela.</small></label>
     </div>

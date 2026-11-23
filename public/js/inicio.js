@@ -1,6 +1,7 @@
 // Boas-vindas da primeira abertura e partida da tela (carregado por último).
 import { compartilhado } from './estado.js';
 import { $, CONVERSA, chaveProjeto, el, pedir } from './base.js';
+import { entrarComClaude } from './entrar.js';
 import { NOME_ARQ, estado } from './palco.js';
 import { ocupado, pendencia, trata, vazio } from './conversa.js';
 import { soltarBuzina } from './buzina.js';
@@ -21,12 +22,18 @@ async function boasVindas(forcar = false) {
   const pintar = () => {
     const c = j.claude, info = $('#bvClaudeInfo');
     $('#bvClaude').disabled = !c.pronto; $('#bvConferir').hidden = c.pronto;
+    // instalado, mas sem login: o botão de entrar resolve aqui mesmo
+    $('#bvEntrar').hidden = !(c.instalado && c.logado === false);
     info.textContent = c.pronto ? `Usa o aplicativo "claude" logado neste computador (${c.versao || 'versão não informada'}). Vale a sua assinatura.`
       : !c.instalado ? 'O aplicativo "claude" (Claude Code) não foi encontrado. Instale, faça login e clique em "Conferir de novo".' : c.motivo + '.';
     if (c.pronto && !$('#bvDemo').checked) $('#bvClaude').checked = true; else if (!c.pronto) $('#bvDemo').checked = true;
   };
   $('#bvPasta').value = j.pasta; $('#bvEscolher').hidden = !desktop; pintar();
   $('#bvEscolher').onclick = () => escolherPastaEm($('#bvPasta'));
+  $('#bvEntrar').onclick = async (e) => {
+    e.preventDefault(); $('#bvEntrar').disabled = true; $('#bvClaudeInfo').textContent = 'A página de login do Claude abriu no seu navegador. Entre com a sua conta e volte para cá.';
+    await entrarComClaude(); $('#bvEntrar').disabled = false; j = await ler(); pintar();
+  };
   $('#bvConferir').onclick = async (e) => { e.preventDefault(); $('#bvClaudeInfo').textContent = 'conferindo…'; j = await ler(); pintar(); };
   const d = $('#boasVindas');
   d.addEventListener('cancel', (e) => e.preventDefault());   // Esc não pula as escolhas

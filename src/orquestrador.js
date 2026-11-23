@@ -501,7 +501,7 @@ export class Muvuca {
       else await this.fluxoTime(texto);
     } catch (e) {
       if (this.abort.signal.aborted) this.emitir({ tipo: 'parado' });
-      else this.emitir({ tipo: 'erro', texto: e.message });
+      else this.emitir({ tipo: 'erro', texto: e.message, ...(e.codigo && { codigo: e.codigo }) });
     } finally {
       // o que não chegou ao fim (parada, erro) não fica pendurado no quadro
       for (const t of this.quadro.values()) if (!['pronto', 'falhou'].includes(t.estado)) this.tarefa(t.id, { estado: 'parado', motivo: 'O pedido parou antes de esta tarefa terminar.' });

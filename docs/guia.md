@@ -47,6 +47,18 @@ Enquanto as boas-vindas não forem concluídas, a tela abre com duas escolhas:
 1. **Quem faz o trabalho.** "Claude de verdade" aparece liberado quando o aplicativo `claude` (Claude Code) está instalado, logado e tem as opções que a Muvuca usa. A conferência das opções é feita contra a ajuda do próprio aplicativo; se faltar alguma, a tela diz qual e pede para atualizar. "Demonstração" está sempre disponível.
 2. **Onde o time trabalha.** A pasta do projeto. Se não existir, a Muvuca cria. No aplicativo de mesa há um botão "Escolher…" com o seletor de pastas do sistema.
 
+### Entrar com o Claude
+
+Quando o Claude Code está instalado mas sem login (primeira vez, ou login vencido), a Muvuca mostra a tela **"Entrar com o Claude"**:
+
+1. Você clica no botão.
+2. A página de login do Claude abre no seu navegador. A senha é digitada lá, na página da Anthropic.
+3. Você autoriza e volta: a tela percebe sozinha e libera o time.
+
+Por baixo, o botão aciona o `claude auth login` do seu Claude Code, que é quem abre a página e guarda o acesso. A Muvuca não vê a senha nem o acesso; só pergunta ao Claude Code se há alguém logado. Se o navegador não abrir sozinho, a tela mostra o endereço como link.
+
+A tela aparece em três situações: nas boas-vindas (o botão fica na opção "Claude de verdade"), ao abrir a Muvuca com o time no Claude e sem login, e quando um pedido falha porque o login venceu no meio do caminho. "Agora não" fecha a tela; os pedidos ao Claude falham até o login ser feito.
+
 Da conta do Claude, a Muvuca só pergunta se há login; e-mail e organização não saem do aplicativo `claude`. Para rever a tela, abra o endereço com `?boasvindas` no fim.
 
 ## O que o modo demonstração mostra
@@ -126,7 +138,7 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `public/index.html` | ~230 | a estrutura da página, sem framework |
 | `public/css/` | ~520 | `fontes.css`, `estilo.css` (estrutura) e `tema.css` (tema pelúcia) |
 | `public/fontes/` | 5 arquivos | Fredoka e Nunito, servidas daqui (licença OFL na mesma pasta) |
-| `public/js/` | ~1700 | um módulo por parte da tela, carregados em ordem por `principal.js`: base, personagens, palco, construtor, conversa, buzina, quadro, abas, conexoes, historico, abertas, inicio. `estado.js` guarda o que mais de uma parte altera; `tardias.js`, as chamadas a partes carregadas depois |
+| `public/js/` | ~1700 | um módulo por parte da tela, carregados em ordem por `principal.js`: base, personagens, palco, construtor, conversa, buzina, quadro, abas, conexoes, historico, abertas, entrar, inicio. `estado.js` guarda o que mais de uma parte altera; `tardias.js`, as chamadas a partes carregadas depois |
 | `public/js/regras/` | ~110 | lógica sem tela, com testes: regras das setas e histórico do desfazer |
 | `public/bonecos/` | 85 imagens | os personagens, 17 formas em 5 estados |
 | `config/agentes.json` | | o time de fábrica e os provedores (demonstração e `claude-cli`) |
@@ -134,7 +146,7 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `config/arquiteturas/` | 7 arquivos | os modelos prontos de time |
 | `bin/muvuca.js` | ~50 | o comando `muvuca`: sobe o servidor e abre o navegador |
 | `electron/` | ~110 | o aplicativo de mesa: janela, seletor de pasta, ícone |
-| `test/` | 13 arquivos | 93 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos e o apoio que sobe um servidor de teste |
+| `test/` | 14 arquivos | 97 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos e o apoio que sobe um servidor de teste |
 | `scripts/` | | `versao.mjs` (lançar versões), `bateria.mjs` e `arquiteturas-reais.mjs` (testes ao vivo) |
 | `assets/personagens/` | | fontes dos personagens e os scripts que geram `public/bonecos/` |
 
@@ -397,7 +409,7 @@ Em **Configurações > Modelo de cada agente** dá para trocar o de qualquer age
 
 Dois níveis, os dois sem gastar modelo de verdade:
 
-- `npm test`: 93 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras e estrutura da tela, conexões, acesso, o que o Descartar cobre, isolamento dos testes e conversas paralelas). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
+- `npm test`: 97 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras e estrutura da tela, conexões, acesso, o que o Descartar cobre, isolamento dos testes e conversas paralelas). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
 - `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 225 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
 
 ### Arquiteturas com casos reais

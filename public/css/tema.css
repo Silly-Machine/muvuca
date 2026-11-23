@@ -243,6 +243,15 @@ body.sem-conversa #alternarConversa { right:14px; } body.sem-conversa #alternarC
 .aba { flex:1; display:none; min-height:0; overflow:auto; padding:14px 2px 10px; scrollbar-width:thin; scrollbar-color:var(--borda) transparent; }
 body.ver-projetos #projetos, body.ver-config #configuracoes, body.ver-quadro #quadro, body.ver-rotinas #rotinas, body.ver-conexoes #conexoes { display:block; }
 body:is(.ver-projetos, .ver-config, .ver-quadro, .ver-rotinas, .ver-conexoes) :is(#time, #entrada) { display:none; }
+/* entrar com o Claude */
+#dlgEntrar { border:0; padding:0; width:min(440px, calc(100vw - 32px)); color:inherit; border-radius:28px; background:var(--feltro), linear-gradient(180deg, #33292f, #2a2229); box-shadow:var(--fofo), 0 30px 80px -20px #000, 0 0 0 1.5px #f28a2e55; }
+#dlgEntrar::backdrop { background:rgba(20,14,18,.78); backdrop-filter:blur(4px); }
+.entrar { display:flex; flex-direction:column; align-items:center; gap:12px; padding:26px 28px 22px; text-align:center; }
+.entrar img { width:96px; height:98px; } .entrar h2 { margin:0; font:600 24px var(--titulo); color:#f5a45a; }
+.entrar p { margin:0; font-size:14.5px; line-height:1.45; min-height:3em; } .entrar small { color:var(--apagado); font-size:12px; line-height:1.4; }
+#enBotao { font:600 16px var(--titulo); padding:11px 26px; } #enBotao:disabled { opacity:.7; cursor:progress; }
+#enLink { font-size:13px; color:#f5a45a; } #dlgEntrar[data-estado=pronto] p { color:var(--menta); } #dlgEntrar[data-estado=erro] p { color:var(--rosa); }
+#bvEntrar { margin-top:8px; font-size:13px; padding:5px 14px; }
 /* conversas abertas: faixa para alternar entre pedidos que andam ao mesmo tempo */
 #abertas { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
 #abertas:empty { display:none; }

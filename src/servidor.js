@@ -1,5 +1,6 @@
 // Servidor local da Muvuca. Sem dependências: node src/servidor.js
 import http from 'node:http';
+import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import { rmSync, writeFileSync, readFileSync } from 'node:fs';
 const readFileSyncSeguro = (arq) => { try { return readFileSync(arq, 'utf8'); } catch { return 'null'; } };
@@ -270,6 +271,27 @@ const SEGURANCA = { 'x-content-type-options': 'nosniff', 'x-frame-options': 'DEN
 const POLITICA = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 const SEM_ACESSO = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Muvuca</title><body style="font:16px system-ui;background:#241c22;color:#eee;display:grid;place-items:center;height:100vh;margin:0"><div style="max-width:460px;padding:24px"><h1 style="color:#f5a45a;font-size:22px">A Muvuca está aberta, mas este navegador ainda não tem acesso</h1><p>Abra pelo link que apareceu no terminal, ou pelo aplicativo. O link leva uma chave que só a sua conta do computador conhece.</p></div></body></html>`;
 
+// Entrar com o Claude: a Muvuca aciona "claude auth login", que abre a página de login da Anthropic no navegador e
+// guarda o acesso no próprio Claude Code. Nada de senha ou token passa por aqui: só se sabe se o login terminou.
+let loginClaude = null;   // { filho, saida, erro } enquanto o login está em andamento ou acabou de falhar
+async function claudeLogado() {
+  const r = await rodar('claude', { args: ['auth', 'status'], limiteMs: 15000 });
+  try { return JSON.parse(r.saida).loggedIn === true; } catch { return false; }
+}
+function iniciarLoginClaude() {
+  if (loginClaude?.filho) return;
+  const noWindows = process.platform === 'win32';
+  const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
+  const comando = process.env.MUVUCA_LOGIN_CLAUDE || 'claude auth login --claudeai';   // a variável existe para os testes
+  const filho = noWindows || process.env.MUVUCA_LOGIN_CLAUDE ? spawn(comando, [], { shell: true, windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'] }) : spawn('claude', ['auth', 'login', '--claudeai'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const estado = loginClaude = { filho, saida: '', erro: '' };
+  const junta = (d) => { estado.saida = (estado.saida + d).slice(-4000); };
+  filho.stdout.on('data', junta); filho.stderr.on('data', junta);
+  const tempo = setTimeout(() => { estado.erro = 'O login não foi concluído em 5 minutos.'; try { filho.kill(); } catch { /* já saiu */ } }, 300000);
+  filho.on('error', (e) => { clearTimeout(tempo); estado.filho = null; estado.erro = e.code === 'ENOENT' ? 'O aplicativo "claude" não foi encontrado.' : e.message; });
+  filho.on('close', (codigo) => { clearTimeout(tempo); estado.filho = null; if (codigo !== 0 && !estado.erro) estado.erro = 'O Claude Code não concluiu o login. Tente de novo.'; });
+}
+
 const json = (res, codigo, obj) => { res.writeHead(codigo, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
 const corpo = async (req, max = 1e6) => { let t = ''; for await (const p of req) { t += p; if (t.length > max) throw new Error('corpo grande demais'); } return t ? JSON.parse(t) : {}; };
 
@@ -379,6 +401,18 @@ const servidor = http.createServer(async (req, res) => {
       await gravarJson(ARQ_PREFS, prefs);
       aplicarPrefs();
       return json(res, 200, { ok: true, preferencias: prefs });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/claude/entrar') {
+      await corpo(req);
+      if (!comandoExiste.has('claude')) await situacaoProvedor('claude-cli', { tipo: 'cli', comando: 'claude' });
+      if (comandoExiste.get('claude') !== true && !process.env.MUVUCA_LOGIN_CLAUDE) return json(res, 400, { erro: 'o aplicativo "claude" (Claude Code) não está instalado neste computador' });
+      iniciarLoginClaude();
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/claude/entrar') {
+      // se o Claude Code não conseguiu abrir o navegador, ele imprime o endereço: a tela oferece como link
+      const link = /https:\/\/[^\s"'<>]+/.exec(loginClaude?.saida || '')?.[0] || '';
+      return json(res, 200, { andamento: !!loginClaude?.filho, logado: await claudeLogado(), ...(link && { link }), ...(loginClaude?.erro && !loginClaude.filho && { erro: loginClaude.erro }) });
     }
     if (req.method === 'GET' && url.pathname === '/api/inicio') {
       // Tela de boas-vindas: o que já está pronto nesta máquina

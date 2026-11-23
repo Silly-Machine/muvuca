@@ -118,7 +118,8 @@ const trata = {
     }
   },
   parado() { por(el('div', 'linha aviso', 'Time interrompido. O que já foi feito aparece nos arquivos alterados.')); },
-  erro(e) { por(el('div', 'linha ruim', 'Erro: ' + e.texto)); },
+  // login vencido no meio de um pedido: além da linha de erro, abre a tela de entrar (só para o que acabou de acontecer, não ao reler a conversa)
+  erro(e) { por(el('div', 'linha ruim', 'Erro: ' + e.texto)); if (e.codigo === 'login' && Date.now() - e.hora < 15000) depois.abrirEntrar('O login do Claude Code venceu no meio do pedido. Entre de novo e mande o pedido outra vez.'); },
   diff(e) {
     ocupado(false); pendencia(e.arquivos.length > 0);
     const avisos = e.avisos || [];

@@ -70,6 +70,8 @@ export function lerSaidaCli(saida) {
   return { texto: texto || saida.trim().slice(-4000), passos, uso };
 }
 
+export const FALHA_DE_LOGIN = /Failed to authenticate|OAuth session expired|OAuth token (has )?expired|Invalid API key|Please run \/login|not logged in|authentication_error/i;
+
 // Os argumentos com que o aplicativo do provedor é chamado. Separado da chamada para poder ser testado.
 export function argsDoCli(prov, { ferramentas, mcp, isolamento } = {}) {
   const podeEscrever = ferramentas?.includes('escrever');
@@ -100,6 +102,9 @@ async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso,
   });
   if (r.codigo === -2) throw new Error('interrompido');
   const lido = lerSaidaCli(r.saida);
+  // Login vencido ou que nunca foi feito: o aplicativo sai com erro e uma mensagem de autenticação. Isso não é resposta
+  // do agente; a tela precisa saber para oferecer o botão de entrar.
+  if (r.codigo !== 0 && FALHA_DE_LOGIN.test(r.saida)) throw Object.assign(new Error(`O login do ${prov.comando === 'claude' ? 'Claude Code' : prov.comando} venceu ou ainda não foi feito. Entre de novo para o time voltar a trabalhar.`), { codigo: 'login' });
   if (r.codigo !== 0 && !lido.texto) throw new Error(`${prov.comando} saiu com código ${r.codigo}: ${r.saida.slice(-300)}`);
   if (r.codigo !== 0) lido.texto += `\n[aviso: ${prov.comando} saiu com código ${r.codigo}]`;
   return { texto: lido.texto, chamadas: [], passos: lido.passos, uso: lido.uso, msg: { role: 'assistant', content: lido.texto } };

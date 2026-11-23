@@ -46,7 +46,7 @@ Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude
 
 ## Instalação
 
-Para usar o Claude de verdade, instale antes o [Claude Code](https://claude.com/claude-code) e faça login (`claude` num terminal). Sem ele, a Muvuca funciona em modo demonstração.
+Para usar o Claude de verdade, instale antes o [Claude Code](https://claude.com/claude-code). O login você faz pela própria Muvuca: o botão **"Entrar com o Claude"** abre a página de login no navegador. Sem o Claude Code, a Muvuca funciona em modo demonstração.
 
 ### 1. Aplicativo de mesa (Windows, macOS e Linux)
 
@@ -143,7 +143,7 @@ Seus dados (preferências, projetos, rotinas, memória, times salvos) ficam em `
 ## Testes
 
 ```sh
-npm test                    # 93 testes automáticos, cerca de 1 minuto
+npm test                    # 97 testes automáticos, cerca de 1 minuto
 npm run bateria             # 225 verificações ao vivo, com o servidor em demonstração
 ```
 
