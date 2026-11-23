@@ -2,11 +2,15 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: isolamento no Node 22
+
+- **O isolamento dos testes passa a funcionar no Node 22**, no portão. Na 0.6.0 ele só ligava no Node 24, e os testes automáticos do próprio projeto falhavam no Node 22 (por isso a 0.6.0 não chegou a ter instaladores publicados). Os testes que o agente roda por conta própria continuam isolados só a partir do Node 24; no Node 22 a conversa avisa.
+
 ## 0.6.0 (23/11/2026): testes isolados, conversas paralelas e tela em módulos
 
 ### Novo
 
-- **Testes isolados.** O código de teste que um agente escreve só lê e escreve dentro da pasta do projeto e de uma pasta temporária, e não abre outros processos. Vale para `node --test`, no portão e nos testes que o próprio agente roda. Outros comandos de teste rodam como antes, e o cartão do portão avisa. Liga e desliga em Configurações; precisa do Node 24 ou mais novo.
+- **Testes isolados.** O código de teste que um agente escreve só lê e escreve dentro da pasta do projeto e de uma pasta temporária, e não abre outros processos. Vale para `node --test`, no portão e nos testes que o próprio agente roda. Outros comandos de teste rodam como antes, e o cartão do portão avisa. Liga e desliga em Configurações.
 - **Vários pedidos ao mesmo tempo.** A faixa "Conversas abertas", no topo, abre até quatro conversas. Cada uma tem o próprio time, a própria pasta e os próprios pedidos, e elas trabalham em paralelo. Duas conversas não usam a mesma pasta.
 - A Buzina responde pelo guia embutido quando o aplicativo do provedor falha (login vencido, por exemplo), em vez de mostrar o erro dele.
 

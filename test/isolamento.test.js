@@ -139,6 +139,10 @@ test('ambiente isolado chega ao processo do agente, e aplicativo feito em Node �
   try {
     assert.equal(iso.ok, true);
     assert.match(iso.env.NODE_OPTIONS, /--allow-fs-write="/);
+    assert.equal(typeof iso.paraAgentes, 'boolean');
+    // a opção de rodar num processo só vai pelo ambiente (Node 24) ou pela linha de comando (Node 22): num dos dois lugares ela está
+    assert.ok(/test-isolation=none/.test(iso.env.NODE_OPTIONS) !== /test-isolation=none/.test(iso.comando('node --test')), 'num lugar só');
+    assert.equal(iso.paraAgentes, /test-isolation=none/.test(iso.env.NODE_OPTIONS), 'o agente só fica isolado quando o ambiente basta');
     assert.equal(iso.env.TMP, iso.tmp); assert.equal(iso.env.TMPDIR, iso.tmp);
     // um processo qualquer que a Muvuca suba com esse ambiente vê as variáveis
     const r = await rodar(process.execPath, { args: ['-e', 'console.log(require("os").tmpdir())'], cwd: proj, env: iso.env });

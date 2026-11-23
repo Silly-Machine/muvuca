@@ -223,7 +223,7 @@ async function salvarPrefs(novas) {
 async function montarConfig() {
   const j = await lerPrefs(); lerProjetos(); montarProvedores();
   $('#cfProjeto').value = prefs.projetoPadrao; $('#cfTeste').value = prefs.comandoTeste; $('#cfCiclos').value = prefs.maxCiclos; $('#cfPassos').value = prefs.maxPassos; $('#cfLimiteAgente').value = prefs.limiteAgenteMin; $('#cfLimiteTestes').value = prefs.limiteTestesMin; $('#cfIsolar').checked = prefs.isolarTestes;
-  $('#cfIsolarNota').textContent = j.isolamento?.disponivel ? '(vale para "node --test"; a rede não é bloqueada)' : `(indisponível: ${j.isolamento?.motivo || 'motivo desconhecido'})`;
+  $('#cfIsolarNota').textContent = j.isolamento?.disponivel ? (j.isolamento.paraAgentes ? '(vale para "node --test"; a rede não é bloqueada)' : '(vale para "node --test" no portão; para valer também nos testes que os agentes rodam, use o Node 24 ou mais novo)') : `(indisponível: ${j.isolamento?.motivo || 'motivo desconhecido'})`;
   $('#cfFabrica').textContent = j.pastaPadrao; $('#cfArquivo').textContent = j.config; $('#cfMsg').textContent = ''; $('#cfMsg').className = '';
   $('#cfRestaurar').onclick = () => { $('#cfProjeto').value = j.pastaPadrao; };
   $('#cfAmbiente').hidden = !j.deAmbiente; $('#cfAmbiente').textContent = j.deAmbiente ? `A variável de ambiente MUVUCA_PROJETO está definida (${j.deAmbiente}) e vale no lugar desta pasta.` : '';

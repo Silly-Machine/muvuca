@@ -269,7 +269,7 @@ export async function usar(nome, args, { projeto, sinal, pedirAprovacao, isolar 
       const alvo = isolar ? await comandoIsolavel(cmd, projeto) : null;
       const iso = alvo ? await prepararIsolamento(projeto) : null;
       try {
-        const r = await rodar(iso?.ok ? alvo : cmd, { cwd: projeto, sinal, limiteMs: 90000, env: iso?.ok ? iso.env : undefined });
+        const r = await rodar(iso?.ok ? iso.comando(alvo) : cmd, { cwd: projeto, sinal, limiteMs: 90000, env: iso?.ok ? iso.env : undefined });
         return `código de saída: ${r.codigo}\n${r.saida.slice(-6000)}` + (iso?.ok && /ERR_ACCESS_DENIED/.test(r.saida) ? EXPLICACAO_BLOQUEIO : '');
       } finally { await iso?.limpar?.(); }
     }

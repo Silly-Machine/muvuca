@@ -173,7 +173,9 @@ export class Muvuca {
     // Quem roda testes recebe o ambiente isolado: o "node --test" que o agente dispara também fica preso à pasta do projeto.
     const iso = ferramentas.includes('rodar') && this.isolarTestes !== false ? await prepararIsolamento(this.projeto).catch(() => null) : null;
     // aplicativo de provedor feito em Node não sobe no ambiente isolado: aí o agente roda os testes dele sem isolamento, e a conversa avisa uma vez
-    let isolamento = iso?.ok ? iso : null;
+    // (num Node em que o ambiente sozinho não isola, o agente fica sem: ver isolamento.js)
+    let isolamento = iso?.ok && iso.paraAgentes ? iso : null;
+    if (iso?.ok && !iso.paraAgentes && prov.tipo === 'cli' && !(this.avisouIsolamento ||= new Set()).has('node')) { this.avisouIsolamento.add('node'); this.emitir({ tipo: 'aviso', texto: 'Neste Node, os testes que os agentes rodam por conta própria não ficam isolados (os do portão ficam). Com o Node 24 ou mais novo, os dois ficam.' }); }
     if (isolamento && prov.tipo === 'cli' && !(await cliAceitaIsolamento(prov.comando))) {
       isolamento = null;
       if (!(this.avisouIsolamento ||= new Set()).has(prov.comando)) { this.avisouIsolamento.add(prov.comando); this.emitir({ tipo: 'aviso', texto: `O aplicativo "${prov.comando}" não funciona com o isolamento dos testes: os testes que os agentes rodarem por ele não ficam isolados. Os do portão continuam.` }); }
@@ -349,7 +351,7 @@ export class Muvuca {
     const isolado = !!iso?.ok;
     this.emitir({ tipo: 'portao_rodando', comando, isolado });
     let r;
-    try { r = await rodar(isolado ? alvo : comando, { cwd: this.projeto, sinal: this.abort.signal, limiteMs: this.limiteTestesMs || 180000, env: isolado ? iso.env : undefined }); }
+    try { r = await rodar(isolado ? iso.comando(alvo) : comando, { cwd: this.projeto, sinal: this.abort.signal, limiteMs: this.limiteTestesMs || 180000, env: isolado ? iso.env : undefined }); }
     finally { await iso?.limpar?.(); }
     if (r.codigo === -2) throw new Error('interrompido');
     const bloqueou = isolado && /ERR_ACCESS_DENIED/.test(r.saida);

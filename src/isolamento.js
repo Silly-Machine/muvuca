@@ -2,8 +2,13 @@
 // com as permissões de quem abriu a Muvuca e podia ler e escrever em qualquer lugar.
 //
 // O isolamento usa o modelo de permissões do próprio Node: o processo dos testes só lê e escreve dentro da pasta
-// do projeto e de uma pasta temporária criada para ele, e não consegue abrir outros processos. As opções vão pela
-// variável de ambiente NODE_OPTIONS, então valem para o "node --test" do portão e para o que o agente dispara.
+// do projeto e de uma pasta temporária criada para ele, e não consegue abrir outros processos. As permissões vão
+// pela variável de ambiente NODE_OPTIONS.
+//
+// O "node --test" normalmente abre um processo por arquivo de teste, o que o isolamento proíbe; por isso ele roda
+// com a opção que mantém tudo num processo só. No Node 24 essa opção também vai pela variável de ambiente, e aí o
+// isolamento vale até para o "node --test" que o próprio agente dispara. No Node 22 ela só é aceita na linha de
+// comando: o portão isola (é a Muvuca que monta o comando), mas os testes rodados pelo agente não.
 //
 // O que NÃO fica isolado: a rede (o Node não restringe), e qualquer comando de teste que não seja "node --test"
 // (pytest, jest por npx, um script próprio): esses rodam como antes, e a tela diz que estão sem isolamento.
@@ -12,14 +17,11 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-// Nomes das opções mudaram entre versões do Node; a primeira combinação que passar na sonda é a usada.
-const CANDIDATAS = [
-  { permissao: '--permission', juntos: '--test-isolation=none' },
-  { permissao: '--experimental-permission', juntos: '--experimental-test-isolation=none' },
-];
+const PERMISSOES = ['--permission', '--experimental-permission'];
+const NUM_PROCESSO_SO = ['--test-isolation=none', '--experimental-test-isolation=none'];
 // Caminho dentro de NODE_OPTIONS: entre aspas, com a barra invertida dobrada (ali ela é caractere de escape).
 const aspas = (p) => `"${String(p).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-const opcoes = (c, pastas) => [c.permissao, ...pastas.flatMap((p) => [`--allow-fs-read=${aspas(p)}`, `--allow-fs-write=${aspas(p)}`]), c.juntos].join(' ');
+const opcoes = (permissao, pastas, extra = '') => [permissao, ...pastas.flatMap((p) => [`--allow-fs-read=${aspas(p)}`, `--allow-fs-write=${aspas(p)}`]), extra].filter(Boolean).join(' ');
 
 function executar(comando, args, env, cwd) {
   return new Promise((resolve) => {
@@ -42,13 +44,19 @@ async function sondar() {
   const dentro = path.join(base, 'dentro'), fora = path.join(base, 'fora.txt');
   await fs.mkdir(dentro);
   const codigo = `const fs=require('fs');let r='';try{fs.writeFileSync(${JSON.stringify(fora)},'x');r+='ESCREVEU-FORA'}catch(e){r+=e.code}try{fs.writeFileSync(require('path').join(${JSON.stringify(dentro)},'ok.txt'),'x');r+=' ESCREVEU-DENTRO'}catch(e){r+=' '+e.code}console.log(r)`;
+  const limpo = () => { const env = { ...process.env }; delete env.NODE_TEST_CONTEXT; delete env.NODE_OPTIONS; return env; };
+  const bloqueia = async (permissao, extraNoAmbiente, extraNaLinha) => {
+    const r = await executar('node', [...(extraNaLinha ? [extraNaLinha] : []), '-e', codigo], { ...limpo(), NODE_OPTIONS: opcoes(permissao, [dentro], extraNoAmbiente) }, dentro);
+    return r.codigo === 0 && /ERR_ACCESS_DENIED ESCREVEU-DENTRO/.test(r.saida);
+  };
   try {
-    for (const c of CANDIDATAS) {
-      const env = { ...process.env, NODE_OPTIONS: opcoes(c, [dentro]) }; delete env.NODE_TEST_CONTEXT;
-      const r = await executar('node', ['-e', codigo], env, dentro);
-      if (r.codigo === 0 && /ERR_ACCESS_DENIED ESCREVEU-DENTRO/.test(r.saida)) return { ok: true, candidata: c };
+    for (const permissao of PERMISSOES) {
+      if (!(await bloqueia(permissao, '', ''))) continue;
+      // a opção de rodar num processo só: melhor pela variável de ambiente (vale para o agente); senão, pela linha de comando
+      for (const um of NUM_PROCESSO_SO) if (await bloqueia(permissao, um, '')) return { ok: true, permissao, noAmbiente: um, naLinha: '', paraAgentes: true };
+      for (const um of NUM_PROCESSO_SO) if (await bloqueia(permissao, '', um)) return { ok: true, permissao, noAmbiente: '', naLinha: um, paraAgentes: false };
     }
-    const v = await executar('node', ['--version'], { ...process.env }, base);
+    const v = await executar('node', ['--version'], limpo(), base);
     return { ok: false, motivo: v.codigo === 0 ? `o Node instalado (${v.saida.trim()}) não tem o modelo de permissões usado no isolamento; atualize para o Node 24 ou mais novo` : 'o comando "node" não foi encontrado' };
   } finally { await fs.rm(base, { recursive: true, force: true }).catch(() => {}); }
 }
@@ -69,17 +77,20 @@ export async function comandoIsolavel(comando, projeto) {
 }
 
 // Prepara uma execução isolada para a pasta do projeto: cria a pasta temporária e devolve as variáveis de ambiente.
-// Quem chama roda o processo com esse ambiente e depois chama limpar().
+// Quem chama roda o processo com esse ambiente (passando o comando por comando()) e depois chama limpar().
 export async function prepararIsolamento(projeto) {
   const s = await isolamentoDisponivel();
   if (!s.ok) return { ok: false, motivo: s.motivo };
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-testes-'));
   const pasta = path.resolve(projeto);
-  const anterior = process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + ' ' : '';
   return {
     ok: true, tmp,
     // TMP, TEMP e TMPDIR levam os.tmpdir() para a pasta liberada: teste que cria arquivo temporário continua funcionando
-    env: { NODE_OPTIONS: anterior + opcoes(s.candidata, [pasta, tmp]), TMP: tmp, TEMP: tmp, TMPDIR: tmp },
+    env: { NODE_OPTIONS: opcoes(s.permissao, [pasta, tmp], s.noAmbiente), TMP: tmp, TEMP: tmp, TMPDIR: tmp },
+    // o comando "node --test ..." como deve ser executado nesta versão do Node
+    comando: (c) => (s.naLinha ? c.replace(/^node /, `node ${s.naLinha} `) : c),
+    // o ambiente basta para isolar um "node --test" que outro programa dispare (o agente)? Só quando nada precisa ir na linha de comando.
+    paraAgentes: s.paraAgentes,
     limpar: () => fs.rm(tmp, { recursive: true, force: true }).catch(() => {}),
   };
 }

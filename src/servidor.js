@@ -370,7 +370,7 @@ const servidor = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/preferencias') {
       const isolamento = await isolamentoDisponivel();
-      return json(res, 200, { preferencias: prefs, isolamento: { disponivel: isolamento.ok, motivo: isolamento.motivo || '' }, pastaPadrao: PROJETO_FABRICA, pastaDados: DADOS, config: path.basename(arquivoCfg), deAmbiente: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || '' });
+      return json(res, 200, { preferencias: prefs, isolamento: { disponivel: isolamento.ok, motivo: isolamento.motivo || '', paraAgentes: !!isolamento.paraAgentes }, pastaPadrao: PROJETO_FABRICA, pastaDados: DADOS, config: path.basename(arquivoCfg), deAmbiente: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || '' });
     }
     if (req.method === 'POST' && url.pathname === '/api/preferencias') {
       const b = await corpo(req);

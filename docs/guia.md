@@ -304,7 +304,15 @@ O código de teste que um agente escreve é código como outro qualquer, e roda 
 | Subir um servidor no mesmo processo e chamá-lo | sim |
 | Acessar a rede | sim: o Node não restringe, e por isso a leitura fora da pasta é bloqueada |
 
-Como funciona: o isolamento usa o modelo de permissões do próprio Node (`--permission`), passado pela variável `NODE_OPTIONS`. Uma sonda, na primeira vez, confere que o Node instalado aceita as opções e que elas de fato bloqueiam; se não, a tela diz que o isolamento está indisponível e por quê (é preciso o Node 24 ou mais novo).
+Como funciona: o isolamento usa o modelo de permissões do próprio Node (`--permission`), passado pela variável `NODE_OPTIONS`. Uma sonda, na primeira vez, confere que o Node instalado aceita as opções e que elas de fato bloqueiam; se não, a tela diz que o isolamento está indisponível e por quê.
+
+| Node instalado | Portão | Testes que o agente roda |
+|---|---|---|
+| 24 ou mais novo | isolado | isolado |
+| 22 | isolado | sem isolamento, com aviso na conversa |
+| mais antigo | sem isolamento | sem isolamento |
+
+A diferença do Node 22: a opção que mantém os testes num processo só não é aceita pela variável de ambiente, só pela linha de comando, e a linha de comando do agente é fixa.
 
 - **No portão**, vale para `node --test`, direto ou quando é isso que o `npm test` do projeto chama. Qualquer outro comando (pytest, jest, um script composto) roda como antes, e o cartão do portão diz "Sem isolamento" com o motivo.
 - **Nos testes que o próprio agente roda**, com o Claude Code: o agente recebe o mesmo ambiente, e a permissão dele vira o comando exato `node --test`. Sem isso, uma opção a mais na linha de comando reabriria tudo.
