@@ -4,6 +4,8 @@ As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O 
 
 ## Em andamento
 
+A primeira versão estável, e a primeira com o repositório aberto. Não traz função nova em relação à 0.9.0: traz a prova, com o Claude de verdade, dos fluxos que só tinham rodado em demonstração, e a correção do que essa prova encontrou. O que ainda falta para um produto maduro está no roteiro do README: instaladores assinados, atualização automática e publicação no npm.
+
 - **Vigia de "mudança" não se confunde mais com o relógio.** Tempos de execução na saída do comando (como os do `node --test`) deixaram de contar como mudança; antes, um vigia desse tipo sobre um comando de teste chamaria o time em toda verificação. O cartão do vigia passa a resumir pelo placar dos testes.
 
 ### Conferido com o Claude de verdade em 23/11/2026

@@ -23,7 +23,7 @@ A Muvuca é um painel local para trabalhar com um time de agentes de IA. Você e
 
 Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude Code) já logado na sua assinatura. Nenhuma chave de API é necessária, e nada do seu projeto passa por um servidor da Muvuca, porque não existe um.
 
-> **Estado do projeto:** protótipo em evolução (versão 0.9.0). Funciona de ponta a ponta e tem testes, mas leia [o que foi testado e o que não foi](docs/guia.md#o-que-foi-testado-e-o-que-não-foi) antes de apontá-la para um projeto importante.
+> **Estado do projeto:** versão 1.0.0, a primeira estável. Os fluxos principais foram provados com o Claude de verdade e há testes automáticos nos três sistemas. Dois avisos honestos: os instaladores ainda não são assinados (o Windows e o macOS mostram um aviso ao abrir) e não há atualização automática. Leia [o que foi testado e o que não foi](docs/guia.md#o-que-foi-testado-e-o-que-não-foi) antes de apontá-la para um projeto importante.
 
 ## Destaques
 
@@ -171,6 +171,7 @@ Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada 
 - [ ] Isolar também a rede e os comandos de teste que não são `node --test`
 - [ ] Aprovação ação por ação nas conexões, e conexões para quem escreve código
 - [x] Mais de um pedido ao mesmo tempo, em conversas paralelas
+- [x] Especificação em etapas, vigias e lições do time
 - [ ] Tela para celular e testes automáticos da tela
 - [ ] Publicação no npm
 - [ ] Tirar do repositório as imagens-fonte dos personagens (`assets/personagens/plush/gpt/`, 41 MB dos 48 MB) e guardá-las como anexo de uma versão
