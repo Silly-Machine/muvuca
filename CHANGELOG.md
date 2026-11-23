@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: testes isolados, conversas paralelas e tela em módulos
+## 0.6.0 (23/11/2026): testes isolados, conversas paralelas e tela em módulos
 
 ### Novo
 
