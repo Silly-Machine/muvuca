@@ -353,6 +353,45 @@ secao('Conexões');
   const volta = await post('/api/conexoes', guardadas);
   ok('conexões voltam ao estado do começo', volta.s === 200 && JSON.stringify(volta.j.conexoes.map(({ faltam, ...c }) => c)) === JSON.stringify(guardadas.conexoes) && JSON.stringify(volta.j.agentes) === JSON.stringify(guardadas.agentes)); }
 
+// ---------- lições do time, vigias e especificação em etapas
+secao('Lições, vigias e especificação em etapas');
+{ const mem = async () => (await get('/api/memoria?projeto=' + encodeURIComponent(PROJETO))).j;
+  const licoes0 = (await mem()).licoes || [];
+  const g = await post('/api/memoria', { projeto: PROJETO, agente: 'time', notas: [...licoes0, '  lição da bateria  ', 'LIÇÃO DA BATERIA'] });
+  ok('lição do time é gravada limpa e sem repetir', g.s === 200 && (await mem()).licoes.filter((n) => /lição da bateria/i.test(n)).length === 1, JSON.stringify(g.j));
+
+  // vigia: só roda o comando; quem decide chamar o time é a condição
+  ok('vigia sem comando é recusado', (await post('/api/rotinas', { rotinas: [{ tipo: 'vigia', nome: 'x', texto: 'y', comando: '', intervaloMin: 5, dispara: 'falha' }] })).s === 400);
+  const criar = await post('/api/rotinas', { rotinas: [...rotinas0,
+    { tipo: 'vigia', nome: 'Vigia que passa', texto: 'conserte', comando: 'node -e "process.exit(0)"', intervaloMin: 60, dispara: 'falha', ativa: false },
+    { tipo: 'vigia', nome: 'Vigia que falha', texto: 'conserte', comando: 'node -e "process.exit(3)"', intervaloMin: 60, dispara: 'falha', ativa: false }] });
+  const passa = criar.j?.rotinas.find((x) => x.nome === 'Vigia que passa'); const falha = criar.j?.rotinas.find((x) => x.nome === 'Vigia que falha');
+  ok('vigias criados', !!passa && !!falha && passa.tipo === 'vigia', JSON.stringify(criar.j).slice(0, 300));
+  const v1 = await post('/api/rotinas/verificar', { id: passa?.id }); ok('comando que passa não chama o time', v1.s === 200 && v1.j.ok === true && v1.j.dispararia === false, JSON.stringify(v1.j).slice(0, 200));
+  const v2 = await post('/api/rotinas/verificar', { id: falha?.id }); ok('comando que falha chamaria o time', v2.s === 200 && v2.j.ok === false && v2.j.dispararia === true, JSON.stringify(v2.j).slice(0, 200));
+  ok('verificar o que não é vigia dá 404', (await post('/api/rotinas/verificar', { id: 'nao-existe' })).s === 404);
+  ok('verificar não ocupou o time', (await config()).rodando === false);
+  const v = await post('/api/rotinas', { rotinas: rotinas0 }); ok('rotinas restauradas depois dos vigias', v.j?.rotinas.length === rotinas0.length);
+
+  // especificação em etapas, do começo ao fim
+  await post('/api/nova');
+  ok('especificação curta demais é recusada', (await post('/api/especificacao', { texto: 'curta', projeto: PROJETO })).s === 400);
+  ok('ação sem especificação dá 404', (await post('/api/especificacao/acao', { acao: 'pausar' })).s === 404);
+  const e = await post('/api/especificacao', { texto: 'Página de status da bateria\n- Crie a rota /health com teste\n- Crie a página de status que consulta a rota', projeto: PROJETO });
+  ok('especificação aceita (202)', e.s === 202 && e.j?.especificacao?.estado === 'planejando', JSON.stringify(e.j).slice(0, 200));
+  ok('segunda especificação na mesma conversa é recusada', [409].includes((await post('/api/especificacao', { texto: 'Outra especificação qualquer, bem comprida', projeto: PROJETO })).s));
+  let run = null; const fim = Date.now() + 180000;
+  while (Date.now() < fim) { run = (await get('/api/especificacao')).j.especificacao; if (run && ['concluida', 'pausada', 'cancelada'].includes(run.estado)) break; await dormir(700); }
+  ok('a especificação conclui as duas etapas', run?.estado === 'concluida' && run.etapas.length === 2 && run.etapas.every((x) => x.estado === 'pronta'), JSON.stringify(run).slice(0, 300));
+  ok('a conversa recebeu o andamento', (await eventos()).some((x) => x.tipo === 'espec'));
+  ok('tirar da tela antes de decidir funciona', (await post('/api/especificacao/acao', { acao: 'fechar' })).s === 200 && (await get('/api/especificacao')).j.especificacao === null);
+  await esperarParar();
+  const d = await post('/api/decidir', { acao: 'descartar', motivo: 'motivo da bateria' });
+  ok('descartar com motivo vira lição do time', d.s === 200 && (await mem()).licoes.some((n) => /motivo da bateria/.test(n)), JSON.stringify((await mem()).licoes));
+  await post('/api/memoria', { projeto: PROJETO, agente: 'time', notas: licoes0 });
+  ok('lições restauradas', JSON.stringify((await mem()).licoes || []) === JSON.stringify(licoes0));
+  ok('pasta vazia depois da especificação', await vazia(PROJETO)); }
+
 // ---------- fim: estado igual ao do começo
 secao('Estado final');
 await post('/api/nova');

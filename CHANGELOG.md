@@ -2,6 +2,15 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento
+
+Três ideias trazidas da análise do Kiro Crew.
+
+- **Especificação em etapas.** Para um trabalho grande, marque "em etapas" ao enviar: quem lidera quebra a especificação em até 12 etapas e o time faz uma de cada vez, cada uma como um pedido completo (com portão de testes e revisão). Um painel no topo da conversa mostra o andamento e deixa pausar, retomar, pular a etapa que travou ou cancelar. O progresso fica gravado: se a Muvuca fechar no meio, a especificação volta pausada. As mudanças de todas as etapas esperam uma decisão só, no fim.
+- **Vigias.** Um tipo novo de rotina: em vez de dia e hora, um comando que a Muvuca roda de tempos em tempos na pasta do projeto, sem gastar modelo. O time só recebe o pedido quando o comando falha (ou quando a saída muda), e uma vez só enquanto a situação durar. "Verificar agora" roda o comando na hora e mostra o resultado.
+- **Lições do time.** Regras de um projeto que todo agente recebe antes de trabalhar, inclusive quem planeja. Entram pela aba Agentes ou pelo motivo escrito ao descartar uma entrega ("Vai descartar? Diga por quê").
+- Conferido em demonstração, pela tela e pela bateria ao vivo (243 verificações). Ainda sem prova com o Claude de verdade: uma especificação em etapas inteira e um vigia chamando o time.
+
 ## 0.8.0 (23/11/2026): exportar o time para outra IA
 
 - **Botão "Exportar…" no construtor.** A arquitetura montada sai em arquivos que outra IA consegue usar: `AGENTS.md` (o time em texto, com diagrama, regras de trabalho e as instruções de cada agente), `muvuca-time.json` (o time em JSON) e um subagente do Claude Code por agente em `.claude/agents/`.

@@ -11,7 +11,8 @@ import { buzinaSolta } from './buzina.js';
 /* ---------- rotinas ---------- */
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 let rotinas = [];
-const quandoRotina = (r) => (r.dias.length === 7 ? 'todo dia' : r.dias.map((d) => DIAS[d]).join(', ')) + ' às ' + r.hora;
+const DISPARA = { falha: 'quando o comando falhar', mudanca: 'quando a saída do comando mudar' };
+const quandoRotina = (r) => (r.tipo === 'vigia' ? `Vigia: a cada ${r.intervaloMin} min, ${DISPARA[r.dispara]}` : (r.dias.length === 7 ? 'todo dia' : r.dias.map((d) => DIAS[d]).join(', ')) + ' às ' + r.hora);
 async function gravarRotinas(lista) {
   const r = await pedir('/api/rotinas', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rotinas: lista }) });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.erro || r.status);
@@ -27,8 +28,18 @@ async function montarRotinas() {
     const h = el('h3', '', r.nome); h.append(el('span', 'selo' + (r.ativa ? ' padrao' : ''), r.ativa ? 'ativa' : 'pausada'));
     c.append(h, el('div', 'situacao', quandoRotina(r)), el('div', 'pedido-rotina', r.texto), el('code', '', r.projeto || `pasta padrão (${j.padrao})`),
       el('div', 'situacao' + (/^(não aprovada|erro|recusada|interrompida)/.test(r.resultado) ? ' ruim' : ''), r.ultima ? `Última vez: ${new Date(r.ultima).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` + (r.resultado ? ` · ${r.resultado}` : '') : 'Ainda não rodou'));
+    if (r.tipo === 'vigia') {
+      // o vigia roda este comando sem gastar modelo; o time só é chamado quando a condição acontece
+      const v = r.vigia || {};
+      c.append(el('code', '', r.comando), el('div', 'situacao' + (v.ok === false ? ' ruim' : ''), !v.verificada ? 'Ainda não verificou.' : `Verificado em ${new Date(v.verificada).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}: ${v.ok ? 'o comando passou' : 'o comando falhou'}${v.resumo ? ' · ' + v.resumo : ''}${v.pendente ? ' · o time vai ser chamado assim que ficar livre' : ''}`));
+    }
     const bs = el('div', 'botoes');
-    const agora = el('button', 'primario', 'Rodar agora'); agora.disabled = compartilhado.rodando;
+    if (r.tipo === 'vigia') {
+      const ver = el('button', '', 'Verificar agora');
+      ver.onclick = async () => { ver.disabled = true; const x = await pedir('/api/rotinas/verificar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }) }); const k = await x.json().catch(() => ({})); if (!x.ok) $('#rErro').textContent = 'Não deu: ' + (k.erro || x.status); montarRotinas(); };
+      bs.append(ver);
+    }
+    const agora = el('button', 'primario', r.tipo === 'vigia' ? 'Chamar o time agora' : 'Rodar agora'); agora.disabled = compartilhado.rodando;
     agora.onclick = async () => { const x = await pedir('/api/rotinas/rodar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }) }); if (x.ok) secao('time'); else $('#rErro').textContent = 'Não deu: ' + ((await x.json().catch(() => ({}))).erro || x.status); };
     const pausa = el('button', '', r.ativa ? 'Pausar' : 'Ativar');
     pausa.onclick = async () => { try { await gravarRotinas(rotinas.map((x) => (x === r ? { ...x, ativa: !x.ativa } : x))); } catch (e) { $('#rErro').textContent = 'Não deu: ' + e.message; } montarRotinas(); };
@@ -37,10 +48,15 @@ async function montarRotinas() {
     bs.append(agora, pausa, tirar); c.append(bs); lista.append(c);
   }
 }
+function tipoDeRotina() { const vigia = $('#rTipo').value === 'vigia'; for (const x of document.querySelectorAll('#rForm .so-horario')) x.hidden = vigia; for (const x of document.querySelectorAll('#rForm .so-vigia')) x.hidden = !vigia; $('#rHora').required = !vigia; }
+$('#rTipo').onchange = tipoDeRotina; tipoDeRotina();
 $('#rForm').onsubmit = async (e) => {
   e.preventDefault(); $('#rErro').textContent = '';
-  const nova = { nome: $('#rNome').value, hora: $('#rHora').value, texto: $('#rTexto').value, projeto: $('#rProjeto').value.trim(), dias: [...$('#rDias').querySelectorAll('input:checked')].map((i) => +i.value), ativa: true };
-  try { await gravarRotinas([...rotinas, nova]); $('#rNome').value = ''; $('#rTexto').value = ''; $('#rProjeto').value = ''; montarRotinas(); }
+  const comum = { nome: $('#rNome').value, texto: $('#rTexto').value, projeto: $('#rProjeto').value.trim() };
+  const nova = $('#rTipo').value === 'vigia'
+    ? { ...comum, tipo: 'vigia', comando: $('#rComando').value, intervaloMin: $('#rIntervalo').value, dispara: $('#rDispara').value }
+    : { ...comum, tipo: 'horario', hora: $('#rHora').value, dias: [...$('#rDias').querySelectorAll('input:checked')].map((i) => +i.value) };
+  try { await gravarRotinas([...rotinas, nova]); $('#rNome').value = ''; $('#rTexto').value = ''; $('#rProjeto').value = ''; $('#rComando').value = ''; montarRotinas(); }
   catch (err) { $('#rErro').textContent = 'Não deu: ' + err.message; }
 };
 
@@ -70,6 +86,20 @@ async function montarBasicos(buscar = false) {
 async function montarMemoria() {
   const projeto = $('#projeto').value.trim();
   let j; try { j = await lerDoServidor('/api/memoria?projeto=' + encodeURIComponent(projeto)); } catch { return; }
+  // Lições do time: regras deste projeto que valem para todos os agentes. Entram por aqui, ou pelo motivo de um descarte.
+  document.getElementById('licoes')?.remove();
+  const bloco = el('section'); bloco.id = 'licoes';
+  const licoes = j.licoes || [];
+  const gravarLicoes = async (lista) => { const r = await pedir('/api/memoria', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projeto, agente: 'time', notas: lista }) }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro || r.status); montarMemoria(); };
+  bloco.append(el('h2', 'sec', 'Lições do time'), el('p', 'nota', licoes.length ? 'Regras deste projeto que todo agente recebe antes de trabalhar, inclusive quem planeja.' : 'Nenhuma lição neste projeto ainda. Uma lição é uma regra que todo agente recebe antes de trabalhar. Escreva uma abaixo, ou diga o motivo ao descartar uma entrega.'));
+  const ulL = el('ul');
+  licoes.forEach((n, k) => { const li = el('li'); const x = el('button', '', 'apagar'); x.setAttribute('aria-label', 'Apagar lição: ' + n); x.onclick = () => gravarLicoes(licoes.filter((_, q) => q !== k)).catch(() => {}); li.append(el('span', '', n), x); ulL.append(li); });
+  if (licoes.length) bloco.append(ulL);
+  const formL = el('form', 'nova-licao'); const campo = el('input'); campo.maxLength = 240; campo.placeholder = 'Ex.: os testes ficam em test/ e usam node:test'; campo.setAttribute('aria-label', 'Nova lição para o time');
+  const ensinar = el('button', 'primario', 'Ensinar'); ensinar.type = 'submit';
+  formL.onsubmit = async (ev) => { ev.preventDefault(); const t = campo.value.trim(); if (!t) return; try { await gravarLicoes([...licoes, t]); } catch (err) { campo.setCustomValidity(err.message); campo.reportValidity(); } };
+  formL.append(campo, ensinar); bloco.append(formL);
+  $('#fichas').prepend(bloco);
   document.querySelectorAll('#fichas .ficha:not(.basico)').forEach((f, i) => {
     const a = compartilhado.agentes[i]; if (!a) return; f.querySelector('.memo')?.remove();
     if (a.funcao === 'lider' || a.funcao === 'sublider') return;   // quem só planeja não guarda notas

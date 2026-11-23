@@ -132,9 +132,14 @@ const trata = {
     }
     const naoVolta = e.arquivos.filter((a) => a.semCopia).length;
     if (naoVolta || avisos.length) { const a = el('div', 'aviso-descarte'); a.append(el('b', '', 'O Descartar não desfaz tudo desta vez:')); if (naoVolta) a.append(el('p', '', `${naoVolta} arquivo(s) grande(s) demais para guardar cópia.`)); for (const t of avisos) a.append(el('p', '', t)); c.append(a); }
-    const bs = el('div', 'botoes'); const f = el('button', '', 'Manter mudanças'); const x = el('button', '', 'Descartar mudanças'); f.onclick = () => post('/api/decidir', { acao: 'aceitar' }); x.onclick = () => post('/api/decidir', { acao: 'descartar' }); bs.append(f, x); c.append(bs); por(c);
+    const bs = el('div', 'botoes'); const f = el('button', '', 'Manter mudanças'); const x = el('button', '', 'Descartar mudanças');
+    // quem descarta pode dizer por quê: o motivo vira lição para o time neste projeto
+    const motivo = el('input', 'motivo-descarte'); motivo.type = 'text'; motivo.maxLength = 200; motivo.placeholder = 'Vai descartar? Diga por quê (opcional): vira lição para o time'; motivo.setAttribute('aria-label', 'Motivo do descarte, opcional');
+    f.onclick = () => post('/api/decidir', { acao: 'aceitar' }); x.onclick = () => post('/api/decidir', { acao: 'descartar', motivo: motivo.value.trim() }); bs.append(f, x); c.append(motivo, bs); por(c);
   },
-  decisao_humana(e) { pendencia(false); document.querySelectorAll('#diff').forEach((d) => { d.querySelector('.botoes')?.remove(); d.removeAttribute('id'); }); por(el('div', 'linha', e.acao === 'descartar' ? 'Mudanças descartadas: a pasta voltou ao que era.' : 'Mudanças mantidas.')); },
+  licao(e) { por(el('div', 'linha licao', `Lição guardada para o time: ${e.nota}`)); },
+  espec(e) { depois.desenharEspec(e); },
+  decisao_humana(e) { pendencia(false); document.querySelectorAll('#diff').forEach((d) => { d.querySelector('.botoes')?.remove(); d.querySelector('.motivo-descarte')?.remove(); d.removeAttribute('id'); }); por(el('div', 'linha', e.acao === 'descartar' ? 'Mudanças descartadas: a pasta voltou ao que era.' : 'Mudanças mantidas.')); },
 };
 
 async function post(url, corpo) {
@@ -163,7 +168,10 @@ async function enviar() {
     } catch (e) { $('#erroEnvio').className = 'ruim'; $('#erroEnvio').textContent = 'Não deu para anexar: ' + e.message; $('#enviar').disabled = compartilhado.rodando; return; }
     $('#erroEnvio').textContent = '';
   }
-  try { r = await pedir('/api/pedido', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texto: textoFinal, projeto, para: compartilhado.destino }) }); j = await r.json().catch(() => ({})); }
+  // "em etapas": o texto vai como especificação. Quem lidera quebra em etapas e o time faz uma de cada vez.
+  const emEtapas = $('#emEtapas').checked;
+  if (emEtapas && compartilhado.destino !== 'time') { $('#erroEnvio').className = 'ruim'; $('#erroEnvio').textContent = 'Uma especificação em etapas vai para o time inteiro: escolha "Time" como destino.'; $('#enviar').disabled = compartilhado.rodando; return; }
+  try { r = await pedir(emEtapas ? '/api/especificacao' : '/api/pedido', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(emEtapas ? { texto: textoFinal, projeto } : { texto: textoFinal, projeto, para: compartilhado.destino }) }); j = await r.json().catch(() => ({})); if (r.ok && emEtapas) { $('#emEtapas').checked = false; depois.desenharEspec(j.especificacao); } }
   catch { $('#erroEnvio').textContent = 'Sem conexão com o servidor da Muvuca. Ele está rodando?'; $('#enviar').disabled = compartilhado.rodando; return; }
   // só limpa a caixa quando o pedido foi aceito: recusa não faz perder o que você digitou
   if (!r.ok) { $('#erroEnvio').textContent = 'Não deu: ' + (j.erro || r.status); $('#enviar').disabled = compartilhado.rodando; return; }

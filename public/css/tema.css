@@ -243,6 +243,22 @@ body.sem-conversa #alternarConversa { right:14px; } body.sem-conversa #alternarC
 .aba { flex:1; display:none; min-height:0; overflow:auto; padding:14px 2px 10px; scrollbar-width:thin; scrollbar-color:var(--borda) transparent; }
 body.ver-projetos #projetos, body.ver-config #configuracoes, body.ver-quadro #quadro, body.ver-rotinas #rotinas, body.ver-conexoes #conexoes { display:block; }
 body:is(.ver-projetos, .ver-config, .ver-quadro, .ver-rotinas, .ver-conexoes) :is(#time, #entrada) { display:none; }
+/* especificação em etapas: painel no topo da conversa */
+#espec { margin:10px 12px 0; padding:12px 14px; border-radius:18px; background:#00000030; box-shadow:inset 0 0 0 1.5px #f28a2e40; font-size:13px; }
+#espec[hidden] { display:none; } #espec[data-estado=concluida] { box-shadow:inset 0 0 0 1.5px #9ed4b466; } #espec[data-estado=pausada] { box-shadow:inset 0 0 0 1.5px #f3a6b888; }
+#espec header { display:flex; flex-direction:column; gap:2px; } #espec header b { font:600 14.5px var(--titulo); color:#f5a45a; } #espec header small { color:var(--apagado); }
+#espec .motivo { margin:8px 0 0; color:var(--rosa); } #espec .nota { margin:8px 0 0; }
+#espec ol { list-style:none; margin:10px 0; padding:0; display:flex; flex-direction:column; gap:4px; max-height:190px; overflow:auto; scrollbar-width:thin; }
+#espec li { display:grid; grid-template-columns:18px 1fr; column-gap:6px; align-items:baseline; color:var(--apagado); } #espec li i { font-style:normal; text-align:center; }
+#espec li small { grid-column:2; font-size:11.5px; opacity:.8; } #espec li.pronta { color:var(--menta); } #espec li.falhou { color:var(--rosa); } #espec li.pulada { text-decoration:line-through; }
+#espec li.rodando, #espec li.atual { color:inherit; font-weight:600; } #espec li.rodando i { animation:pulsar 1.2s ease-in-out infinite; color:var(--holofote); }
+#espec .botoes { display:flex; flex-wrap:wrap; gap:6px; } #espec .botoes button { font-size:12.5px; padding:4px 12px; }
+.em-etapas { display:inline-flex; align-items:center; gap:5px; font-size:12.5px; color:var(--apagado); cursor:pointer; white-space:nowrap; } .em-etapas input { accent-color:#f28a2e; } .em-etapas:has(input:checked) { color:#f5a45a; }
+/* lições do time e motivo do descarte */
+#licoes { grid-column:1 / -1; max-width:860px; margin:0 0 18px; } #licoes ul { list-style:none; margin:8px 0; padding:0; display:flex; flex-direction:column; gap:5px; }
+#licoes li { display:flex; gap:10px; align-items:baseline; padding:7px 12px; border-radius:12px; background:#00000026; font-size:13.5px; } #licoes li span { flex:1; } #licoes li button { font-size:11.5px; padding:2px 9px; }
+.nova-licao { display:flex; gap:8px; } .nova-licao input { flex:1; min-width:0; }
+.motivo-descarte { width:100%; margin:8px 0 6px; font-size:12.5px; } .linha.licao { color:var(--menta); font-size:12.5px; }
 /* exportar o time */
 #dlgExportar { border:0; padding:0; width:min(680px, calc(100vw - 32px)); max-height:calc(100vh - 48px); color:inherit; border-radius:24px; background:var(--feltro), linear-gradient(180deg, #33292f, #2a2229); box-shadow:var(--fofo), 0 30px 80px -20px #000; }
 #dlgExportar[open] { display:flex; flex-direction:column; } #dlgExportar::backdrop { background:rgba(20,14,18,.72); backdrop-filter:blur(3px); }
@@ -328,3 +344,4 @@ body:is(.ver-projetos, .ver-config, .ver-quadro, .ver-rotinas, .ver-conexoes) :i
 #cfMsg { font-size:13px; min-height:1.3em; }
 
 @media (max-width: 1080px) { body { grid-template-columns:60px 1fr; grid-template-rows:auto auto; overflow:auto; height:auto; } #conversa { grid-column:1 / -1; border-left:0; border-top:1px solid var(--borda); min-height:60vh; } .nivel { flex-wrap:wrap; } .oficina { grid-template-columns:1fr; } .previa-caixa { position:static; } }
+#rForm [hidden] { display:none !important; }

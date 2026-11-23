@@ -33,7 +33,8 @@ Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude
 - **Construtor visual.** Monte o time arrastando agentes, desenhe as setas de quem responde a quem, apague com a borracha, desfaça com Ctrl+Z.
 - **Exportar para outra IA.** A arquitetura montada sai como `AGENTS.md`, JSON e subagentes do Claude Code, para ser usada fora da Muvuca.
 - **Modelo certo para cada tarefa.** Tarefa simples vai para o modelo leve, revisão vai para o mais forte. Cada agente pode ter o seu.
-- **Rotinas, quadro de tarefas e memória.** Pedidos agendados, um quadro com o andamento de cada tarefa e notas que cada agente guarda por projeto.
+- **Especificação em etapas.** Um trabalho grande vira um plano de etapas que o time cumpre uma a uma, com pausa, retomada e progresso guardado.
+- **Rotinas, vigias, quadro de tarefas e memória.** Pedidos agendados, vigias que chamam o time quando um comando falha, um quadro com o andamento de cada tarefa, notas que cada agente guarda por projeto e lições que valem para o time inteiro.
 - **Anexos.** Arraste arquivos ou pastas para a caixa do pedido.
 - **Vários pedidos ao mesmo tempo.** Abra até quatro conversas, cada uma com o próprio time e a própria pasta, e alterne entre elas enquanto trabalham.
 - **Histórico e uso.** As conversas encerradas ficam guardadas para reler, e cada pedido termina dizendo quanto tempo levou e, com o Claude Code, quantos tokens usou.

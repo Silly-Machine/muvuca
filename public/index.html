@@ -115,19 +115,26 @@
     </form>
   </div>
   <div id="rotinas" class="aba">
-    <h2 class="sec">Rotinas <small>pedidos que o time recebe sozinho, em dia e hora marcados</small></h2>
+    <h2 class="sec">Rotinas <small>pedidos que o time recebe sozinho: em dia e hora marcados, ou quando um vigia percebe uma mudança</small></h2>
     <div id="rLista" class="lista-projetos"></div>
     <form id="rForm" class="cartao-form" autocomplete="off">
       <h3>Nova rotina</h3>
       <div class="cab">
         <label class="campo largo"><span>Nome</span><input id="rNome" maxlength="50" placeholder="Revisão da semana"></label>
-        <label class="campo"><span>Hora</span><input id="rHora" type="time" value="09:00" required></label>
+        <label class="campo"><span>Tipo</span><select id="rTipo"><option value="horario">Em dia e hora marcados</option><option value="vigia">Vigia: quando algo mudar</option></select></label>
+        <label class="campo so-horario"><span>Hora</span><input id="rHora" type="time" value="09:00" required></label>
       </div>
-      <fieldset class="dias"><legend>Dias</legend><span id="rDias"></span></fieldset>
+      <fieldset class="dias so-horario"><legend>Dias</legend><span id="rDias"></span></fieldset>
+      <div class="cab so-vigia" hidden>
+        <label class="campo largo"><span>Comando que o vigia roda (na pasta do projeto)</span><input id="rComando" spellcheck="false" maxlength="300" placeholder="node --test"></label>
+        <label class="campo"><span>A cada (minutos)</span><input id="rIntervalo" type="number" min="1" max="1440" value="15"></label>
+        <label class="campo"><span>Chamar o time</span><select id="rDispara"><option value="falha">quando o comando falhar</option><option value="mudanca">quando a saída mudar</option></select></label>
+      </div>
+      <p class="nota so-vigia" hidden>O vigia roda o comando sem gastar modelo. O time só recebe o pedido quando a condição acontece, e uma vez só: enquanto o comando continuar falhando, ele não é chamado de novo.</p>
       <label class="campo"><span>Pedido para o time</span><textarea id="rTexto" rows="3" maxlength="2000" placeholder="Revise o projeto e procure bugs"></textarea></label>
       <label class="campo"><span>Pasta do projeto</span><input id="rProjeto" list="listaProjetos" spellcheck="false" placeholder="em branco: a pasta padrão das Configurações"></label>
       <div class="botoes"><button class="primario" type="submit">Criar rotina</button></div>
-      <p class="nota">A rotina só dispara com a Muvuca rodando, e até 10 minutos depois da hora marcada. As mudanças ficam esperando sua decisão, como em qualquer pedido.</p>
+      <p class="nota">A rotina só dispara com a Muvuca rodando (a de hora marcada, até 10 minutos depois da hora). As mudanças ficam esperando sua decisão, como em qualquer pedido.</p>
       <p id="rErro" class="ruim" aria-live="polite"></p>
     </form>
   </div>
@@ -215,6 +222,7 @@
         <input type="file" id="anexoArq" multiple hidden><input type="file" id="anexoPasta" webkitdirectory hidden>
       </span>
       <label class="chip-projeto" title="Pasta onde o time trabalha"><span class="rotulo-chip">Projeto</span><select id="projetoChip" aria-label="Projeto em que o time trabalha"></select></label>
+      <label class="em-etapas" title="Para um trabalho grande: escreva a especificação (objetivo, o que precisa ter, como saber que ficou pronto). Quem lidera quebra em etapas, o time faz uma de cada vez, e o progresso fica guardado para retomar."><input type="checkbox" id="emEtapas"> em etapas</label>
       <span id="dicaDestino"></span>
       <button type="button" id="chipModelo" class="chip-modelo" title="Trocar o provedor e os modelos do time"></button>
     </div>
@@ -224,6 +232,7 @@
 <button type="button" id="alternarConversa" aria-pressed="true" aria-label="Ocultar a conversa" title="Ocultar a conversa"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path class="lado" d="M14.5 5h3a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-3z"/></svg><i></i></button>
 <aside id="conversa">
   <header><span id="titulo">Nova conversa</span><button id="historico" title="Conversas anteriores">Histórico</button><button id="nova">Nova conversa</button></header>
+  <section id="espec" hidden aria-label="Especificação em etapas" aria-live="polite"></section>
   <div id="fluxo" aria-live="polite"></div>
 </aside>
 

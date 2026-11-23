@@ -27,7 +27,8 @@ Tudo o que é seu fica na **pasta de dados**, fora da pasta do aplicativo: `~/.m
 |---|---|
 | `preferencias.json` | pasta padrão, comando de teste, limites, provedor e modelos escolhidos |
 | `projetos.json` | a lista de pastas de projeto |
-| `rotinas.json` | os pedidos agendados |
+| `rotinas.json` | os pedidos agendados e os vigias |
+| `especificacoes/` | o andamento da especificação em etapas de cada conversa |
 | `conexoes.json`, `.mcp/` | as conexões (servidores MCP), quem pode usar cada uma e a configuração entregue a cada agente |
 | `memoria/` | as notas de cada agente, por projeto |
 | `times/` | os times salvos pelo construtor |
@@ -135,7 +136,8 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `src/exportar.js` | ~190 | exporta um time como `AGENTS.md`, JSON e subagentes do Claude Code; monta o pacote `.zip` |
 | `src/isolamento.js` | ~120 | isolamento dos testes: sonda o Node, monta o ambiente restrito e decide o que dá para isolar |
 | `src/conexoes.js` | ~200 | conexões (servidores MCP): validação, configuração sem segredos e teste de conexão |
-| `src/ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~240 | preferências e anexos, notas dos agentes, agendamento, guia da mascote |
+| `src/ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~300 | preferências e anexos, notas dos agentes e lições do time, agendamento e vigias, guia da mascote |
+| `src/especificacao.js` | ~150 | especificação em etapas: o planejador, a fila de etapas e as regras de pausa |
 | `public/index.html` | ~230 | a estrutura da página, sem framework |
 | `public/css/` | ~520 | `fontes.css`, `estilo.css` (estrutura) e `tema.css` (tema pelúcia) |
 | `public/fontes/` | 5 arquivos | Fredoka e Nunito, servidas daqui (licença OFL na mesma pasta) |
@@ -305,6 +307,14 @@ Três ideias adaptadas do Grok Bot (xAI) para um app local:
 - **Rotinas** (ícone de relógio): um pedido que o time recebe sozinho em dias e hora marcados. Ficam em `rotinas.json`. Disparam só com a Muvuca rodando e até 10 minutos depois da hora, uma vez por dia; com o time ocupado, esperam dentro dessa janela. "Rodar agora" dispara na hora. Cada rotina guarda quando rodou por último e o resultado.
 - **Quadro de tarefas** (ícone de colunas): cada etapa do pedido vira um cartão em A fazer, Trabalhando, Bloqueado, Em revisão ou Encerrado (pronto, não aprovado ou parado). "Bloqueado" é o agente esperando você aprovar um comando; o ícone da aba mostra quantos estão assim. Correções pedidas pelo portão ou pelo revisor viram cartões próprios.
 - **Memória por agente** (aba Agentes): notas curtas por projeto, em `memoria/`, fora da pasta do projeto. O agente as recebe no começo de cada trabalho. Uma nota nasce de duas formas: o agente termina a resposta com `LEMBRAR: ...`, ou o revisor reprova algo dele. No máximo 20 notas por agente e projeto; dá para apagar cada uma na ficha do agente. Líder e sub-líder não guardam notas.
+
+## Lições do time, vigias e especificação em etapas
+
+Três ideias adaptadas do Kiro Crew.
+
+- **Lições do time** (aba Agentes, no topo): regras de um projeto que valem para todos os agentes. Diferem da memória por agente em dois pontos: todo agente as recebe, inclusive líder e sub-líder, e quem as escreve é você. Uma lição entra de duas formas: digitada na aba Agentes ("Ensinar"), ou como o motivo de um descarte. O cartão das mudanças tem o campo "Vai descartar? Diga por quê"; o que for escrito ali vira lição e aparece na conversa como "Lição guardada para o time". Ficam em `memoria/`, junto das notas, fora da pasta do projeto.
+- **Vigias** (aba Rotinas, tipo "Vigia: quando algo mudar"): uma rotina sem hora marcada. Você dá um comando (por exemplo `node --test`), um intervalo em minutos (de 1 a 1440) e a condição: chamar o time quando o comando falhar ou quando a saída mudar. A Muvuca roda o comando na pasta do projeto, sem gastar modelo, com limite de 2 minutos. Quando a condição acontece, o time recebe o pedido da rotina com a saída do comando anexada. O vigia chama uma vez por ocorrência: enquanto o comando continuar falhando do mesmo jeito, não chama de novo; se o time estiver ocupado, o pedido espera. "Verificar agora" roda o comando e mostra o resultado sem chamar ninguém. O comando roda com as suas permissões, como o comando de teste das Configurações: escreva só o que você rodaria no terminal.
+- **Especificação em etapas** (caixa "em etapas", ao lado da pasta do projeto): para um trabalho grande demais para um pedido só. Escreva o objetivo, o que precisa ter e como saber que ficou pronto, e envie para o time. Quem lidera devolve um plano de até 12 etapas, cada uma com título, tarefa e critério de aceite, e o time faz uma de cada vez, como um pedido completo (plano, execução, portão de testes, revisão). Uma etapa que não passa é tentada mais uma vez; se falhar de novo, a especificação pausa e espera você: retomar, pular a etapa ou cancelar. O painel no topo da conversa mostra o andamento. O estado fica em `especificacoes/conversa-N.json`; se a Muvuca fechar no meio, a especificação volta pausada e é você quem manda retomar. As mudanças de todas as etapas se acumulam e esperam uma decisão só, no fim: manter ou descartar. Cada conversa tem no máximo uma especificação em andamento.
 
 ## O que o "Descartar" cobre
 
