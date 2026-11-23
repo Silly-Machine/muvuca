@@ -70,16 +70,29 @@ export function lerSaidaCli(saida) {
   return { texto: texto || saida.trim().slice(-4000), passos, uso };
 }
 
-async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso, mcp }) {
+// Os argumentos com que o aplicativo do provedor é chamado. Separado da chamada para poder ser testado.
+export function argsDoCli(prov, { ferramentas, mcp, isolamento } = {}) {
   const podeEscrever = ferramentas?.includes('escrever');
-  const args = [...(podeEscrever ? prov.args : (prov.argsLeitura || prov.args))];
+  let args = [...(podeEscrever ? prov.args : (prov.argsLeitura || prov.args))];
+  // Com os testes isolados, a permissão de rodar testes vira o comando exato "node --test": qualquer opção a mais
+  // na linha de comando (--allow-fs-write, --allow-child-process) reabriria o que o isolamento fechou.
+  if (isolamento?.env) {
+    const deTeste = (a) => /^Bash\((node --test|npm test|npm t)(:\*)?\)$/.test(String(a));
+    if (args.some(deTeste)) { const i = args.findIndex(deTeste); args = args.filter((a) => !deTeste(a)); args.splice(i, 0, 'Bash(node --test)'); }
+  }
   // Conexões (MCP): só para quem não escreve, e só se o provedor declarou como recebê-las (argsMcp).
   if (mcp?.arquivo && !podeEscrever && Array.isArray(prov.argsMcp)) args.push(...prov.argsMcp.map((a) => String(a).replace('{arquivo}', mcp.arquivo).replace('{permissoes}', mcp.permissoes)));
   if (prov.modelo && prov.argModelo) args.push(prov.argModelo, prov.modelo);
+  return args;
+}
+
+async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso, mcp, isolamento }) {
+  const podeEscrever = ferramentas?.includes('escrever');
+  const args = argsDoCli(prov, { ferramentas, mcp, isolamento });
   const conversa = mensagens.filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content)).map((m) => (m.role === 'user' ? m.content : `[sua resposta anterior]\n${m.content}`)).join('\n\n');
   let vistos = 0;
   const r = await rodar(prov.comando, {
-    args, cwd, sinal, limiteMs: (prov.limiteSegundos || 600) * 1000, entrada: `${sistema}\n\n${conversa}`,
+    args, cwd, sinal, limiteMs: (prov.limiteSegundos || 600) * 1000, entrada: `${sistema}\n\n${conversa}`, env: isolamento?.env,
     aoSair: (pedaco) => {
       for (const m of pedaco.matchAll(/"name"\s*:\s*"mcp__([a-z0-9_]+?)__([A-Za-z0-9_.-]+)"/g)) aoPasso?.({ ferramenta: 'conexao', servidor: m[1], alvo: m[2] });
       const n = (pedaco.match(/"type"\s*:\s*"(tool_use|command_execution|function_call|file_change)"/g) || []).length; for (let i = 0; i < n; i++) aoPasso?.({ ferramenta: 'cli', alvo: `passo ${++vistos}` });

@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chamar } from './provedores.js';
 import { usar, fotografar, assinaturas, mudou, restaurar, diferencas, detectarTeste, rodar } from './ferramentas.js';
+import { comandoIsolavel, prepararIsolamento, cliAceitaIsolamento, EXPLICACAO_BLOQUEIO } from './isolamento.js';
 
 export function extrairJson(texto) {
   const t = String(texto || '').replace(/```(?:json)?/gi, '');
@@ -169,6 +170,14 @@ export class Muvuca {
       (ferramentas.includes('escrever') ? '\nNão há como instalar dependências (npm install não roda). Use só a biblioteca padrão; em Node, servidor com node:http e testes com node:test.' : '');
     // Conexões (MCP) ligadas a este agente: quem decide é o servidor (só agentes que não escrevem recebem).
     const mcp = this.conexoesDe ? await this.conexoesDe(ag).catch(() => null) : null;
+    // Quem roda testes recebe o ambiente isolado: o "node --test" que o agente dispara também fica preso à pasta do projeto.
+    const iso = ferramentas.includes('rodar') && this.isolarTestes !== false ? await prepararIsolamento(this.projeto).catch(() => null) : null;
+    // aplicativo de provedor feito em Node não sobe no ambiente isolado: aí o agente roda os testes dele sem isolamento, e a conversa avisa uma vez
+    let isolamento = iso?.ok ? iso : null;
+    if (isolamento && prov.tipo === 'cli' && !(await cliAceitaIsolamento(prov.comando))) {
+      isolamento = null;
+      if (!(this.avisouIsolamento ||= new Set()).has(prov.comando)) { this.avisouIsolamento.add(prov.comando); this.emitir({ tipo: 'aviso', texto: `O aplicativo "${prov.comando}" não funciona com o isolamento dos testes: os testes que os agentes rodarem por ele não ficam isolados. Os do portão continuam.` }); }
+    }
     const notas = !somenteTexto && this.memoria ? await this.memoria.ler(this.pastaMemoria(ag.id), ag.id).catch(() => []) : [];
     const comMemoria = sistema +
       (mcp ? `\nVocê tem conexões externas, além da pasta do projeto: ${mcp.servidores.map((s) => `${s.nome} (ferramentas mcp__${s.id}__*${s.descricao ? '; ' + s.descricao : ''})`).join('; ')}. Use quando ajudar na tarefa, e diga na resposta o que consultou.` : '') +
@@ -176,32 +185,34 @@ export class Muvuca {
       (this.memoria && ferramentas.length ? '\nSe aprender algo que valha para os próximos pedidos neste projeto (convenção, armadilha, comando que funciona), termine com uma linha "LEMBRAR: nota curta". Só quando for útil de verdade.' : '');
     const mensagens = [{ role: 'user', content: (contexto ? `${contexto}\n\n` : '') + tarefa }];
     let passos = 0; const inicio = Date.now();
-    const base = { sistema: comMemoria, ferramentas, sinal: this.abort.signal, cwd: this.projeto, agente: ag, mcp };
-    for (let volta = 0; volta < this.maxPassos; volta++) {
-      this.status(ag.id, volta === 0 ? 'pensando' : 'trabalhando');   // depois da primeira ferramenta ele está no meio do trabalho
-      const r = await chamar(prov, { ...base, mensagens, aoPasso: (p) => {
+    const base = { sistema: comMemoria + (isolamento ? '\nOs testes rodam isolados: só leem e escrevem dentro da pasta do projeto e da pasta temporária (os.tmpdir()), e não conseguem abrir outros processos. Escreva os testes de acordo: servidor no mesmo processo, arquivos temporários com os.tmpdir(). Para rodar os testes use exatamente "node --test": "npm test" e qualquer opção a mais na linha de comando são negados.' : ''), ferramentas, sinal: this.abort.signal, cwd: this.projeto, agente: ag, mcp, isolamento };
+    try {
+      for (let volta = 0; volta < this.maxPassos; volta++) {
+        this.status(ag.id, volta === 0 ? 'pensando' : 'trabalhando');   // depois da primeira ferramenta ele está no meio do trabalho
+        const r = await chamar(prov, { ...base, mensagens, aoPasso: (p) => {
+          this.status(ag.id, 'trabalhando');
+          // uso de uma conexão aparece na conversa com nome próprio; não conta como passo de trabalho
+          if (p.ferramenta === 'conexao') return this.emitir({ tipo: 'conexao', agente: ag.id, servidor: p.servidor, ferramenta: p.alvo });
+          passos++; this.emitir({ tipo: 'passo', agente: ag.id, ...p });
+        } });
+        this.somarUso(r);
+        mensagens.push(r.msg);
+        if (r.passos) passos = Math.max(passos, r.passos);
+        if (!r.chamadas.length) return { texto: r.texto.trim(), passos, segundos: (Date.now() - inicio) / 1000, modelo: prov.modelo || prov.nome };
         this.status(ag.id, 'trabalhando');
-        // uso de uma conexão aparece na conversa com nome próprio; não conta como passo de trabalho
-        if (p.ferramenta === 'conexao') return this.emitir({ tipo: 'conexao', agente: ag.id, servidor: p.servidor, ferramenta: p.alvo });
-        passos++; this.emitir({ tipo: 'passo', agente: ag.id, ...p });
-      } });
-      this.somarUso(r);
-      mensagens.push(r.msg);
-      if (r.passos) passos = Math.max(passos, r.passos);
-      if (!r.chamadas.length) return { texto: r.texto.trim(), passos, segundos: (Date.now() - inicio) / 1000, modelo: prov.modelo || prov.nome };
-      this.status(ag.id, 'trabalhando');
-      for (const c of r.chamadas) {
-        passos++;
-        const permitido = ferramentas.includes(c.nome);
-        this.emitir({ tipo: 'passo', agente: ag.id, ferramenta: c.nome, alvo: c.args.caminho || c.args.comando || '' });
-        const saida = permitido
-          ? await usar(c.nome, c.args, { projeto: this.projeto, sinal: this.abort.signal, pedirAprovacao: (cmd) => this.pedirAprovacao(ag.id, cmd) })
-          : `ERRO: ${ag.nome} não tem a ferramenta ${c.nome}.`;
-        mensagens.push({ role: 'tool', tool_call_id: c.id, content: String(saida) });
-        if (this.abort.signal.aborted) throw new Error('interrompido');
+        for (const c of r.chamadas) {
+          passos++;
+          const permitido = ferramentas.includes(c.nome);
+          this.emitir({ tipo: 'passo', agente: ag.id, ferramenta: c.nome, alvo: c.args.caminho || c.args.comando || '' });
+          const saida = permitido
+            ? await usar(c.nome, c.args, { projeto: this.projeto, sinal: this.abort.signal, pedirAprovacao: (cmd) => this.pedirAprovacao(ag.id, cmd), isolar: this.isolarTestes !== false })
+            : `ERRO: ${ag.nome} não tem a ferramenta ${c.nome}.`;
+          mensagens.push({ role: 'tool', tool_call_id: c.id, content: String(saida) });
+          if (this.abort.signal.aborted) throw new Error('interrompido');
+        }
       }
-    }
-    return { texto: '(parei: limite de passos atingido)', passos, segundos: (Date.now() - inicio) / 1000, estourou: true, modelo: prov.modelo || prov.nome };
+      return { texto: '(parei: limite de passos atingido)', passos, segundos: (Date.now() - inicio) / 1000, estourou: true, modelo: prov.modelo || prov.nome };
+    } finally { await iso?.limpar?.(); }
   }
 
   // Etapa de trabalho: executa, descobre quais arquivos o agente mudou e registra a autoria.
@@ -330,10 +341,19 @@ export class Muvuca {
   async portao() {
     const comando = this.comandoTeste || await detectarTeste(this.projeto);
     if (!comando) { const g = { ok: false, comando: null, saida: 'Nenhum teste automatizado encontrado no projeto.' }; this.emitir({ tipo: 'portao', ...g }); return g; }
-    this.emitir({ tipo: 'portao_rodando', comando });
-    const r = await rodar(comando, { cwd: this.projeto, sinal: this.abort.signal, limiteMs: this.limiteTestesMs || 180000 });
+    // Isolamento: os testes só alcançam a pasta do projeto. Vale para "node --test"; outros comandos rodam como antes, e o portão avisa.
+    let iso = null, alvo = null, semIsolamento = '';
+    if (this.isolarTestes === false) semIsolamento = 'desligado nas Configurações';
+    else if (!(alvo = await comandoIsolavel(comando, this.projeto))) semIsolamento = `só "node --test" roda isolado; "${comando}" roda com as suas permissões`;
+    else { iso = await prepararIsolamento(this.projeto); if (!iso.ok) semIsolamento = iso.motivo; }
+    const isolado = !!iso?.ok;
+    this.emitir({ tipo: 'portao_rodando', comando, isolado });
+    let r;
+    try { r = await rodar(isolado ? alvo : comando, { cwd: this.projeto, sinal: this.abort.signal, limiteMs: this.limiteTestesMs || 180000, env: isolado ? iso.env : undefined }); }
+    finally { await iso?.limpar?.(); }
     if (r.codigo === -2) throw new Error('interrompido');
-    const g = { ok: r.codigo === 0, comando, saida: r.saida.slice(-3000), depoisDaUltimaEdicao: true };
+    const bloqueou = isolado && /ERR_ACCESS_DENIED/.test(r.saida);
+    const g = { ok: r.codigo === 0, comando, saida: (r.saida + (bloqueou ? EXPLICACAO_BLOQUEIO : '')).slice(-3200), depoisDaUltimaEdicao: true, isolado, ...(semIsolamento && { semIsolamento }) };
     this.emitir({ tipo: 'portao', ...g });
     return g;
   }

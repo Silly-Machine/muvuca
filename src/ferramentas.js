@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
+import { comandoIsolavel, prepararIsolamento, EXPLICACAO_BLOQUEIO } from './isolamento.js';
 
 // Pastas que a foto do projeto não percorre: são enormes e não são código do projeto. O que mudar dentro delas
 // fica fora do "Descartar"; a foto guarda um sinal de cada uma para ao menos avisar quando algo mudou.
@@ -198,7 +199,7 @@ function matar(filho) {
 }
 
 // Roda um processo. Com `args`, não usa shell (exceto no Windows, onde os CLIs do npm são .cmd).
-export function rodar(comando, { cwd, sinal, limiteMs = 120000, entrada, args, aoSair } = {}) {
+export function rodar(comando, { cwd, sinal, limiteMs = 120000, entrada, args, aoSair, env } = {}) {
   return new Promise((resolve) => {
     const usaShell = !args || process.platform === 'win32';
     // No Windows com shell, o Node só concatena os args (DEP0190): caminho com espaço quebra.
@@ -207,7 +208,7 @@ export function rodar(comando, { cwd, sinal, limiteMs = 120000, entrada, args, a
     const linha = args && usaShell ? [comando, ...args].map(aspas).join(' ') : comando;
     let filho;
     try {
-      filho = spawn(linha, usaShell ? [] : args, { cwd, shell: usaShell, detached: process.platform !== 'win32', windowsHide: true, env: ambienteLimpo() });
+      filho = spawn(linha, usaShell ? [] : args, { cwd, shell: usaShell, detached: process.platform !== 'win32', windowsHide: true, env: { ...ambienteLimpo(), ...env } });
     } catch (e) { return resolve({ codigo: -1, saida: String(e.message) }); }
     vivos.add(filho); filho.once('close', () => vivos.delete(filho)); filho.once('error', () => vivos.delete(filho));
     let saida = ''; let fim = false;
@@ -248,7 +249,7 @@ export const ESQUEMAS = {
 };
 
 // Executa uma chamada de ferramenta. `pedirAprovacao(comando)` devolve true ou false.
-export async function usar(nome, args, { projeto, sinal, pedirAprovacao }) {
+export async function usar(nome, args, { projeto, sinal, pedirAprovacao, isolar = false }) {
   try {
     if (nome === 'listar') {
       const arquivos = []; await andar(projeto, projeto, arquivos);
@@ -264,8 +265,13 @@ export async function usar(nome, args, { projeto, sinal, pedirAprovacao }) {
     if (nome === 'rodar') {
       const cmd = String(args.comando || '').trim();
       if (!comandoSeguro(cmd) && !(await pedirAprovacao(cmd))) return 'NEGADO: o humano não aprovou este comando.';
-      const r = await rodar(cmd, { cwd: projeto, sinal, limiteMs: 90000 });
-      return `código de saída: ${r.codigo}\n${r.saida.slice(-6000)}`;
+      // comando de teste que dá para isolar roda sem alcançar nada fora da pasta do projeto
+      const alvo = isolar ? await comandoIsolavel(cmd, projeto) : null;
+      const iso = alvo ? await prepararIsolamento(projeto) : null;
+      try {
+        const r = await rodar(iso?.ok ? alvo : cmd, { cwd: projeto, sinal, limiteMs: 90000, env: iso?.ok ? iso.env : undefined });
+        return `código de saída: ${r.codigo}\n${r.saida.slice(-6000)}` + (iso?.ok && /ERR_ACCESS_DENIED/.test(r.saida) ? EXPLICACAO_BLOQUEIO : '');
+      } finally { await iso?.limpar?.(); }
     }
     return `ferramenta desconhecida: ${nome}`;
   } catch (e) { return `ERRO: ${e.message}`; }

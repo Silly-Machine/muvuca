@@ -214,14 +214,15 @@ async function salvarPrefs(novas) {
 }
 async function montarConfig() {
   const j = await lerPrefs(); lerProjetos(); montarProvedores();
-  $('#cfProjeto').value = prefs.projetoPadrao; $('#cfTeste').value = prefs.comandoTeste; $('#cfCiclos').value = prefs.maxCiclos; $('#cfPassos').value = prefs.maxPassos; $('#cfLimiteAgente').value = prefs.limiteAgenteMin; $('#cfLimiteTestes').value = prefs.limiteTestesMin;
+  $('#cfProjeto').value = prefs.projetoPadrao; $('#cfTeste').value = prefs.comandoTeste; $('#cfCiclos').value = prefs.maxCiclos; $('#cfPassos').value = prefs.maxPassos; $('#cfLimiteAgente').value = prefs.limiteAgenteMin; $('#cfLimiteTestes').value = prefs.limiteTestesMin; $('#cfIsolar').checked = prefs.isolarTestes;
+  $('#cfIsolarNota').textContent = j.isolamento?.disponivel ? '(vale para "node --test"; a rede não é bloqueada)' : `(indisponível: ${j.isolamento?.motivo || 'motivo desconhecido'})`;
   $('#cfFabrica').textContent = j.pastaPadrao; $('#cfArquivo').textContent = j.config; $('#cfMsg').textContent = ''; $('#cfMsg').className = '';
   $('#cfRestaurar').onclick = () => { $('#cfProjeto').value = j.pastaPadrao; };
   $('#cfAmbiente').hidden = !j.deAmbiente; $('#cfAmbiente').textContent = j.deAmbiente ? `A variável de ambiente MUVUCA_PROJETO está definida (${j.deAmbiente}) e vale no lugar desta pasta.` : '';
 }
 $('#cfSalvar').onclick = async () => {
   try {
-    await salvarPrefs({ projetoPadrao: $('#cfProjeto').value.trim(), comandoTeste: $('#cfTeste').value.trim(), maxCiclos: $('#cfCiclos').value, maxPassos: $('#cfPassos').value, limiteAgenteMin: $('#cfLimiteAgente').value, limiteTestesMin: $('#cfLimiteTestes').value });
+    await salvarPrefs({ projetoPadrao: $('#cfProjeto').value.trim(), comandoTeste: $('#cfTeste').value.trim(), maxCiclos: $('#cfCiclos').value, maxPassos: $('#cfPassos').value, limiteAgenteMin: $('#cfLimiteAgente').value, limiteTestesMin: $('#cfLimiteTestes').value, isolarTestes: $('#cfIsolar').checked });
     await montarConfig(); $('#cfMsg').className = 'ok'; $('#cfMsg').textContent = 'Configurações salvas em preferencias.json.';
   } catch (e) { $('#cfMsg').className = 'ruim'; $('#cfMsg').textContent = 'Não deu: ' + e.message; }
 };

@@ -51,6 +51,7 @@ export function normalizarPreferencias(p, { raiz, cfg = {}, padrao } = {}) {
     maxPassos: inteiro(p.maxPassos, 1, 60, cfg.maxPassos ?? 12),
     limiteAgenteMin: inteiro(p.limiteAgenteMin, 1, 180, 10),   // tempo máximo de cada chamada ao aplicativo do provedor
     limiteTestesMin: inteiro(p.limiteTestesMin, 1, 60, 3),      // tempo máximo dos testes do portão
+    isolarTestes: p.isolarTestes !== false,                     // os testes só alcançam a pasta do projeto
     provedorTime: texto(p.provedorTime, 60),
     modelos,
     niveis,

@@ -15,6 +15,7 @@ import { responderOffline, sistemaBuzina, SUGESTOES } from './buzina.js';
 import { criarMemoria } from './memoria.js';
 import { normalizarRotinas, devidas } from './rotinas.js';
 import { caminhoAnexo, LIMITES_ANEXO } from './ajustes.js';
+import { isolamentoDisponivel } from './isolamento.js';
 import { normalizarConexoes, conexoesDoAgente, prepararMcp, testarConexao, variaveisQueFaltam } from './conexoes.js';
 import { lerJson, gravarJson, normalizarPreferencias, normalizarProjetos, infoProjeto, pastaPadrao } from './ajustes.js';
 
@@ -113,7 +114,7 @@ const prefsGravadas = await lerJson(ARQ_PREFS, null);
 let prefs = normalizarPreferencias(prefsGravadas ?? {}, opcoesPrefs);
 // Quem já tinha preferências gravadas antes de existir a tela de boas-vindas não precisa passar por ela.
 if (prefsGravadas && prefsGravadas.inicioFeito === undefined) prefs.inicioFeito = true;
-const aplicarPrefs = () => { muvuca.maxCiclos = prefs.maxCiclos; muvuca.maxPassos = prefs.maxPassos; muvuca.limiteAgenteS = prefs.limiteAgenteMin * 60; muvuca.limiteTestesMs = prefs.limiteTestesMin * 60000; };
+const aplicarPrefs = () => { muvuca.maxCiclos = prefs.maxCiclos; muvuca.maxPassos = prefs.maxPassos; muvuca.limiteAgenteS = prefs.limiteAgenteMin * 60; muvuca.limiteTestesMs = prefs.limiteTestesMin * 60000; muvuca.isolarTestes = prefs.isolarTestes; };
 aplicarPrefs();
 // Memória por agente (notas por projeto) e rotinas (pedidos agendados).
 const memoria = criarMemoria(path.join(DADOS, 'memoria'));
@@ -306,7 +307,8 @@ const servidor = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, arquivo, time: t });
     }
     if (req.method === 'GET' && url.pathname === '/api/preferencias') {
-      return json(res, 200, { preferencias: prefs, pastaPadrao: PROJETO_FABRICA, pastaDados: DADOS, config: path.basename(arquivoCfg), deAmbiente: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || '' });
+      const isolamento = await isolamentoDisponivel();
+      return json(res, 200, { preferencias: prefs, isolamento: { disponivel: isolamento.ok, motivo: isolamento.motivo || '' }, pastaPadrao: PROJETO_FABRICA, pastaDados: DADOS, config: path.basename(arquivoCfg), deAmbiente: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || '' });
     }
     if (req.method === 'POST' && url.pathname === '/api/preferencias') {
       const b = await corpo(req);

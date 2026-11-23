@@ -86,7 +86,7 @@ const trata = {
     if (agentes.some((a) => a.id === e.de)) viagem(e.de, e.para, { ruim: true }); else alarme(e.para);
   },
   portao_rodando(e) { por(el('div', 'linha', `Rodando os testes (${e.comando})...`)); },
-  portao(e) { const c = el('div', 'cartao'); c.append(el('h3', '', 'Portão de testes'), el('div', e.ok ? 'ok' : 'ruim', e.ok ? `✓ passou (${e.comando}), rodado depois da última edição` : `✗ não passou (${e.comando || 'nenhum teste no projeto'})`), saida('Ver a saída', e.saida)); por(c); },
+  portao(e) { const c = el('div', 'cartao'); c.append(el('h3', '', 'Portão de testes'), el('div', e.ok ? 'ok' : 'ruim', e.ok ? `✓ passou (${e.comando}), rodado depois da última edição` : `✗ não passou (${e.comando || 'nenhum teste no projeto'})`), saida('Ver a saída', e.saida)); c.append(el('div', 'isolamento' + (e.isolado ? '' : ' sem'), e.isolado ? 'Testes isolados: só alcançaram a pasta do projeto.' : e.semIsolamento ? `Sem isolamento: ${e.semIsolamento}.` : '')); por(c); },
   veredito(e) { if (liderId) viagem(e.agente, liderId, { ruim: !e.aprovado }); balao(e.agente, e.texto); const m = msg(e.agente, e.texto, e.hora); const c = el('div', 'cartao'); c.append(el('h3', '', 'Veredito'), el('div', e.aprovado ? 'ok' : 'ruim', e.aprovado ? '✓ aprovado' : '✗ reprovado')); for (const a of e.achados) c.append(el('div', 'linha', `${a.arquivo || '?'}: ${a.problema}`)); m.append(c); },
   aprovacao(e) {
     const c = el('div', 'cartao aprovar'); c.id = e.id; c.append(el('h3', '', 'Precisa da sua aprovação'), el('div', '', `${ag(e.agente).nome} quer rodar este comando:`), el('code', '', e.comando));
