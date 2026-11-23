@@ -17,6 +17,7 @@ import { criarMemoria } from './memoria.js';
 import { normalizarRotinas, devidas } from './rotinas.js';
 import { caminhoAnexo, LIMITES_ANEXO } from './ajustes.js';
 import { isolamentoDisponivel } from './isolamento.js';
+import { arquivosDoTime, zip } from './exportar.js';
 import { normalizarConexoes, conexoesDoAgente, prepararMcp, testarConexao, variaveisQueFaltam } from './conexoes.js';
 import { lerJson, gravarJson, normalizarPreferencias, normalizarProjetos, infoProjeto, pastaPadrao } from './ajustes.js';
 
@@ -374,6 +375,38 @@ const servidor = http.createServer(async (req, res) => {
       // biblioteca de agentes básicos do construtor (só formas que a tela sabe desenhar)
       const catalogo = JSON.parse(await fs.readFile(path.join(CONFIG, 'catalogo-agentes.json'), 'utf8').catch(() => '{"agentes":[]}')).agentes.filter((a) => FORMAS.includes(a.forma));
       return json(res, 200, { catalogo, times: [{ origem: 'arquivo', ...timeDoArquivo }, ...await lerTimes(PASTA_PRONTOS, 'pronto'), ...await lerTimes(PASTA_SALVOS, 'salvo')] });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/exportar') {
+      // Exporta o time (o do construtor, ainda sem aplicar, ou qualquer outro) como arquivos que outra IA consegue usar:
+      // AGENTS.md, o JSON da Muvuca e os subagentes do Claude Code. "previa" só mostra, "zip" baixa, "pasta" grava no projeto.
+      const b = await corpo(req);
+      const t = { ...validarTime(b.time, cfg.provedores, provedorPadrao), descricao: String(b.time?.descricao || '').trim().slice(0, 400) };
+      const hoje = new Date();
+      const arquivos = arquivosDoTime(t, {
+        versao: VERSAO, maxCiclos: prefs.maxCiclos,
+        data: `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`,
+        modelos: prefs.modelos['claude-cli'] || cfg.provedores['claude-cli']?.modelos,
+      });
+      if (b.formato === 'zip') {
+        const pacote = zip(arquivos, hoje);
+        res.writeHead(200, { 'content-type': 'application/zip', 'content-length': pacote.length, 'content-disposition': `attachment; filename="${fatiar(t.nome) || 'time'}-muvuca.zip"`, 'cache-control': 'no-store' });
+        return res.end(pacote);
+      }
+      if (b.formato === 'pasta') {
+        const projeto = path.resolve(String(b.projeto || ''));
+        const st = await fs.stat(projeto).catch(() => null);
+        if (!b.projeto || !st?.isDirectory()) return json(res, 400, { erro: `pasta de projeto não encontrada: ${b.projeto || '(vazia)'}` });
+        // com um time trabalhando na pasta, ou mudanças dela esperando decisão, os arquivos exportados entrariam no diff como se fossem do time
+        const ocupada = pastaEmUso(projeto, null);
+        if (ocupada) return json(res, 409, { codigo: 'pasta', erro: `essa pasta está em uso na conversa ${ocupada.id}${ocupada.muvuca.rodando ? ' (trabalhando)' : ' (mudanças esperando decisão)'}: grave depois, ou baixe o .zip` });
+        const destinos = arquivos.map((a) => ({ ...a, abs: dentro(projeto, a.caminho) }));
+        const existentes = [];
+        for (const a of destinos) { const atual = await fs.readFile(a.abs, 'utf8').catch(() => null); if (atual !== null && atual !== a.conteudo) existentes.push(a.caminho); }
+        if (existentes.length && b.sobrescrever !== true) return json(res, 409, { codigo: 'existe', existentes, erro: `já existe na pasta, com outro conteúdo: ${existentes.join(', ')}` });
+        for (const a of destinos) { await fs.mkdir(path.dirname(a.abs), { recursive: true }); await fs.writeFile(a.abs, a.conteudo); }
+        return json(res, 200, { ok: true, projeto, gravados: destinos.map((a) => a.caminho), sobrescritos: existentes });
+      }
+      return json(res, 200, { nome: t.nome, arquivos: arquivos.map((a) => ({ caminho: a.caminho, tamanho: Buffer.byteLength(a.conteudo) })), agentsMd: arquivos[0].conteudo });
     }
     if (req.method === 'POST' && url.pathname === '/api/time') {
       const b = await corpo(req);

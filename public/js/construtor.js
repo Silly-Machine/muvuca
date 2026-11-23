@@ -425,6 +425,53 @@ function novoAgente() {
   const ult = $('#cAgentes').lastElementChild; if (ult) { ult.open = true; ult.scrollIntoView({ block: 'nearest' }); ult.querySelector('input')?.focus(); }
 }
 const limpar = (t) => ({ nome: t.nome, descricao: t.descricao, arquitetura: t.arquitetura, agentes: t.agentes.map((a) => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== '' && v != null))) });
+/* ---------- exportar o time ---------- */
+// Salva a arquitetura do rascunho em arquivos que outra IA consegue usar: AGENTS.md, o JSON da Muvuca e os subagentes
+// do Claude Code. Não precisa aplicar o time antes: exporta o que está no construtor.
+async function exportar(formato, extra = {}) {
+  const r = await pedir('/api/exportar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ time: limpar(compartilhado.rascunho), formato, ...extra }) });
+  if (formato === 'zip' && r.ok) return r;
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.erro || `o servidor respondeu ${r.status}`), j);
+  return j;
+}
+async function abrirExportar() {
+  const d = $('#dlgExportar'), msg = (t, ruim) => { $('#exMsg').textContent = t; $('#exMsg').className = ruim ? 'ruim' : 'ok'; };
+  $('#cErro').className = 'ruim'; $('#cErro').textContent = '';
+  let previa; try { previa = await exportar('previa'); } catch (e) { $('#cErro').textContent = 'Não dá para exportar ainda: ' + e.message; return; }
+  $('#exTitulo').textContent = `Exportar "${previa.nome}"`; msg('');
+  const lista = $('#exArquivos'); lista.replaceChildren();
+  const oque = (p) => (p === 'AGENTS.md' ? 'o time em texto, para qualquer IA' : p === 'muvuca-time.json' ? 'o time em JSON, para a Muvuca ou outro programa' : 'subagente do Claude Code');
+  for (const a of previa.arquivos) { const li = el('li'); li.append(el('code', '', a.caminho), el('span', '', oque(a.caminho))); lista.append(li); }
+  $('#exPrevia').textContent = previa.agentsMd;
+  const projeto = $('#projeto').value.trim();
+  $('#exDestino').textContent = projeto ? `Pasta do projeto: ${projeto}` : 'Escolha uma pasta de projeto para poder gravar nela.';
+  $('#exPasta').disabled = !projeto;
+  $('#exZip').onclick = async () => {
+    try {
+      const r = await exportar('zip'); const blob = await r.blob();
+      const nome = /filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '')?.[1] || 'time-muvuca.zip';
+      const a = el('a'); a.href = URL.createObjectURL(blob); a.download = nome; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      msg(`Baixado: ${nome}`);
+    } catch (e) { msg('Não deu: ' + e.message, true); }
+  };
+  $('#exPasta').onclick = async () => {
+    try {
+      let j;
+      try { j = await exportar('pasta', { projeto }); }
+      catch (e) {
+        // arquivo que já existe com outro conteúdo: só troca com a sua confirmação
+        if (e.codigo !== 'existe' || !confirm(`Já existe na pasta, com outro conteúdo:\n\n${e.existentes.join('\n')}\n\nSubstituir?`)) throw e;
+        j = await exportar('pasta', { projeto, sobrescrever: true });
+      }
+      msg(`Gravado em ${j.projeto}: ${j.gravados.join(', ')}`);
+    } catch (e) { msg('Não deu: ' + e.message, true); }
+  };
+  $('#exFechar').onclick = () => d.close();
+  d.showModal();
+}
+$('#cExportar').onclick = () => abrirExportar();
+
 async function aplicarTime(salvar) {
   $('#cErro').className = 'ruim'; $('#cErro').textContent = '';
   const r = await pedir('/api/time', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ time: limpar(compartilhado.rascunho), salvar }) });

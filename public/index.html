@@ -79,6 +79,7 @@
         <div class="botoes">
           <button id="cSalvar" type="button" class="primario">Salvar e pôr no palco</button>
           <button id="cAplicar" type="button">Só pôr no palco</button>
+          <button id="cExportar" type="button" title="Salvar esta arquitetura em arquivos que outra IA consegue usar">Exportar…</button>
           <button id="cDescartar" type="button">Voltar sem mudar</button>
         </div>
         <p class="nota">O time vai para o palco na hora. "Salvar" grava em <code>times/</code> e ele aparece na galeria. Ao reiniciar o servidor, volta o time do arquivo de configuração.</p>
@@ -229,6 +230,20 @@
 <dialog id="dlgHistorico" aria-labelledby="hTitulo">
   <header><button type="button" id="hVoltar" class="pequeno" hidden>← Todas</button><b id="hTitulo">Conversas anteriores</b><button type="button" id="hFechar" class="pequeno">fechar</button></header>
   <div id="hCorpo"></div>
+</dialog>
+<dialog id="dlgExportar" aria-labelledby="exTitulo">
+  <header><b id="exTitulo">Exportar o time</b><button type="button" id="exFechar" class="pequeno">fechar</button></header>
+  <div class="exportar">
+    <p>Estes arquivos descrevem a arquitetura para outra IA usar fora da Muvuca: quem é quem, quem responde a quem, como o trabalho anda e as instruções de cada agente.</p>
+    <ul id="exArquivos"></ul>
+    <details><summary>Ver o AGENTS.md</summary><pre id="exPrevia"></pre></details>
+    <div class="botoes">
+      <button type="button" id="exZip" class="primario">Baixar .zip</button>
+      <button type="button" id="exPasta">Gravar na pasta do projeto</button>
+    </div>
+    <p id="exDestino" class="nota"></p>
+    <p id="exMsg" role="status" aria-live="polite"></p>
+  </div>
 </dialog>
 <dialog id="dlgEntrar" aria-labelledby="enTitulo">
   <div class="entrar">

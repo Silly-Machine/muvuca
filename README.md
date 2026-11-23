@@ -31,6 +31,7 @@ Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude
 - **Portão de testes e revisor.** Os testes são rodados pela Muvuca, não pelo agente que escreveu o código. O que não passa volta para quem fez, até um limite de devoluções.
 - **Cinco arquiteturas de time**, com sete modelos prontos: agente único, supervisor, hierárquica, esteira e rede.
 - **Construtor visual.** Monte o time arrastando agentes, desenhe as setas de quem responde a quem, apague com a borracha, desfaça com Ctrl+Z.
+- **Exportar para outra IA.** A arquitetura montada sai como `AGENTS.md`, JSON e subagentes do Claude Code, para ser usada fora da Muvuca.
 - **Modelo certo para cada tarefa.** Tarefa simples vai para o modelo leve, revisão vai para o mais forte. Cada agente pode ter o seu.
 - **Rotinas, quadro de tarefas e memória.** Pedidos agendados, um quadro com o andamento de cada tarefa e notas que cada agente guarda por projeto.
 - **Anexos.** Arraste arquivos ou pastas para a caixa do pedido.
@@ -143,7 +144,7 @@ Seus dados (preferências, projetos, rotinas, memória, times salvos) ficam em `
 ## Testes
 
 ```sh
-npm test                    # 97 testes automáticos, cerca de 1 minuto
+npm test                    # 104 testes automáticos, cerca de 1 minuto
 npm run bateria             # 225 verificações ao vivo, com o servidor em demonstração
 ```
 

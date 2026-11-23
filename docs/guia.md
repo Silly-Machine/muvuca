@@ -132,7 +132,8 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `src/times.js` | ~110 | o validador do construtor: regras de cada arquitetura |
 | `src/demo.js` | ~190 | o roteiro da demonstração, mais líder e executor genéricos para times do construtor |
 | `src/aberta.js` | ~20 | descobre se já há uma Muvuca aberta com a mesma pasta de dados |
-| `src/isolamento.js` | ~110 | isolamento dos testes: sonda o Node, monta o ambiente restrito e decide o que dá para isolar |
+| `src/exportar.js` | ~190 | exporta um time como `AGENTS.md`, JSON e subagentes do Claude Code; monta o pacote `.zip` |
+| `src/isolamento.js` | ~120 | isolamento dos testes: sonda o Node, monta o ambiente restrito e decide o que dá para isolar |
 | `src/conexoes.js` | ~200 | conexões (servidores MCP): validação, configuração sem segredos e teste de conexão |
 | `src/ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~240 | preferências e anexos, notas dos agentes, agendamento, guia da mascote |
 | `public/index.html` | ~230 | a estrutura da página, sem framework |
@@ -146,7 +147,7 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `config/arquiteturas/` | 7 arquivos | os modelos prontos de time |
 | `bin/muvuca.js` | ~50 | o comando `muvuca`: sobe o servidor e abre o navegador |
 | `electron/` | ~110 | o aplicativo de mesa: janela, seletor de pasta, ícone |
-| `test/` | 14 arquivos | 97 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos e o apoio que sobe um servidor de teste |
+| `test/` | 15 arquivos | 104 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos e o apoio que sobe um servidor de teste |
 | `scripts/` | | `versao.mjs` (lançar versões), `bateria.mjs` e `arquiteturas-reais.mjs` (testes ao vivo) |
 | `assets/personagens/` | | fontes dos personagens e os scripts que geram `public/bonecos/` |
 
@@ -200,6 +201,24 @@ Em todas, o portão de testes e o revisor fecham o ciclo, e a devolução sobe o
 - Ao reiniciar o servidor, volta o time do arquivo de configuração. O "Time do arquivo" fica sempre na galeria.
 
 Fora por enquanto: rede em que vários agentes trabalham ao mesmo tempo (hoje é um de cada vez, passando a vez) e a edição de provedores pela tela. As chaves continuam só em variável de ambiente.
+
+## Exportar o time para outra IA
+
+No construtor, o botão **"Exportar…"** salva a arquitetura que está na tela em arquivos que outra IA consegue usar. Não é preciso aplicar o time antes.
+
+| Arquivo | Para quem | O que traz |
+|---|---|---|
+| `AGENTS.md` | qualquer IA ou pessoa | arquitetura, diagrama, quem é quem, como o trabalho anda (plano, testes, revisão, devoluções) e as instruções de cada agente |
+| `muvuca-time.json` | a Muvuca e outros programas | o time em JSON: `arquitetura` e, por agente, `id`, `nome`, `funcao`, `chefe`, `conexoes`, `papel`, `ferramentas`, `sistema` |
+| `.claude/agents/<id>.md` | Claude Code | um subagente por agente que executa, consulta ou revisa, com nome, descrição, ferramentas e modelo |
+
+- **Baixar .zip** entrega os arquivos num pacote.
+- **Gravar na pasta do projeto** escreve os arquivos direto na pasta. Arquivo que já existe com outro conteúdo (um `AGENTS.md` seu, por exemplo) só é trocado com a sua confirmação. Com um time trabalhando na pasta, ou mudanças dela esperando decisão, a gravação é recusada: os arquivos entrariam no diff como se fossem do time.
+- **Líder e sub-líderes não viram subagentes** do Claude Code, porque um subagente não chama outro. As instruções deles ficam no `AGENTS.md`, e a conversa principal faz o papel de quem coordena.
+- **O provedor de cada agente não vai junto**: é coisa desta máquina. O modelo sugerido vai como nível (leve, intermediário, o mais forte) e, nos subagentes, como o nome do modelo do Claude.
+- **Trazer de volta:** copie o `muvuca-time.json` para `times/` na pasta de dados (`~/.muvuca/times/`) e ele aparece na galeria do construtor.
+
+Conferido com o Claude Code 2.1.284: numa pasta só com os arquivos exportados, ele reconheceu os subagentes com as ferramentas certas e descreveu a arquitetura corretamente lendo apenas o `AGENTS.md`.
 
 ## O que foi testado e o que não foi
 
@@ -409,7 +428,7 @@ Em **Configurações > Modelo de cada agente** dá para trocar o de qualquer age
 
 Dois níveis, os dois sem gastar modelo de verdade:
 
-- `npm test`: 97 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras e estrutura da tela, conexões, acesso, o que o Descartar cobre, isolamento dos testes e conversas paralelas). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
+- `npm test`: 104 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras e estrutura da tela, conexões, acesso, o que o Descartar cobre, isolamento dos testes e conversas paralelas). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
 - `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 225 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
 
 ### Arquiteturas com casos reais

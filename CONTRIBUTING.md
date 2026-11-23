@@ -43,7 +43,7 @@ Rode os testes com `npm test`, não com `node --test` puro: sem o padrão de nom
 
 ## Antes de mandar
 
-1. `npm test` passa. São 97 testes, cerca de 1 minuto.
+1. `npm test` passa. São 104 testes, cerca de 1 minuto.
 2. Se a mudança mexe em rotas do servidor, rode a bateria ao vivo: com o servidor em modo demonstração e a pasta padrão vazia, `npm run bateria`.
 3. Se a mudança aparece na tela, abra e confira no navegador. Diga no pull request o que você conferiu.
 4. Comportamento novo vem com teste. Correção de erro vem com um teste que falhava antes.
