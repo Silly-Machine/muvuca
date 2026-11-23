@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: revisão de segurança e de uso
+## 0.5.0 (22/11/2026): revisão de segurança e de uso
 
 Resultado de uma rodada de busca por falhas. Três foram confirmadas com teste e corrigidas; o resto são reforços e melhorias.
 
