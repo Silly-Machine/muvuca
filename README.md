@@ -34,6 +34,7 @@ Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude
 - **Modelo certo para cada tarefa.** Tarefa simples vai para o modelo leve, revisão vai para o mais forte. Cada agente pode ter o seu.
 - **Rotinas, quadro de tarefas e memória.** Pedidos agendados, um quadro com o andamento de cada tarefa e notas que cada agente guarda por projeto.
 - **Anexos.** Arraste arquivos ou pastas para a caixa do pedido.
+- **Histórico e uso.** As conversas encerradas ficam guardadas para reler, e cada pedido termina dizendo quanto tempo levou e, com o Claude Code, quantos tokens usou.
 - **Conexões (MCP).** Dê aos agentes de leitura acesso a documentação, issues ou um banco de dados, uma conexão por agente, sem gravar nenhum token.
 - **Modo demonstração.** Um roteiro simulado, sem conta e sem custo, para conhecer a tela.
 
@@ -141,25 +142,32 @@ Seus dados (preferências, projetos, rotinas, memória, times salvos) ficam em `
 ## Testes
 
 ```sh
-npm test                    # 65 testes automáticos, cerca de 1 minuto
-npm run bateria             # 200 verificações ao vivo, com o servidor em demonstração
+npm test                    # 77 testes automáticos, cerca de 1 minuto
+npm run bateria             # 215 verificações ao vivo, com o servidor em demonstração
 ```
 
 Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada envio. Detalhes em [Bateria de testes](docs/guia.md#bateria-de-testes).
 
 ## Segurança
 
-- O servidor atende só em `127.0.0.1`; outra máquina da rede não alcança.
-- Os agentes leem e escrevem só dentro da pasta do projeto. Arquivos `.env` ficam protegidos.
-- Com o Claude Code, quem escreve só consegue rodar `node --test` e `npm test`; qualquer outro comando é negado.
-- Nenhuma chave de API fica em arquivo: provedores por API e conexões leem a chave de uma variável de ambiente.
-- Conexões (MCP) vêm desligadas, só chegam aos agentes que você marcar, e nunca a quem escreve arquivos. O que elas fazem fora da pasta não é desfeito pelo "Descartar".
+- **Só o seu computador alcança o servidor.** Ele atende em `127.0.0.1` e recusa pedidos feitos por outro nome de endereço, o que impede um site aberto no navegador de ler a sua conversa.
+- **Chave de acesso.** A API e a página pedem uma chave guardada na pasta de dados, que só a sua conta do computador lê. O link que a Muvuca abre leva a chave uma vez, e o navegador segue com um cookie.
+- **A página não busca nada na internet.** Fontes, estilos e scripts vêm do próprio servidor, e uma política de conteúdo impede carregar qualquer coisa de fora.
+- **Os agentes usam as ferramentas de arquivo só dentro da pasta do projeto.** Arquivos `.env` ficam protegidos. Com o Claude Code, quem escreve só consegue rodar `node --test` e `npm test`.
+- **Os testes rodam sem isolamento.** O código de teste que um agente escreve é executado com as suas permissões e, em tese, pode ler e escrever fora da pasta. Use a Muvuca em projetos e com provedores em que você confia.
+- **Nenhuma chave de API fica em arquivo.** Provedores por API e conexões leem a chave de uma variável de ambiente.
+- **Conexões (MCP) vêm desligadas**, só chegam aos agentes que você marcar e nunca a quem escreve arquivos. Dá para liberar só algumas ferramentas de cada uma.
+- **O "Descartar" avisa o que não cobre.** Ele restaura o projeto inteiro, incluindo `dist/` e `build/`. Ficam de fora `node_modules/`, `.git/`, ambientes virtuais do Python e arquivos acima de 25 MB; quando algo disso muda, a tela diz.
 
 ## Roteiro
 
 - [x] Dados do usuário fora da pasta do aplicativo e primeira abertura guiada
 - [x] Comando `muvuca` e aplicativo de mesa para Windows, macOS e Linux
 - [ ] Instaladores assinados e atualização automática
+- [ ] Isolar a execução dos testes escritos pelos agentes
+- [ ] Aprovação ação por ação nas conexões, e conexões para quem escreve código
+- [ ] Mais de um pedido ao mesmo tempo
+- [ ] Tela para celular e testes automáticos da tela
 - [ ] Publicação no npm
 - [ ] Tirar do repositório as imagens-fonte dos personagens (`assets/personagens/plush/gpt/`, 41 MB dos 48 MB) e guardá-las como anexo de uma versão
 - [ ] Celular como controle remoto da Muvuca do computador (PWA com pareamento)

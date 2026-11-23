@@ -48,7 +48,7 @@ test('ligação por agente: só conexões que existem, e só as ligadas chegam a
     conexoes: [{ nome: 'Docs', comando: 'npx -y servidor-docs', variaveis: 'CHAVE_A, CHAVE_B CHAVE_A' }, { nome: 'Issues', tipo: 'http', url: 'https://exemplo.com/mcp', variavelToken: 'MEU_TOKEN' }, { nome: 'Parada', comando: 'x', ativa: false }],
     agentes: { scout: ['docs', 'nao_existe', 'docs', 'parada'], revisor: ['issues'], 'Id Ruim': ['docs'], maestro: 'docs', vazio: ['sumiu'] },
   });
-  assert.deepEqual(d.conexoes[0], { id: 'docs', nome: 'Docs', tipo: 'comando', descricao: '', ativa: true, comando: 'npx', args: ['-y', 'servidor-docs'], variaveis: ['CHAVE_A', 'CHAVE_B'] });
+  assert.deepEqual(d.conexoes[0], { id: 'docs', nome: 'Docs', tipo: 'comando', descricao: '', ativa: true, ferramentas: [], comando: 'npx', args: ['-y', 'servidor-docs'], variaveis: ['CHAVE_A', 'CHAVE_B'] });
   assert.deepEqual(d.agentes, { scout: ['docs', 'parada'], revisor: ['issues'] });
   assert.deepEqual(conexoesDoAgente(d, 'scout').map((c) => c.id), ['docs'], 'conexão desligada não chega');
   assert.deepEqual(conexoesDoAgente(d, 'chevron'), []);

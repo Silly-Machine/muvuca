@@ -24,6 +24,8 @@ Os arquivos da tela (`public/`) são lidos do disco a cada pedido: basta recarre
 
 Para não misturar testes com os seus dados, use outra pasta de dados: `npm start -- --dados ./dados-de-teste --porta 4320`.
 
+A API pede a chave de acesso. Num programa ou no `curl`, mande o cabeçalho `x-muvuca-token` com o conteúdo de `acesso.token`, que fica na pasta de dados. A bateria faz isso sozinha; se o servidor usa outra pasta de dados, rode-a com `MUVUCA_DADOS` apontando para ela.
+
 ## Onde fica cada coisa
 
 | Pasta | O que tem |
@@ -41,7 +43,7 @@ Rode os testes com `npm test`, não com `node --test` puro: sem o padrão de nom
 
 ## Antes de mandar
 
-1. `npm test` passa. São 65 testes, cerca de 1 minuto.
+1. `npm test` passa. São 77 testes, cerca de 1 minuto.
 2. Se a mudança mexe em rotas do servidor, rode a bateria ao vivo: com o servidor em modo demonstração e a pasta padrão vazia, `npm run bateria`.
 3. Se a mudança aparece na tela, abra e confira no navegador. Diga no pull request o que você conferiu.
 4. Comportamento novo vem com teste. Correção de erro vem com um teste que falhava antes.

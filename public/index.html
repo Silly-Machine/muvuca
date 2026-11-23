@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Muvuca</title>
 <link rel="icon" href="data:,">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/css/fontes.css">
 <link rel="stylesheet" href="/css/estilo.css">
 <link rel="stylesheet" href="/css/tema.css">
 </head>
@@ -102,6 +101,7 @@
         <label class="campo"><span>Tipo</span><select id="xTipo"><option value="comando">Comando neste computador</option><option value="http">Endereço na rede (HTTP)</option></select></label>
       </div>
       <label class="campo"><span>Para que serve (o agente lê isto)</span><input id="xDescricao" maxlength="200" placeholder="consulta a documentação atual de bibliotecas"></label>
+      <label class="campo"><span>Ferramentas liberadas (em branco: todas)</span><input id="xFerramentas" spellcheck="false" placeholder="buscar, ler_documento"></label>
       <label class="campo" id="xCampoComando"><span>Comando que sobe o servidor</span><input id="xComando" spellcheck="false" placeholder="npx -y nome-do-servidor-mcp"></label>
       <label class="campo" id="xCampoVariaveis"><span>Variáveis de ambiente que ele precisa (só os nomes)</span><input id="xVariaveis" spellcheck="false" placeholder="MEU_TOKEN, OUTRA_CHAVE"></label>
       <label class="campo" id="xCampoUrl" hidden><span>Endereço do servidor</span><input id="xUrl" spellcheck="false" placeholder="https://exemplo.com/mcp"></label>
@@ -159,6 +159,8 @@
         <label class="campo"><span>Devoluções do revisor (máximo)</span><input id="cfCiclos" type="number" min="0" max="10"></label>
         <p class="nota">Quantas vezes o trabalho pode voltar para correção antes de o time parar.</p>
         <label class="campo"><span>Passos por agente em cada vez (máximo)</span><input id="cfPassos" type="number" min="1" max="60"></label>
+        <label class="campo"><span>Tempo máximo de cada agente por vez (minutos)</span><input id="cfLimiteAgente" type="number" min="1" max="180"></label>
+        <label class="campo"><span>Tempo máximo dos testes (minutos)</span><input id="cfLimiteTestes" type="number" min="1" max="60"></label>
         <p class="nota">Cada passo é uma ação: listar, ler, escrever ou rodar.</p>
       </section>
       <section class="cartao-form" id="cfModelosCartao">
@@ -218,10 +220,14 @@
 
 <button type="button" id="alternarConversa" aria-pressed="true" aria-label="Ocultar a conversa" title="Ocultar a conversa"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path class="lado" d="M14.5 5h3a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-3z"/></svg><i></i></button>
 <aside id="conversa">
-  <header><span id="titulo">Nova conversa</span><button id="nova">Nova conversa</button></header>
+  <header><span id="titulo">Nova conversa</span><button id="historico" title="Conversas anteriores">Histórico</button><button id="nova">Nova conversa</button></header>
   <div id="fluxo" aria-live="polite"></div>
 </aside>
 
+<dialog id="dlgHistorico" aria-labelledby="hTitulo">
+  <header><button type="button" id="hVoltar" class="pequeno" hidden>← Todas</button><b id="hTitulo">Conversas anteriores</b><button type="button" id="hFechar" class="pequeno">fechar</button></header>
+  <div id="hCorpo"></div>
+</dialog>
 <dialog id="boasVindas" aria-labelledby="bvTitulo">
   <form method="dialog" id="bvForm">
     <div class="topo"><img src="/bonecos/cartola-disponivel.webp" alt="">
@@ -249,6 +255,7 @@
 <script defer src="/js/quadro.js"></script>
 <script defer src="/js/abas.js"></script>
 <script defer src="/js/conexoes.js"></script>
+<script defer src="/js/historico.js"></script>
 <script defer src="/js/inicio.js"></script>
 </body>
 </html>

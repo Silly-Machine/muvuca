@@ -24,7 +24,7 @@ async function abrirBuzinaChat(abrir) {
   if (!abrir) return;
   if (!$('#bcFluxo').childElementCount) {
     linhaBuzina('buzina', 'Au! Eu sou a Buzina, mascote da Muvuca. Pergunte o que quiser sobre como a Muvuca funciona.');
-    try { const j = await (await fetch('/api/buzina')).json(); for (const t of j.sugestoes || []) { const b = el('button', '', t); b.type = 'button'; b.onclick = () => perguntarBuzina(t); $('#bcSugestoes').append(b); } } catch { /* sem sugestões */ }
+    try { const j = await lerDoServidor('/api/buzina'); for (const t of j.sugestoes || []) { const b = el('button', '', t); b.type = 'button'; b.onclick = () => perguntarBuzina(t); $('#bcSugestoes').append(b); } } catch { /* sem sugestões */ }
   }
   $('#bcTexto').focus();
 }

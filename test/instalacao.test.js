@@ -9,28 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizarPreferencias } from '../src/ajustes.js';
 
-const RAIZ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-
-// Sobe um servidor de verdade numa porta livre, com a pasta de dados que o teste escolher.
-async function subir(dados, extra = {}) {
-  const env = { ...process.env, MUVUCA_DADOS: dados, MUVUCA_PORTA: '0', ...extra };
-  delete env.NODE_TEST_CONTEXT; delete env.MUVUCA_CONFIG; delete env.ESTUDIO_CONFIG; delete env.MUVUCA_PROJETO; delete env.ESTUDIO_PROJETO; delete env.PORTA;
-  const filho = spawn(process.execPath, [path.join(RAIZ, 'src', 'servidor.js')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
-  let saida = '';
-  const porta = await new Promise((resolve, reject) => {
-    const tempo = setTimeout(() => reject(new Error('o servidor não subiu: ' + saida)), 30000);
-    const ler = (d) => { saida += d; const m = /localhost:(\d+)/.exec(saida); if (m) { clearTimeout(tempo); resolve(Number(m[1])); } };
-    filho.stdout.on('data', ler); filho.stderr.on('data', ler);
-    filho.on('exit', (c) => { clearTimeout(tempo); reject(new Error(`o servidor saiu (${c}): ${saida}`)); });
-  });
-  const base = `http://127.0.0.1:${porta}`;
-  return {
-    porta, saida: () => saida,
-    get: async (u) => (await fetch(base + u)).json(),
-    post: async (u, corpo) => { const r = await fetch(base + u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) }); return { s: r.status, j: await r.json() }; },
-    parar: () => new Promise((r) => { filho.once('exit', r); filho.kill(); }),
-  };
-}
+import { subir, RAIZ } from './apoio/servidor-de-teste.js';
 
 test('preferências: a pasta de fábrica pode vir de fora e as boas-vindas começam por fazer', () => {
   const raiz = path.resolve('/apps/muvuca'), padrao = path.resolve('/casa/Muvuca/primeiro-projeto');

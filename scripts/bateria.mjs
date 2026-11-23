@@ -3,9 +3,17 @@
 // Só trabalha na pasta padrão (que precisa terminar em "teste-estudio") e devolve tudo ao estado inicial no fim.
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const BASE = process.env.MUVUCA_URL || 'http://localhost:4317';
+// A chave de acesso fica na pasta de dados do servidor que está sendo testado (MUVUCA_DADOS, ou ~/.muvuca).
+const PASTA_DADOS = path.resolve(process.env.MUVUCA_DADOS || path.join(os.homedir(), '.muvuca'));
+const CHAVE = (await fs.readFile(path.join(PASTA_DADOS, 'acesso.token'), 'utf8').catch(() => '')).trim();
+if (!CHAVE) { console.log(`Não achei a chave de acesso em ${PASTA_DADOS}. Se o servidor usa outra pasta de dados, rode com MUVUCA_DADOS apontando para ela.`); process.exit(2); }
+// Toda chamada da bateria leva a chave; "semChave" é para testar o que o servidor responde a quem não tem.
+const semChave = globalThis.fetch;
+globalThis.fetch = (u, o = {}) => semChave(u, { ...o, headers: { 'x-muvuca-token': CHAVE, ...(o.headers || {}) } });
 const AQUI = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const resultados = [];
 let grupo = '';
@@ -13,7 +21,7 @@ const ok = (nome, cond, detalhe = '') => { resultados.push({ grupo, nome, ok: !!
 const secao = (g) => { grupo = g; console.log('• ' + g); };
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const get = async (u) => { const r = await fetch(BASE + u); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch { /* não é JSON */ } return { s: r.status, j, t, tipo: r.headers.get('content-type') || '' }; };
+const get = async (u) => { const r = await fetch(BASE + u); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch { /* não é JSON */ } return { s: r.status, j, t, tipo: r.headers.get('content-type') || '', cab: Object.fromEntries(r.headers) }; };
 const post = async (u, corpo, cab = { 'content-type': 'application/json' }) => { const r = await fetch(BASE + u, { method: 'POST', headers: cab, body: typeof corpo === 'string' ? corpo : JSON.stringify(corpo ?? {}) }); let j = null; try { j = await r.json(); } catch { /* sem corpo */ } return { s: r.status, j }; };
 // lê o que o servidor reenvia ao conectar (a conversa inteira) e desconecta
 async function eventos() {
@@ -62,6 +70,22 @@ ok('imagem que não existe dá 404', (await get('/bonecos/nada-nada.webp')).s ==
 ok('caminho fora da pasta de imagens não é servido', (await get('/bonecos/..%2F..%2Fservidor.js')).s === 404 && (await get('/bonecos/../servidor.js')).s === 404);
 ok('arquivo do servidor não é servido', (await get('/servidor.js')).s === 404 && (await get('/src/servidor.js')).s === 404 && (await get('/config/agentes.json')).s === 404 && (await get('/agentes.local.json')).s === 404 && (await get('/preferencias.json')).s === 404);
 ok('rota desconhecida dá 404', (await get('/api/nao-existe')).s === 404);
+
+// ---------- acesso
+secao('Acesso');
+{ const st = async (u, o) => (await semChave(BASE + u, o)).status;
+  ok('sem a chave, a API recusa (401)', await st('/api/config') === 401 && await st('/api/eventos') === 401 && await st('/api/conversas') === 401);
+  ok('sem a chave, ninguém manda rodar comando', await st('/api/conexoes/testar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"conexao":{"nome":"x","comando":"node -v"}}' }) === 401);
+  ok('chave errada é recusada', await st('/api/config', { headers: { 'x-muvuca-token': 'a'.repeat(48) } }) === 401);
+  ok('a página sem a chave explica, sem entregar a chave', await st('/') === 401 && !(await (await semChave(BASE + '/')).text()).includes(CHAVE));
+  const entrada = await semChave(BASE + '/?t=' + CHAVE);
+  ok('a chave no endereço abre a página e entrega o cookie', entrada.status === 200 && /HttpOnly/.test(entrada.headers.get('set-cookie') || '') && /SameSite=Strict/.test(entrada.headers.get('set-cookie') || ''));
+  const politica = entrada.headers.get('content-security-policy') || '';
+  ok('a página só carrega o que vem deste servidor', politica.includes("default-src 'self'") && politica.includes("frame-ancestors 'none'") && !/script-src[^;]*unsafe-inline/.test(politica), politica);
+  ok('a página não busca nada fora deste computador', !/(?:src|href)\s*=\s*["']?(?:https?:)?\/\//.test(await entrada.text()));
+  const fonte = await semChave(BASE + '/fontes/nunito-latin-400-normal.woff2'); await fonte.arrayBuffer();
+  ok('as fontes vêm do próprio servidor', fonte.status === 200 && fonte.headers.get('content-type') === 'font/woff2');
+  ok('cabeçalhos de segurança em toda resposta', (await get('/api/config')).cab['x-frame-options'] === 'DENY' && (await get('/css/tema.css')).cab['x-content-type-options'] === 'nosniff'); }
 
 // ---------- 2. proteções de entrada
 secao('Proteções de entrada');
@@ -246,6 +270,19 @@ secao('Anexos');
   ok('arquivo acima de 8 MB é recusado', grande.s === 400 && /8 MB/.test(grande.j?.erro || ''), JSON.stringify(grande.j));
   ok('anexos não são servidos pela web', (await get('/anexos/nota.txt')).s === 404);
   await fs.rm(path.join(PROJETO, 'anexos'), { recursive: true, force: true }); }
+
+// ---------- histórico e limites de tempo
+secao('Histórico e limites');
+{ const h = (await get('/api/conversas')).j;
+  ok('histórico lista as conversas guardadas', Array.isArray(h?.conversas) && h.conversas.every((c) => c.id && c.quando && typeof c.titulo === 'string'), JSON.stringify(h).slice(0, 200));
+  ok('a bateria deixou conversas no histórico', h.conversas.length >= 1, 'nenhuma conversa guardada');
+  if (h.conversas[0]) { const c = (await get('/api/conversas/' + h.conversas[0].id)).j; ok('uma conversa abre com os acontecimentos, sem o diff linha a linha', Array.isArray(c?.eventos) && c.eventos.some((e) => e.tipo === 'pedido') && c.eventos.filter((e) => e.tipo === 'diff').every((e) => e.arquivos.every((a) => a.linhas === undefined))); }
+  ok('conversa que não existe dá 404', (await get('/api/conversas/20000101000000-zzzz')).s === 404);
+  const pr = (await get('/api/preferencias')).j.preferencias;
+  ok('preferências trazem os dois limites de tempo', pr.limiteAgenteMin >= 1 && pr.limiteTestesMin >= 1, JSON.stringify(pr));
+  const mudou = await post('/api/preferencias', { preferencias: { limiteAgenteMin: 9999, limiteTestesMin: 0 } });
+  ok('limites fora da faixa são ajustados', mudou.j?.preferencias?.limiteAgenteMin === 180 && mudou.j?.preferencias?.limiteTestesMin === 1, JSON.stringify(mudou.j?.preferencias));
+  await post('/api/preferencias', { preferencias: prefs0 }); }
 
 // ---------- conexões (servidores MCP)
 secao('Conexões');

@@ -1,11 +1,14 @@
 // Servidor local da Muvuca. Sem dependências: node src/servidor.js
 import http from 'node:http';
+import crypto from 'node:crypto';
+import { rmSync, writeFileSync, readFileSync } from 'node:fs';
+const readFileSyncSeguro = (arq) => { try { return readFileSync(arq, 'utf8'); } catch { return 'null'; } };
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Muvuca, nivelPadrao, chaveMemoria } from './orquestrador.js';
 import { validarTime, fatiar, ARQUITETURAS, FORMAS } from './times.js';
-import { salvarFoto, carregarFoto, diferencas, rodar, dentro } from './ferramentas.js';
+import { salvarFoto, carregarFoto, diferencas, rodar, dentro, encerrarProcessos } from './ferramentas.js';
 import os from 'node:os';
 import { chamar } from './provedores.js';
 import { responderOffline, sistemaBuzina, SUGESTOES } from './buzina.js';
@@ -29,6 +32,8 @@ if (!await fs.stat(DADOS).catch(() => null)) {
   for (const n of ARQUIVOS_DE_DADOS) await fs.cp(path.join(RAIZ, n), path.join(DADOS, n), { recursive: true, errorOnExist: false }).catch(() => {});
 }
 // MUVUCA_CONFIG aceita o nome de um arquivo de config/ ou um caminho completo.
+const ARQ_ABERTA = path.join(DADOS, 'aberta.json');
+const readAberta = () => { try { return JSON.stringify(JSON.parse(String(readFileSyncSeguro(ARQ_ABERTA)))); } catch { return null; } };
 const arquivoCfg = path.resolve(CONFIG, process.env.MUVUCA_CONFIG || process.env.ESTUDIO_CONFIG || 'agentes.json');
 const cfg = JSON.parse(await fs.readFile(arquivoCfg, 'utf8'));
 // Provedores dos outros arquivos de agentes entram na lista também: dá para trocar de provedor pela tela,
@@ -52,7 +57,7 @@ muvuca.aoMudarFoto = (foto, projeto) => salvarFoto(PASTA_PENDENTE, projeto, foto
     if (arquivos.length) {
       muvuca.foto = guardado.foto; muvuca.projeto = guardado.projeto;
       muvuca.emitir({ tipo: 'aviso', texto: `O servidor foi reiniciado com mudanças esperando decisão em ${guardado.projeto}. Elas continuam aqui: escolha manter ou descartar.` });
-      muvuca.emitir({ tipo: 'diff', arquivos, autores: {} });
+      muvuca.emitir({ tipo: 'diff', arquivos, avisos: arquivos.avisos || [], autores: {} });
     } else await salvarFoto(PASTA_PENDENTE, null, null);
   } else if (guardado) await salvarFoto(PASTA_PENDENTE, null, null);
 }
@@ -108,7 +113,7 @@ const prefsGravadas = await lerJson(ARQ_PREFS, null);
 let prefs = normalizarPreferencias(prefsGravadas ?? {}, opcoesPrefs);
 // Quem já tinha preferências gravadas antes de existir a tela de boas-vindas não precisa passar por ela.
 if (prefsGravadas && prefsGravadas.inicioFeito === undefined) prefs.inicioFeito = true;
-const aplicarPrefs = () => { muvuca.maxCiclos = prefs.maxCiclos; muvuca.maxPassos = prefs.maxPassos; };
+const aplicarPrefs = () => { muvuca.maxCiclos = prefs.maxCiclos; muvuca.maxPassos = prefs.maxPassos; muvuca.limiteAgenteS = prefs.limiteAgenteMin * 60; muvuca.limiteTestesMs = prefs.limiteTestesMin * 60000; };
 aplicarPrefs();
 // Memória por agente (notas por projeto) e rotinas (pedidos agendados).
 const memoria = criarMemoria(path.join(DADOS, 'memoria'));
@@ -135,6 +140,27 @@ const verConexoes = () => ({
   agentes: conexoes.agentes,
   time: muvuca.cfg.agentes.map((a) => ({ id: a.id, nome: a.nome, papel: a.papel || '', ...situacaoConexoes(a) })),
 });
+// Histórico: ao começar uma conversa nova, a anterior é guardada na pasta de dados. Ficam as 100 mais recentes.
+const PASTA_CONVERSAS = path.join(DADOS, 'conversas');
+const MAX_CONVERSAS = 100;
+muvuca.aoArquivar = (eventos) => {
+  const pedidos = eventos.filter((e) => e.tipo === 'pedido');
+  const fim = [...eventos].reverse().find((e) => ['final', 'parado', 'erro'].includes(e.tipo));
+  // o diff linha a linha pode ser enorme: no histórico fica só a lista de arquivos de cada um
+  const enxuto = eventos.filter((e) => !['status', 'passo', 'tarefa'].includes(e.tipo)).map((e) => (e.tipo === 'diff' ? { ...e, arquivos: e.arquivos.map(({ arquivo, tipo }) => ({ arquivo, tipo })) } : e));
+  const quando = new Date(pedidos[0].hora || Date.now());
+  const id = quando.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6);
+  const conversa = { id, quando: quando.toISOString(), titulo: String(pedidos[0].texto || '').split('\n')[0].slice(0, 120), projeto: pedidos[0].projeto || '', pedidos: pedidos.length,
+    resultado: !fim ? '' : fim.tipo === 'parado' ? 'interrompida' : fim.tipo === 'erro' ? 'erro' : fim.aprovado ? 'aprovada' : fim.aprovado === false ? 'não aprovada' : 'concluída', eventos: enxuto };
+  (async () => {
+    await fs.mkdir(PASTA_CONVERSAS, { recursive: true });
+    await gravarJson(path.join(PASTA_CONVERSAS, id + '.json'), conversa);
+    const todas = (await fs.readdir(PASTA_CONVERSAS)).filter((n) => /^\d{14}-[a-z0-9]+\.json$/.test(n)).sort();
+    for (const velha of todas.slice(0, Math.max(0, todas.length - MAX_CONVERSAS))) await fs.rm(path.join(PASTA_CONVERSAS, velha), { force: true });
+  })().catch(() => {});
+};
+// Anexos mandados desde a última decisão: se as mudanças forem descartadas, eles saem junto.
+let anexosPendentes = [];
 const ARQ_ROTINAS = path.join(DADOS, 'rotinas.json');
 let rotinas = [];
 try {
@@ -190,12 +216,42 @@ async function lerTimes(pasta, origem) {
   return lista;
 }
 
+// ---------- acesso
+// Quem pode falar com este servidor: só quem tem o token, guardado na pasta de dados (só o seu usuário lê).
+// O link que a Muvuca abre leva o token uma vez; o navegador recebe um cookie e segue sem ele. Sem isso, qualquer
+// programa ou outro usuário do computador podia mandar pedidos e rodar comandos por aqui.
+const ARQ_TOKEN = path.join(DADOS, 'acesso.token');
+let TOKEN = (await fs.readFile(ARQ_TOKEN, 'utf8').catch(() => '')).trim();
+if (!/^[a-f0-9]{48}$/.test(TOKEN)) { TOKEN = crypto.randomBytes(24).toString('hex'); await fs.writeFile(ARQ_TOKEN, TOKEN + '\n', { mode: 0o600 }); }
+export const acesso = TOKEN;
+const mesmoToken = (v) => typeof v === 'string' && v.length === TOKEN.length && crypto.timingSafeEqual(Buffer.from(v), Buffer.from(TOKEN));
+// Endereços pelos quais a Muvuca atende. Um site malicioso pode apontar o próprio nome para 127.0.0.1 e, pelo navegador,
+// ler o que este servidor responde; conferir o endereço pedido fecha essa porta.
+const ENDERECOS = new Set(['localhost', '127.0.0.1', '[::1]']);
+const SEGURANCA = { 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 'referrer-policy': 'no-referrer', 'cross-origin-resource-policy': 'same-origin' };
+// A página só carrega o que vem deste servidor. Estilo embutido é permitido porque a tela posiciona elementos por atributo style.
+const POLITICA = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+const SEM_ACESSO = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Muvuca</title><body style="font:16px system-ui;background:#241c22;color:#eee;display:grid;place-items:center;height:100vh;margin:0"><div style="max-width:460px;padding:24px"><h1 style="color:#f5a45a;font-size:22px">A Muvuca está aberta, mas este navegador ainda não tem acesso</h1><p>Abra pelo link que apareceu no terminal, ou pelo aplicativo. O link leva uma chave que só a sua conta do computador conhece.</p></div></body></html>`;
+
 const json = (res, codigo, obj) => { res.writeHead(codigo, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(obj)); };
 const corpo = async (req, max = 1e6) => { let t = ''; for await (const p of req) { t += p; if (t.length > max) throw new Error('corpo grande demais'); } return t ? JSON.parse(t) : {}; };
 
 const servidor = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   try {
+    for (const [k, v] of Object.entries(SEGURANCA)) res.setHeader(k, v);
+    if (!ENDERECOS.has(String(req.headers.host || '').replace(/:\d+$/, '').toLowerCase())) return json(res, 403, { erro: 'endereço não permitido' });
+    // A página e a API pedem o token (cabeçalho, para programas; cookie, para o navegador). Estilos, scripts e imagens são públicos.
+    if (url.pathname === '/' || url.pathname.startsWith('/api/')) {
+      const nomeCookie = `muvuca_${servidor.address()?.port || 0}`;   // por porta: duas Muvucas abertas não derrubam o acesso uma da outra
+      const cookies = Object.fromEntries(String(req.headers.cookie || '').split(';').map((c) => { const i = c.indexOf('='); return [c.slice(0, i).trim(), c.slice(i + 1).trim()]; }));
+      const chegou = url.pathname === '/' && mesmoToken(url.searchParams.get('t') || '');
+      if (chegou) res.setHeader('set-cookie', `${nomeCookie}=${TOKEN}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000`);
+      if (!chegou && !mesmoToken(req.headers['x-muvuca-token']) && !mesmoToken(cookies[nomeCookie])) {
+        if (url.pathname !== '/') return json(res, 401, { erro: 'sem acesso: abra a Muvuca pelo link do terminal ou pelo aplicativo' });
+        res.writeHead(401, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(SEM_ACESSO);
+      }
+    }
     // Só aceita chamadas da própria página: bloqueia sites abertos no navegador tentando comandar o servidor local.
     if (req.method === 'POST') {
       const origem = req.headers.origin;
@@ -203,20 +259,20 @@ const servidor = http.createServer(async (req, res) => {
       if (!/application\/json/.test(req.headers['content-type'] || '')) return json(res, 415, { erro: 'envie JSON' });
     }
     if (req.method === 'GET' && url.pathname === '/') {
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': POLITICA });
       return res.end(await fs.readFile(path.join(RAIZ, 'public', 'index.html')));
     }
     // Arquivos da tela: imagens dos personagens (forma-estado.webp), estilos e scripts. Só nomes simples dentro
     // das três pastas conhecidas; nada de subir de pasta nem de servir outro tipo de arquivo.
-    const estatico = req.method === 'GET' && (/^\/(bonecos)\/([a-z]+-[a-z]+\.webp)$/.exec(url.pathname) || /^\/(css)\/([a-z0-9-]+\.css)$/.exec(url.pathname) || /^\/(js)\/((?:[a-z0-9-]+\/)?[a-z0-9-]+\.js)$/.exec(url.pathname));
+    const estatico = req.method === 'GET' && (/^\/(bonecos)\/([a-z]+-[a-z]+\.webp)$/.exec(url.pathname) || /^\/(css)\/([a-z0-9-]+\.css)$/.exec(url.pathname) || /^\/(fontes)\/([a-z0-9-]+\.woff2)$/.exec(url.pathname) || /^\/(js)\/((?:[a-z0-9-]+\/)?[a-z0-9-]+\.js)$/.exec(url.pathname));
     if (estatico) {
-      const tipo = { bonecos: 'image/webp', css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8' }[estatico[1]];
+      const tipo = { bonecos: 'image/webp', css: 'text/css; charset=utf-8', fontes: 'font/woff2', js: 'text/javascript; charset=utf-8' }[estatico[1]];
       const arq = path.join(RAIZ, 'public', estatico[1], estatico[2]);
       const st = await fs.stat(arq).catch(() => null);
       if (!st?.isFile()) { res.writeHead(404); return res.end(); }
       const etag = `"${st.size}-${Math.round(st.mtimeMs)}"`;
       if (req.headers['if-none-match'] === etag) { res.writeHead(304, { etag, 'cache-control': 'no-cache' }); return res.end(); }
-      res.writeHead(200, { 'content-type': tipo, 'cache-control': 'no-cache', etag, 'x-content-type-options': 'nosniff' });
+      res.writeHead(200, { 'content-type': tipo, 'cache-control': 'no-cache', etag });
       return res.end(await fs.readFile(arq));
     }
     if (req.method === 'GET' && url.pathname === '/api/config') {
@@ -362,11 +418,25 @@ const servidor = http.createServer(async (req, res) => {
       }
       return json(res, 200, { texto: responderOffline(pergunta).texto, fonte: 'guia embutido' });
     }
+    if (req.method === 'GET' && url.pathname === '/api/conversas') {
+      // histórico: só o resumo de cada conversa, da mais nova para a mais antiga
+      const nomes = (await fs.readdir(PASTA_CONVERSAS).catch(() => [])).filter((n) => /^\d{14}-[a-z0-9]+\.json$/.test(n)).sort().reverse();
+      const lista = [];
+      for (const n of nomes) { const c = await lerJson(path.join(PASTA_CONVERSAS, n), null); if (c) lista.push({ id: c.id, quando: c.quando, titulo: c.titulo, projeto: c.projeto, pedidos: c.pedidos, resultado: c.resultado }); }
+      return json(res, 200, { conversas: lista });
+    }
+    const umaConversa = req.method === 'GET' && /^\/api\/conversas\/(\d{14}-[a-z0-9]+)$/.exec(url.pathname);
+    if (umaConversa) {
+      const c = await lerJson(path.join(PASTA_CONVERSAS, umaConversa[1] + '.json'), null);
+      return c ? json(res, 200, c) : json(res, 404, { erro: 'conversa não encontrada' });
+    }
     if (req.method === 'GET' && url.pathname === '/api/conexoes') return json(res, 200, verConexoes());
     if (req.method === 'POST' && url.pathname === '/api/conexoes') {
       const b = await corpo(req);
       if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
       conexoes = normalizarConexoes({ conexoes: b.conexoes ?? conexoes.conexoes, agentes: b.agentes ?? conexoes.agentes });
+      // agente do time atual que não pode usar conexão não fica na lista: se um dia passasse a poder, ganharia a conexão sem ninguém marcar
+      for (const a of muvuca.cfg.agentes) if (!situacaoConexoes(a).pode && a.provedor && cfg.provedores[a.provedor]?.tipo !== 'demo') delete conexoes.agentes[a.id];
       await gravarJson(ARQ_CONEXOES, conexoes);
       return json(res, 200, { ok: true, ...verConexoes() });
     }
@@ -405,7 +475,7 @@ const servidor = http.createServer(async (req, res) => {
         if (total > LIMITES_ANEXO.total) return json(res, 400, { erro: `os anexos passam de ${LIMITES_ANEXO.total / 1048576} MB no total` });
         prontos.push([rel, dentro(projeto, rel), dados]);
       }
-      for (const [, abs, dados] of prontos) { await fs.mkdir(path.dirname(abs), { recursive: true }); await fs.writeFile(abs, dados); }
+      for (const [, abs, dados] of prontos) { await fs.mkdir(path.dirname(abs), { recursive: true }); await fs.writeFile(abs, dados); anexosPendentes.push({ projeto, abs }); }
       return json(res, 200, { ok: true, salvos: prontos.map(([rel]) => rel) });
     }
     if (req.method === 'GET' && url.pathname === '/api/rotinas') return json(res, 200, { rotinas, padrao: prefs.projetoPadrao });
@@ -464,6 +534,12 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/decidir') {
       const b = await corpo(req); const pasta = muvuca.projeto;
       await muvuca.decidir(b.acao);
+      // descartou: os anexos mandados com esses pedidos saem também (e as pastas que ficarem vazias, até a "anexos/")
+      if (b.acao === 'descartar') for (const { projeto, abs } of anexosPendentes) {
+        await fs.rm(abs, { force: true }).catch(() => {});
+        for (let d = path.dirname(abs); d !== projeto && d.startsWith(projeto + path.sep); d = path.dirname(d)) { try { await fs.rmdir(d); } catch { break; } }
+      }
+      anexosPendentes = [];
       // registro em disco: a conversa some ao reiniciar, e sem isto não dá para saber depois o que foi decidido
       await fs.appendFile(path.join(DADOS, 'decisoes.log'), `${new Date().toISOString()}	${b.acao}	${pasta}
 `).catch(() => {});
@@ -477,6 +553,22 @@ const servidor = http.createServer(async (req, res) => {
 // "pronto" entrega a porta em uso: o comando "muvuca" e o aplicativo de mesa esperam por ela para abrir a tela.
 export const pronto = new Promise((resolve, reject) => {
   servidor.once('error', (e) => { console.error(e.code === 'EADDRINUSE' ? `A porta ${PORTA} já está em uso. A Muvuca já está aberta? Para usar outra: MUVUCA_PORTA=4318` : e.message); reject(e); });
-  servidor.listen(PORTA, '127.0.0.1', () => { const porta = servidor.address().port; console.log(`Muvuca em http://localhost:${porta}  (dados em ${DADOS})`); resolve(porta); });
+  servidor.listen(PORTA, '127.0.0.1', () => {
+    const porta = servidor.address().port;
+    // "aberta.json" diz às outras formas de abrir (comando, aplicativo) que esta pasta de dados já tem uma Muvuca cuidando dela
+    // Se outra Muvuca viva já deixou o aviso, ele fica: esta é a segunda na mesma pasta e não toma o lugar da primeira.
+    let outraViva = false;
+    try { const a = JSON.parse(readFileSyncSeguro(ARQ_ABERTA)); if (a?.pid && a.pid !== process.pid) { try { process.kill(a.pid, 0); outraViva = true; } catch (e) { outraViva = e.code === 'EPERM'; } } } catch { /* aviso ilegível: vale como ausente */ }
+    if (!outraViva) try { writeFileSync(ARQ_ABERTA, JSON.stringify({ pid: process.pid, porta })); } catch { /* sem o aviso, só não há reaproveitamento */ }
+    console.log(`Muvuca em http://localhost:${porta}/?t=${TOKEN}  (dados em ${DADOS})`);
+    resolve(porta);
+  });
 });
 pronto.catch(() => { if (!process.versions.electron) process.exit(1); });
+
+// Ao sair: encerra o que a Muvuca subiu (o aplicativo do provedor, os testes) e tira o aviso de que está aberta.
+process.on('exit', () => {
+  encerrarProcessos();
+  try { if (JSON.parse(String(readAberta() || '{}')).pid === process.pid) rmSync(ARQ_ABERTA, { force: true }); } catch { /* nada a limpar */ }
+});
+for (const sinal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sinal, () => process.exit(0));

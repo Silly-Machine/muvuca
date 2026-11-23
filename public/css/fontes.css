@@ -1,0 +1,7 @@
+/* Muvuca: as duas fontes da tela, servidas daqui mesmo (antes vinham do Google Fonts a cada abertura).
+   Fredoka nos títulos, Nunito no texto. Só o conjunto latino, que cobre o português. Licença OFL em public/fontes/. */
+@font-face { font-family:'Fredoka'; font-style:normal; font-weight:500; font-display:swap; src:url('/fontes/fredoka-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family:'Fredoka'; font-style:normal; font-weight:600; font-display:swap; src:url('/fontes/fredoka-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family:'Nunito'; font-style:normal; font-weight:400; font-display:swap; src:url('/fontes/nunito-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family:'Nunito'; font-style:normal; font-weight:600; font-display:swap; src:url('/fontes/nunito-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family:'Nunito'; font-style:normal; font-weight:700; font-display:swap; src:url('/fontes/nunito-latin-700-normal.woff2') format('woff2'); }

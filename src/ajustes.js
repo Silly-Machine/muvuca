@@ -9,7 +9,22 @@ const inteiro = (v, min, max, padrao) => { const n = Math.round(Number(v)); retu
 export async function lerJson(arquivo, padrao) {
   try { return JSON.parse(await fs.readFile(arquivo, 'utf8')); } catch { return padrao; }
 }
-export const gravarJson = (arquivo, dados) => fs.writeFile(arquivo, JSON.stringify(dados, null, 2) + '\n');
+// Grava num arquivo ao lado e troca de uma vez: se a Muvuca cair no meio, o arquivo antigo continua inteiro
+// (antes, uma queda no meio da gravação deixava o JSON pela metade, e as preferências voltavam ao padrão).
+let gravacoes = 0;
+export async function gravarJson(arquivo, dados) {
+  // nome próprio por gravação: duas gravações do mesmo arquivo ao mesmo tempo não disputam o provisório
+  const provisorio = `${arquivo}.${process.pid}.${++gravacoes}.tmp`;
+  await fs.writeFile(provisorio, JSON.stringify(dados, null, 2) + '\n');
+  for (let tentativa = 0; ; tentativa++) {
+    try { return await fs.rename(provisorio, arquivo); }
+    catch (e) {
+      // no Windows a troca falha se o arquivo está aberto por outra gravação naquele instante: espera um pouco e tenta de novo
+      if (tentativa < 8 && ['EPERM', 'EBUSY', 'EACCES'].includes(e.code)) { await new Promise((r) => setTimeout(r, 15 * (tentativa + 1))); continue; }
+      await fs.rm(provisorio, { force: true }); throw e;
+    }
+  }
+}
 
 // Pasta padrão de quem roda do código-fonte: a irmã "teste-estudio". O servidor troca por uma pasta na casa do usuário quando ela não existe.
 export const pastaPadrao = (raiz) => path.resolve(raiz, '..', 'teste-estudio');
@@ -34,6 +49,8 @@ export function normalizarPreferencias(p, { raiz, cfg = {}, padrao } = {}) {
     comandoTeste: texto(p.comandoTeste, 200),
     maxCiclos: inteiro(p.maxCiclos, 0, 10, cfg.maxCiclos ?? 3),
     maxPassos: inteiro(p.maxPassos, 1, 60, cfg.maxPassos ?? 12),
+    limiteAgenteMin: inteiro(p.limiteAgenteMin, 1, 180, 10),   // tempo máximo de cada chamada ao aplicativo do provedor
+    limiteTestesMin: inteiro(p.limiteTestesMin, 1, 60, 3),      // tempo máximo dos testes do portão
     provedorTime: texto(p.provedorTime, 60),
     modelos,
     niveis,

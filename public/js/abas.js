@@ -10,7 +10,7 @@ async function gravarRotinas(lista) {
   rotinas = j.rotinas;
 }
 async function montarRotinas() {
-  const j = await (await fetch('/api/rotinas')).json(); rotinas = j.rotinas || []; lerProjetos();
+  const j = await lerDoServidor('/api/rotinas'); rotinas = j.rotinas || []; lerProjetos();
   if (!$('#rDias').childElementCount) [1, 2, 3, 4, 5, 6, 0].forEach((d) => { const l = el('label'); const i = el('input'); i.type = 'checkbox'; i.value = d; i.checked = d >= 1 && d <= 5; l.append(i, DIAS[d]); $('#rDias').append(l); });
   const lista = $('#rLista'); lista.replaceChildren();
   if (!rotinas.length) lista.append(el('p', 'nota', 'Nenhuma rotina ainda. Crie a primeira abaixo.'));
@@ -38,7 +38,7 @@ $('#rForm').onsubmit = async (e) => {
 
 /* ---------- agentes básicos na aba Agentes ---------- */
 async function montarBasicos(buscar = false) {
-  if (buscar && !catalogo.length) { try { const j = await (await fetch('/api/times')).json(); galeria = j.times || []; catalogo = j.catalogo || []; } catch { /* sem servidor: fica sem a lista */ } }
+  if (buscar && !catalogo.length) { try { const j = await lerDoServidor('/api/times'); galeria = j.times || []; catalogo = j.catalogo || []; } catch { /* sem servidor: fica sem a lista */ } }
   const raiz = $('#fichas'); raiz.querySelectorAll('.basico, .sec.segunda, .sec.segunda + .nota').forEach((x) => x.remove());
   const lista = catalogo.filter((a) => !a.secreto || buzinaSolta());
   if (!lista.length) return;
@@ -61,7 +61,7 @@ async function montarBasicos(buscar = false) {
 /* ---------- memória dos agentes (na aba Agentes) ---------- */
 async function montarMemoria() {
   const projeto = $('#projeto').value.trim();
-  let j; try { j = await (await fetch('/api/memoria?projeto=' + encodeURIComponent(projeto))).json(); } catch { return; }
+  let j; try { j = await lerDoServidor('/api/memoria?projeto=' + encodeURIComponent(projeto)); } catch { return; }
   document.querySelectorAll('#fichas .ficha:not(.basico)').forEach((f, i) => {
     const a = agentes[i]; if (!a) return; f.querySelector('.memo')?.remove();
     if (a.funcao === 'lider' || a.funcao === 'sublider') return;   // quem só planeja não guarda notas
@@ -102,7 +102,7 @@ $('#projetoChip').onchange = (e) => {
 };
 $('#chipModelo').onclick = () => { secao('config'); montarConfig().then(() => $('#cfModelosCartao')?.scrollIntoView({ block: 'start', behavior: 'smooth' })); };
 async function lerProjetos() {
-  const j = await (await fetch('/api/projetos')).json();
+  const j = await lerDoServidor('/api/projetos');
   projetos = j.projetos || [];
   $('#listaProjetos').replaceChildren(...projetos.map((p) => { const o = el('option'); o.value = p.caminho; o.label = p.nome; return o; }));
   montarChipProjeto();
@@ -155,7 +155,7 @@ function preencherModelos() {
   $('#cfProvUsar').disabled = !p.pronto || rodando;
 }
 async function montarProvedores(manter) {
-  let j; try { j = await (await fetch('/api/provedores')).json(); } catch { return; }
+  let j; try { j = await lerDoServidor('/api/provedores'); } catch { return; }
   listaProv = j.provedores || [];
   const emUso = listaProv.filter((p) => p.agentes > 0);
   $('#cfProvAtual').textContent = emUso.length === 1 ? `Hoje o time inteiro usa ${emUso[0].nome} (${NOME_TIPO[emUso[0].tipo] || emUso[0].tipo}).`
@@ -202,7 +202,7 @@ $('#cfProvUsar').onclick = async () => {
 };
 
 /* ---------- configurações ---------- */
-async function lerPrefs() { const j = await (await fetch('/api/preferencias')).json(); prefs = j.preferencias; return j; }
+async function lerPrefs() { const j = await lerDoServidor('/api/preferencias'); prefs = j.preferencias; return j; }
 async function salvarPrefs(novas) {
   const antigo = prefs?.projetoPadrao;
   const r = await fetch('/api/preferencias', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ preferencias: novas }) });
@@ -214,14 +214,14 @@ async function salvarPrefs(novas) {
 }
 async function montarConfig() {
   const j = await lerPrefs(); lerProjetos(); montarProvedores();
-  $('#cfProjeto').value = prefs.projetoPadrao; $('#cfTeste').value = prefs.comandoTeste; $('#cfCiclos').value = prefs.maxCiclos; $('#cfPassos').value = prefs.maxPassos;
+  $('#cfProjeto').value = prefs.projetoPadrao; $('#cfTeste').value = prefs.comandoTeste; $('#cfCiclos').value = prefs.maxCiclos; $('#cfPassos').value = prefs.maxPassos; $('#cfLimiteAgente').value = prefs.limiteAgenteMin; $('#cfLimiteTestes').value = prefs.limiteTestesMin;
   $('#cfFabrica').textContent = j.pastaPadrao; $('#cfArquivo').textContent = j.config; $('#cfMsg').textContent = ''; $('#cfMsg').className = '';
   $('#cfRestaurar').onclick = () => { $('#cfProjeto').value = j.pastaPadrao; };
   $('#cfAmbiente').hidden = !j.deAmbiente; $('#cfAmbiente').textContent = j.deAmbiente ? `A variável de ambiente MUVUCA_PROJETO está definida (${j.deAmbiente}) e vale no lugar desta pasta.` : '';
 }
 $('#cfSalvar').onclick = async () => {
   try {
-    await salvarPrefs({ projetoPadrao: $('#cfProjeto').value.trim(), comandoTeste: $('#cfTeste').value.trim(), maxCiclos: $('#cfCiclos').value, maxPassos: $('#cfPassos').value });
+    await salvarPrefs({ projetoPadrao: $('#cfProjeto').value.trim(), comandoTeste: $('#cfTeste').value.trim(), maxCiclos: $('#cfCiclos').value, maxPassos: $('#cfPassos').value, limiteAgenteMin: $('#cfLimiteAgente').value, limiteTestesMin: $('#cfLimiteTestes').value });
     await montarConfig(); $('#cfMsg').className = 'ok'; $('#cfMsg').textContent = 'Configurações salvas em preferencias.json.';
   } catch (e) { $('#cfMsg').className = 'ruim'; $('#cfMsg').textContent = 'Não deu: ' + e.message; }
 };
@@ -232,7 +232,7 @@ $('#cDescartar').onclick = () => { rascunho = null; limparHistorico(); secao('ti
 new ResizeObserver(() => rascunho && desenharArestas($('#previa'))).observe($('#previa'));
 
 async function carregarConfig() {
-  const c = await (await fetch('/api/config')).json();
+  const c = await lerDoServidor('/api/config');
   agentes = c.agentes; arquitetura = c.arquitetura || 'centralizada'; nomeTime = c.nomeTime || ''; arquiteturas = c.arquiteturas || {}; provedores = c.provedores || [];
   if (destino !== 'time' && !agentes.some((a) => a.id === destino)) destino = 'time';
   montarTime();

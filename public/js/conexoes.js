@@ -13,7 +13,7 @@ const erroConexao = (e) => { $('#xErro').textContent = e ? 'Não deu: ' + e.mess
 // O que o formulário tem agora, no formato que o servidor espera.
 function conexaoDoFormulario() {
   const tipo = $('#xTipo').value;
-  return { nome: $('#xNome').value, tipo, descricao: $('#xDescricao').value,
+  return { nome: $('#xNome').value, tipo, descricao: $('#xDescricao').value, ferramentas: $('#xFerramentas').value,
     ...(tipo === 'http' ? { url: $('#xUrl').value, variavelToken: $('#xToken').value } : { comando: $('#xComando').value, variaveis: $('#xVariaveis').value }) };
 }
 function mostrarTeste(onde, r) {
@@ -31,7 +31,7 @@ async function testarConexao(corpo, onde, botao) {
   botao.disabled = false; mostrarTeste(onde, r); return r;
 }
 async function montarConexoes() {
-  conexoes = await (await fetch('/api/conexoes')).json(); erroConexao();
+  conexoes = await lerDoServidor('/api/conexoes'); erroConexao();
   const lista = $('#xLista'); lista.replaceChildren();
   if (!conexoes.conexoes.length) lista.append(el('p', 'nota', 'Nenhuma conexão ainda. Crie a primeira abaixo.'));
   for (const c of conexoes.conexoes) {
@@ -43,6 +43,13 @@ async function montarConexoes() {
     cartao.append(el('code', '', c.tipo === 'http' ? c.url : [c.comando, ...c.args].join(' ')),
       el('div', 'situacao', usam.length ? 'Usada por: ' + usam.join(', ') : 'Nenhum agente usa ainda: marque abaixo quem pode.'));
     if (c.faltam.length) cartao.append(el('div', 'situacao ruim', `Falta definir ${c.faltam.join(', ')} no ambiente antes de abrir a Muvuca. Sem isso, a conexão fica de fora.`));
+    // ferramentas liberadas: em branco, todas; com nomes, só essas
+    const campoF = el('label', 'campo ferramentas-conexao'); const entradaF = el('input'); entradaF.spellcheck = false; entradaF.value = (c.ferramentas || []).join(', ');
+    entradaF.placeholder = 'em branco: todas as ferramentas do servidor';
+    const guardar = el('button', 'pequeno', 'Guardar'); guardar.type = 'button';
+    guardar.onclick = async () => { try { await gravarConexoes({ conexoes: conexoes.conexoes.map(({ faltam, ...x }) => (x.id === c.id ? { ...x, ferramentas: entradaF.value } : x)) }); } catch (e) { erroConexao(e); return; } montarConexoes(); };
+    campoF.append(el('span', '', c.ferramentas?.length ? `Ferramentas liberadas (${c.ferramentas.length})` : 'Ferramentas liberadas (todas)'), entradaF, guardar);
+    cartao.append(campoF);
     const teste = el('div', 'situacao'); if (testesConexao[c.id]) mostrarTeste(teste, testesConexao[c.id]);
     const bs = el('div', 'botoes');
     const testar = el('button', 'primario', 'Testar');
@@ -83,7 +90,7 @@ $('#xForm').onsubmit = async (e) => {
   e.preventDefault(); erroConexao();
   try {
     await gravarConexoes({ conexoes: [...conexoes.conexoes.map(({ faltam, ...c }) => c), conexaoDoFormulario()] });
-    for (const id of ['xNome', 'xDescricao', 'xComando', 'xVariaveis', 'xUrl', 'xToken']) $('#' + id).value = '';
+    for (const id of ['xNome', 'xDescricao', 'xComando', 'xVariaveis', 'xUrl', 'xToken', 'xFerramentas']) $('#' + id).value = '';
     $('#xTesteNova').textContent = ''; montarConexoes();
   } catch (err) { erroConexao(err); }
 };

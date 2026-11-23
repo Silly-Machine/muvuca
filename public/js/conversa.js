@@ -66,6 +66,7 @@ const trata = {
     const aviso = el('p', 'ok', avisoTime || `Time "${e.nome}" no palco (${NOME_ARQ[e.arquitetura] || e.arquitetura}).`); avisoTime = '';
     $('.vazio')?.prepend(aviso);
   },
+  uso(e) { const l = el('div', 'linha uso', textoDoUso(e)); if (e.custo !== undefined) l.title = 'O custo é o que essas chamadas custariam pela tabela da API. Na assinatura do Claude não há cobrança por pedido.'; por(l); },
   conexao(e) { por(el('div', 'linha', `${ag(e.agente).nome} usou a conexão ${e.servidor}: ${e.ferramenta}`)); },
   passo(e) {
     let c = document.getElementById('ativ-' + e.agente);
@@ -115,12 +116,16 @@ const trata = {
   erro(e) { por(el('div', 'linha ruim', 'Erro: ' + e.texto)); },
   diff(e) {
     ocupado(false); pendencia(e.arquivos.length > 0);
-    if (!e.arquivos.length) return por(el('div', 'linha', 'Nenhum arquivo alterado.'));
+    const avisos = e.avisos || [];
+    if (!e.arquivos.length && !avisos.length) return por(el('div', 'linha', 'Nenhum arquivo alterado.'));
+    if (!e.arquivos.length) { const a = el('div', 'cartao aviso-descarte'); a.append(el('h3', '', 'Nenhum arquivo do projeto alterado, mas atenção')); for (const t of avisos) a.append(el('p', '', t)); return por(a); }
     const c = el('div', 'cartao'); c.id = 'diff'; c.append(el('h3', '', `Arquivos alterados (${e.arquivos.length})`));
     for (const a of e.arquivos) {
-      const d = el('details'); d.append(el('summary', '', `${a.arquivo} (${a.tipo}` + (e.autores[a.arquivo] ? `, por ${ag(e.autores[a.arquivo]).nome})` : ')')));
+      const d = el('details'); d.append(el('summary', '', `${a.arquivo} (${a.tipo}${a.semCopia ? ', não dá para restaurar' : ''}` + (e.autores[a.arquivo] ? `, por ${ag(e.autores[a.arquivo]).nome})` : ')')));
       const p = el('pre', 'diff'); for (const l of a.linhas) p.append(el('span', l.t === '+' ? 'mais' : l.t === '-' ? 'menos' : l.t === '~' ? 'salto' : '', l.t === '~' ? '···' : l.t + ' ' + l.l)); d.append(p); c.append(d);
     }
+    const naoVolta = e.arquivos.filter((a) => a.semCopia).length;
+    if (naoVolta || avisos.length) { const a = el('div', 'aviso-descarte'); a.append(el('b', '', 'O Descartar não desfaz tudo desta vez:')); if (naoVolta) a.append(el('p', '', `${naoVolta} arquivo(s) grande(s) demais para guardar cópia.`)); for (const t of avisos) a.append(el('p', '', t)); c.append(a); }
     const bs = el('div', 'botoes'); const f = el('button', '', 'Manter mudanças'); const x = el('button', '', 'Descartar mudanças'); f.onclick = () => post('/api/decidir', { acao: 'aceitar' }); x.onclick = () => post('/api/decidir', { acao: 'descartar' }); bs.append(f, x); c.append(bs); por(c);
   },
   decisao_humana(e) { pendencia(false); document.querySelectorAll('#diff').forEach((d) => { d.querySelector('.botoes')?.remove(); d.removeAttribute('id'); }); por(el('div', 'linha', e.acao === 'descartar' ? 'Mudanças descartadas: a pasta voltou ao que era.' : 'Mudanças mantidas.')); },

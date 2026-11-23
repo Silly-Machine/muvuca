@@ -10,7 +10,16 @@ Referência completa: como cada parte funciona, o que foi testado e o que ficou 
 | Comando `muvuca` | `npx github:Silly-Machine/muvuca` ou `npm start` no código-fonte | 4317 (`--porta` troca) |
 | Só o servidor | `node src/servidor.js` | 4317 (`MUVUCA_PORTA` troca; 0 escolhe uma livre) |
 
-Nas três, o servidor atende só em `127.0.0.1`: outra máquina da rede não alcança.
+Nas três, o servidor atende só em `127.0.0.1`: outra máquina da rede não alcança. Se já houver uma Muvuca aberta com a mesma pasta de dados, o comando e o aplicativo mostram essa em vez de subir outra.
+
+### Acesso
+
+- **Chave.** Na primeira abertura a Muvuca cria `acesso.token` na pasta de dados. A página e a API só respondem a quem tem essa chave. O link que o comando imprime e que o aplicativo abre leva a chave uma vez (`/?t=...`); o navegador recebe um cookie, e a chave sai da barra de endereço.
+- **Abrir pelo endereço puro** (`http://localhost:4317`) num navegador que ainda não tem o cookie mostra uma página explicando como entrar.
+- **Programas** mandam a chave no cabeçalho `x-muvuca-token`.
+- **Endereço conferido.** Pedidos que chegam por outro nome (um site que aponta o próprio domínio para `127.0.0.1`) são recusados.
+- **Política de conteúdo.** A página só carrega arquivos do próprio servidor, não pode ser emoldurada por outra e não busca fontes nem nada mais na internet.
+- Quem tem acesso à sua conta do computador tem acesso à chave. Ela protege contra outros usuários da máquina e contra páginas da web, não contra um programa rodando como você.
 
 Tudo o que é seu fica na **pasta de dados**, fora da pasta do aplicativo: `~/.muvuca` (no Windows, `C:\Users\voce\.muvuca`). A variável `MUVUCA_DADOS` ou a opção `--dados` trocam o lugar.
 
@@ -24,6 +33,9 @@ Tudo o que é seu fica na **pasta de dados**, fora da pasta do aplicativo: `~/.m
 | `times/` | os times salvos pelo construtor |
 | `agentes.local.json` | provedores extras seus (opcional) |
 | `decisoes.log` | registro de cada "manter" ou "descartar" |
+| `conversas/` | o histórico: as 100 conversas mais recentes |
+| `acesso.token` | a chave de acesso ao servidor local |
+| `aberta.json` | aviso de que há uma Muvuca aberta com esta pasta (some ao fechar) |
 | `.pendente/` | ponto de restauração de mudanças que esperam decisão |
 
 Quem usava uma versão anterior, com esses arquivos dentro da pasta do aplicativo, tem tudo copiado para a pasta de dados na primeira abertura.
@@ -107,11 +119,13 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `src/provedores.js` | ~90 | os três tipos de provedor atrás de uma função só |
 | `src/times.js` | ~110 | o validador do construtor: regras de cada arquitetura |
 | `src/demo.js` | ~190 | o roteiro da demonstração, mais líder e executor genéricos para times do construtor |
-| `src/conexoes.js` | ~190 | conexões (servidores MCP): validação, configuração sem segredos e teste de conexão |
+| `src/aberta.js` | ~20 | descobre se já há uma Muvuca aberta com a mesma pasta de dados |
+| `src/conexoes.js` | ~200 | conexões (servidores MCP): validação, configuração sem segredos e teste de conexão |
 | `src/ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~240 | preferências e anexos, notas dos agentes, agendamento, guia da mascote |
 | `public/index.html` | ~230 | a estrutura da página, sem framework |
-| `public/css/` | ~500 | `estilo.css` (estrutura) e `tema.css` (tema pelúcia) |
-| `public/js/` | ~1600 | um arquivo por parte da tela: base, personagens, palco, construtor, conversa, buzina, quadro, abas, conexoes, inicio |
+| `public/css/` | ~520 | `fontes.css`, `estilo.css` (estrutura) e `tema.css` (tema pelúcia) |
+| `public/fontes/` | 5 arquivos | Fredoka e Nunito, servidas daqui (licença OFL na mesma pasta) |
+| `public/js/` | ~1600 | um arquivo por parte da tela: base, personagens, palco, construtor, conversa, buzina, quadro, abas, conexoes, historico, inicio |
 | `public/js/regras/` | ~110 | lógica sem tela, com testes: regras das setas e histórico do desfazer |
 | `public/bonecos/` | 85 imagens | os personagens, 17 formas em 5 estados |
 | `config/agentes.json` | | o time de fábrica e os provedores (demonstração e `claude-cli`) |
@@ -119,7 +133,7 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `config/arquiteturas/` | 7 arquivos | os modelos prontos de time |
 | `bin/muvuca.js` | ~50 | o comando `muvuca`: sobe o servidor e abre o navegador |
 | `electron/` | ~110 | o aplicativo de mesa: janela, seletor de pasta, ícone |
-| `test/` | 9 arquivos | 65 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos |
+| `test/` | 11 arquivos | 77 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos e o apoio que sobe um servidor de teste |
 | `scripts/` | | `versao.mjs` (lançar versões), `bateria.mjs` e `arquiteturas-reais.mjs` (testes ao vivo) |
 | `assets/personagens/` | | fontes dos personagens e os scripts que geram `public/bonecos/` |
 
@@ -260,6 +274,29 @@ Três ideias adaptadas do Grok Bot (xAI) para um app local:
 - **Quadro de tarefas** (ícone de colunas): cada etapa do pedido vira um cartão em A fazer, Trabalhando, Bloqueado, Em revisão ou Encerrado (pronto, não aprovado ou parado). "Bloqueado" é o agente esperando você aprovar um comando; o ícone da aba mostra quantos estão assim. Correções pedidas pelo portão ou pelo revisor viram cartões próprios.
 - **Memória por agente** (aba Agentes): notas curtas por projeto, em `memoria/`, fora da pasta do projeto. O agente as recebe no começo de cada trabalho. Uma nota nasce de duas formas: o agente termina a resposta com `LEMBRAR: ...`, ou o revisor reprova algo dele. No máximo 20 notas por agente e projeto; dá para apagar cada uma na ficha do agente. Líder e sub-líder não guardam notas.
 
+## O que o "Descartar" cobre
+
+Ao começar um pedido, a Muvuca tira uma foto da pasta do projeto. "Descartar" devolve a pasta a essa foto.
+
+| O quê | Coberto? |
+|---|---|
+| Arquivos do projeto, incluindo `dist/` e `build/` | sim, até 25 MB por arquivo e 400 MB no total |
+| Arquivo maior que 25 MB que foi alterado | não: aparece no diff marcado "não dá para restaurar" |
+| Arquivo novo, de qualquer tamanho | sim: é apagado |
+| `node_modules/`, `.git/`, `__pycache__/`, `.venv/`, `venv/` | não: se algo mudar no primeiro nível dessas pastas, a tela avisa |
+| Projeto com mais de 20.000 arquivos | só os primeiros 20.000, com aviso |
+| O que uma conexão (MCP) fez fora da pasta | não |
+| Anexos mandados com o pedido descartado | sim: saem junto |
+
+Quando há algo que o descarte não desfaz, o cartão do diff mostra um aviso antes dos botões.
+
+## Histórico, uso e limites de tempo
+
+- **Histórico.** Ao clicar em "Nova conversa", a conversa que termina vai para o histórico (botão "Histórico", no topo da conversa). Ficam as 100 mais recentes, com os acontecimentos e a lista de arquivos alterados, sem o diff linha a linha.
+- **Uso.** Cada pedido termina com uma linha: tempo total e número de chamadas ao provedor. Com o Claude Code aparecem também os tokens e o custo pela tabela da API, que o próprio aplicativo informa. Na assinatura não há cobrança por pedido: o número serve de comparação.
+- **Limites de tempo.** Em Configurações: quanto cada agente pode levar por vez (de fábrica, 10 minutos) e quanto os testes podem levar (3 minutos).
+- **Ao fechar a Muvuca**, o que ela subiu (o aplicativo do provedor, os testes) é encerrado junto.
+
 ## Conexões (servidores MCP)
 
 A aba **Conexões** (ícone de tomada) dá aos agentes acesso a coisas fora da pasta do projeto: documentação atualizada, issues, um banco de dados. Cada conexão é um servidor MCP.
@@ -267,6 +304,7 @@ A aba **Conexões** (ícone de tomada) dá aos agentes acesso a coisas fora da p
 - **Dois tipos.** "Comando neste computador" sobe o servidor por uma linha de comando (por exemplo `npx -y nome-do-servidor`). "Endereço na rede" fala com um servidor HTTP.
 - **Testar.** O botão sobe o servidor, pede a lista de ferramentas e encerra. Dá para testar antes de criar.
 - **Quem pode usar.** Cada agente só recebe as conexões marcadas para ele. De fábrica, nenhuma.
+- **Ferramentas liberadas.** Em branco, o agente pode usar todas as ferramentas do servidor. Com uma lista de nomes, só essas: útil num servidor grande, para deixar só as de consulta.
 - **Só agentes que não escrevem arquivos** (líder, pesquisa, revisor). O que um agente faz por uma conexão acontece fora da pasta e **não é desfeito pelo "Descartar"**; por isso quem escreve código fica sem. Na tela, esses agentes aparecem bloqueados, com o motivo.
 - **Só com o Claude Code.** O provedor precisa declarar como recebe conexões (campo `argsMcp` em `config/agentes.json`; o `claude-cli` já traz). Em demonstração e nos provedores por API, as conexões não são usadas.
 - **Nenhum token é gravado.** Servidor que precisa de chave recebe só o **nome** de uma variável de ambiente; o valor você define no sistema antes de abrir a Muvuca. A tela recusa o que parece ser um valor. Conexão com variável faltando fica de fora do pedido, e a lista avisa qual falta.
@@ -277,7 +315,7 @@ Um comando de conexão roda neste computador com as suas permissões. Crie conex
 
 Como funciona por baixo: a Muvuca chama o `claude` com `--strict-mcp-config` (ele ignora qualquer servidor configurado na sua máquina), entrega só as conexões do agente (`--mcp-config`) e libera só as ferramentas delas (`--allowedTools`). Conferido com o `claude` 2.1.284: com a permissão, o agente consultou a conexão; sem ela, a chamada foi negada.
 
-Ficou de fora desta primeira versão: aprovação ação por ação, conexões para quem escreve código, e suporte nos provedores por API.
+Ficou de fora: aprovação ação por ação, conexões para quem escreve código, e suporte nos provedores por API.
 
 ## Buzina, a mascote (easter egg)
 
@@ -314,8 +352,8 @@ Em **Configurações > Modelo de cada agente** dá para trocar o de qualquer age
 
 Dois níveis, os dois sem gastar modelo de verdade:
 
-- `npm test`: 65 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras da tela e conexões). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
-- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 200 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
+- `npm test`: 77 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras da tela, conexões, acesso e o que o Descartar cobre). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
+- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 215 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
 
 ### Arquiteturas com casos reais
 

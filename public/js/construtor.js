@@ -12,7 +12,7 @@ const EM_BRANCO = { nome: 'Time novo', arquitetura: 'centralizada', descricao: '
 
 async function abrirConstrutor() {
   secao('construtor');
-  try { const j = await (await fetch('/api/times')).json(); galeria = j.times || []; catalogo = j.catalogo || []; } catch { galeria = []; }
+  try { const j = await lerDoServidor('/api/times'); galeria = j.times || []; catalogo = j.catalogo || []; } catch { galeria = []; }
   montarBiblioteca();
   montarGaleria();
   if (!rascunho) usarComoBase(timeAtual());

@@ -37,6 +37,9 @@ async function boasVindas(forcar = false) {
   d.showModal();
 }
 
+// A chave de acesso chega uma vez pelo endereço; o cookie já foi gravado, então ela sai da barra e do histórico.
+if (new URLSearchParams(location.search).has('t')) { const q = new URLSearchParams(location.search); q.delete('t'); history.replaceState(null, '', location.pathname + (q.size ? '?' + q : '')); }
+
 (async () => {
   const c = await carregarConfig();
   let salvo = ''; try { salvo = localStorage.getItem('muvuca.projeto') || localStorage.getItem('estudio.projeto') || ''; } catch {}

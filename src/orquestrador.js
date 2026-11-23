@@ -59,7 +59,7 @@ export class Muvuca {
     const p = this.cfg.provedores[ag.provedor]; if (!p) throw new Error(`provedor "${ag.provedor}" não existe (agente ${ag.id})`);
     const c = nivel(complexidade);
     const modelo = (c && ag.modelos?.[c]) || ag.modelo || (c && p.modelos?.[c]) || p.modelo;
-    return { nome: ag.provedor, ...p, ...(modelo ? { modelo } : {}) };
+    return { nome: ag.provedor, ...p, ...(modelo ? { modelo } : {}), ...(this.limiteAgenteS ? { limiteSegundos: this.limiteAgenteS } : {}) };
   }
   get idLider() { return (this.cfg.agentes.find((a) => a.funcao === 'lider') || this.cfg.agentes[0]).id; }
   get idRevisor() { return this.cfg.agentes.find((a) => a.funcao === 'revisor')?.id; }
@@ -118,6 +118,12 @@ export class Muvuca {
     this.emitir({ tipo: 'nivel_agente', agente: id, valor: v || '' });
   }
 
+  // Uso do pedido em andamento: quantas chamadas ao provedor, e o custo e os tokens quando o aplicativo informa.
+  somarUso(r) {
+    if (!this.uso) return;
+    this.uso.chamadas++;
+    if (r?.uso) { this.uso.informado = true; this.uso.custo += r.uso.custo; this.uso.entrada += r.uso.entrada; this.uso.saida += r.uso.saida; }
+  }
   emitir(ev) { ev.n = ++this.seq; ev.hora = Date.now(); this.eventos.push(ev); for (const f of this.ouvintes) f(ev); return ev; }
   status(agente, estado, extra) { this.emitir({ tipo: 'status', agente, estado, ...extra }); }
 
@@ -125,6 +131,8 @@ export class Muvuca {
     if (this.rodando) throw new Error('há um pedido em andamento');
     // Zerar a foto aqui perderia o ponto de restauração: os arquivos ficariam na pasta sem como descartar.
     if (this.foto) throw new Error('há mudanças esperando sua decisão: escolha manter ou descartar antes de começar outra conversa');
+    // a conversa que termina vai para o histórico (quem guarda é o servidor)
+    if (this.eventos.some((e) => e.tipo === 'pedido')) { try { this.aoArquivar?.(this.eventos); } catch { /* o histórico é um extra: não impede a conversa nova */ } }
     this.eventos = []; this.lider = []; this.foto = null; this.emitir({ tipo: 'nova' }); }
 
   parar() { this.abort?.abort(); for (const [, ok] of this.pendentes) ok(false); this.pendentes.clear(); }
@@ -177,6 +185,7 @@ export class Muvuca {
         if (p.ferramenta === 'conexao') return this.emitir({ tipo: 'conexao', agente: ag.id, servidor: p.servidor, ferramenta: p.alvo });
         passos++; this.emitir({ tipo: 'passo', agente: ag.id, ...p });
       } });
+      this.somarUso(r);
       mensagens.push(r.msg);
       if (r.passos) passos = Math.max(passos, r.passos);
       if (!r.chamadas.length) return { texto: r.texto.trim(), passos, segundos: (Date.now() - inicio) / 1000, modelo: prov.modelo || prov.nome };
@@ -240,6 +249,7 @@ export class Muvuca {
       this.status(lider.id, 'pensando', { modelo: prov.modelo || prov.nome });
       for (let tentativa = 0; tentativa < 2; tentativa++) {
         const r = await chamar(prov, { sistema: `${lider.sistema}\n${instrucao}`, mensagens: sessao, ferramentas: [], sinal: this.abort.signal, cwd: this.projeto, agente: lider, mcp: this.conexoesDe ? await this.conexoesDe(lider).catch(() => null) : null });
+        this.somarUso(r);
         const j = extrairJson(r.texto);
         if (j) { sessao.push(r.msg); return j; }
         this.emitir({ tipo: 'aviso', texto: `${lider.nome} não devolveu JSON válido (tentativa ${tentativa + 1}).` });
@@ -321,7 +331,7 @@ export class Muvuca {
     const comando = this.comandoTeste || await detectarTeste(this.projeto);
     if (!comando) { const g = { ok: false, comando: null, saida: 'Nenhum teste automatizado encontrado no projeto.' }; this.emitir({ tipo: 'portao', ...g }); return g; }
     this.emitir({ tipo: 'portao_rodando', comando });
-    const r = await rodar(comando, { cwd: this.projeto, sinal: this.abort.signal, limiteMs: 180000 });
+    const r = await rodar(comando, { cwd: this.projeto, sinal: this.abort.signal, limiteMs: this.limiteTestesMs || 180000 });
     if (r.codigo === -2) throw new Error('interrompido');
     const g = { ok: r.codigo === 0, comando, saida: r.saida.slice(-3000), depoisDaUltimaEdicao: true };
     this.emitir({ tipo: 'portao', ...g });
@@ -463,6 +473,7 @@ export class Muvuca {
     this.quadro = new Map(); this.tarefaDe = new Map(); this.seqTarefa = 0;
     if (!this.foto) await this.definirFoto(await fotografar(pasta));   // mudanças acumulam até o humano decidir
     this.emitir({ tipo: 'pedido', texto, para: para || 'time', projeto: pasta });
+    this.uso = { chamadas: 0, custo: 0, entrada: 0, saida: 0, informado: false }; const comecou = Date.now();
     try {
       if (para && para !== 'time') { await this.etapa(para, texto, '', null, { fim: 'pronto' }); this.emitir({ tipo: 'final', aprovado: null, ciclos: 0, motivo: 'pedido direto: sem portão nem revisão' }); }
       else await this.fluxoTime(texto);
@@ -474,11 +485,13 @@ export class Muvuca {
       for (const t of this.quadro.values()) if (!['pronto', 'falhou'].includes(t.estado)) this.tarefa(t.id, { estado: 'parado', motivo: 'O pedido parou antes de esta tarefa terminar.' });
       this.rodando = false;
       for (const a of this.cfg.agentes) this.status(a.id, 'disponivel');
+      const u = this.uso; this.uso = null;
+      this.emitir({ tipo: 'uso', segundos: Math.round((Date.now() - comecou) / 1000), chamadas: u.chamadas, ...(u.informado && { custo: +u.custo.toFixed(4), entrada: u.entrada, saida: u.saida }) });
       try {
         const arquivos = await diferencas(pasta, this.foto);
         if (!arquivos.length) await this.definirFoto(null);   // nada mudou: não há o que decidir
         for (const [arq, id] of this.autores) (this.autoresPendentes ??= new Map()).set(arq, id);
-        this.emitir({ tipo: 'diff', arquivos, autores: Object.fromEntries(this.autoresPendentes ?? this.autores) });
+        this.emitir({ tipo: 'diff', arquivos, avisos: arquivos.avisos || [], autores: Object.fromEntries(this.autoresPendentes ?? this.autores) });
       } catch (e) { this.emitir({ tipo: 'erro', texto: `diff: ${e.message}` }); }
     }
   }

@@ -2,6 +2,41 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: revisão de segurança e de uso
+
+Resultado de uma rodada de busca por falhas. Três foram confirmadas com teste e corrigidas; o resto são reforços e melhorias.
+
+### Corrigido
+
+- **O "Descartar" não restaurava tudo.** Arquivos acima de 512 KB e as pastas `dist/` e `build/` ficavam como o time deixou, sem aparecer no diff. Agora entram na foto do projeto (até 25 MB por arquivo) e voltam ao que eram. O que continua de fora (`node_modules/`, `.git/`, arquivos enormes) gera um aviso no cartão do diff.
+- **Um site aberto no navegador conseguia ler a conversa.** O servidor passou a conferir o endereço pelo qual foi chamado.
+- **Qualquer programa do computador comandava a Muvuca.** A página e a API agora pedem uma chave de acesso, guardada na pasta de dados. O link que a Muvuca abre leva a chave; quem abrir o endereço puro num navegador novo vê uma página explicando como entrar.
+- **Gravação de arquivos de dados.** Uma queda no meio da gravação deixava o JSON pela metade, e as preferências voltavam ao padrão. A gravação agora troca o arquivo de uma vez.
+- **Ctrl+C ou fechar a janela deixava processos rodando.** O que a Muvuca subiu é encerrado junto com ela.
+
+### Novo
+
+- **Histórico de conversas**, no botão "Histórico": as 100 conversas mais recentes.
+- **Tempo e uso de cada pedido**: tempo total, chamadas ao provedor e, com o Claude Code, tokens e custo pela tabela da API.
+- **Limites de tempo nas Configurações**, para cada agente e para os testes.
+- **Conexões com ferramentas escolhidas**: dá para liberar só algumas ferramentas de um servidor.
+- **Uma Muvuca por pasta de dados**: se já há uma aberta, o comando e o aplicativo mostram essa em vez de subir outra.
+- **Anexos de um pedido descartado saem junto.**
+- **Avisos de falha na tela**: quando o servidor não responde ou devolve erro, aparece um aviso em vez de a tela quebrar em silêncio.
+
+### Mudou
+
+- **A página não busca mais nada na internet.** As fontes passaram a vir do próprio servidor, e uma política de conteúdo impede carregar qualquer coisa de fora.
+- **Quem usa a API por programa** precisa mandar o cabeçalho `x-muvuca-token`. A bateria já faz isso.
+- A ligação de conexões não guarda mais agentes que escrevem arquivos.
+- O README deixou de afirmar que os agentes só escrevem dentro da pasta: os testes que eles escrevem rodam sem isolamento.
+
+### Continua pendente
+
+- Isolar a execução dos testes escritos pelos agentes.
+- Mais de um pedido ao mesmo tempo, tela para celular e testes automáticos da tela.
+- Instaladores assinados e atualização automática.
+
 ## 0.4.1 (22/11/2026): conexões com muitas ferramentas
 
 - **O teste de uma conexão conta todas as ferramentas.** Antes a lista era cortada em 100, e um servidor grande aparecia com o número errado. Agora a tela mostra o total, as 12 primeiras e quantas ficaram de fora; o nome de todas aparece ao passar o mouse.

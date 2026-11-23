@@ -43,7 +43,17 @@ function abrir(url) {
   try { spawn(comando, argumentos, { stdio: 'ignore', detached: true, windowsHide: true }).on('error', () => {}).unref(); } catch { /* sem navegador */ }
 }
 
-const { pronto } = await import(pathToFileURL(path.join(RAIZ, 'src', 'servidor.js')).href);
+// Se já há uma Muvuca aberta com esta pasta de dados (o aplicativo de mesa, por exemplo), usa essa em vez de subir outra.
+const { muvucaAberta } = await import(pathToFileURL(path.join(RAIZ, 'src', 'aberta.js')).href);
+const jaAberta = await muvucaAberta();
+if (jaAberta) {
+  const link = `http://localhost:${jaAberta.porta}/?t=${jaAberta.token}`;
+  console.log(`A Muvuca já está aberta: ${link}`);
+  if (!tem('--sem-abrir')) abrir(link);
+  process.exit(0);
+}
+const { pronto, acesso } = await import(pathToFileURL(path.join(RAIZ, 'src', 'servidor.js')).href);
 const emUso = await pronto;
-if (!tem('--sem-abrir')) abrir(`http://localhost:${emUso}`);
+// o link leva a chave de acesso uma vez; o navegador guarda um cookie e segue sem ela
+if (!tem('--sem-abrir')) abrir(`http://localhost:${emUso}/?t=${acesso}`);
 console.log('Ctrl+C encerra.');

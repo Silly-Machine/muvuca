@@ -9,6 +9,7 @@ const { pathToFileURL } = require('node:url');
 const RAIZ = path.join(__dirname, '..');
 let janela = null;
 let endereco = '';
+let token = '';
 
 // Aplicativo aberto pelo ícone, no macOS e no Linux, não herda o PATH do terminal: sem isto o "claude" não seria achado.
 function completarPath() {
@@ -34,13 +35,20 @@ function portaDoApp() {
 
 async function subirServidor() {
   completarPath();
+  // Já há uma Muvuca aberta com esta pasta de dados (pelo terminal, por exemplo)? A janela mostra essa, em vez de subir outra.
+  if (!process.env.MUVUCA_CAPTURA) {
+    const { muvucaAberta } = await import(pathToFileURL(path.join(RAIZ, 'src', 'aberta.js')).href);
+    const ja = await muvucaAberta();
+    if (ja) { token = ja.token; return ja.porta; }
+  }
   if (!process.env.MUVUCA_PORTA) process.env.MUVUCA_PORTA = String(await portaDoApp());
-  const { pronto } = await import(pathToFileURL(path.join(RAIZ, 'src', 'servidor.js')).href);
+  const { pronto, acesso } = await import(pathToFileURL(path.join(RAIZ, 'src', 'servidor.js')).href);
+  token = acesso;
   return pronto;
 }
 
 async function trabalhando() {
-  try { return (await (await fetch(`${endereco}/api/config`)).json()).rodando === true; } catch { return false; }
+  try { return (await (await fetch(`${endereco}/api/config`, { headers: { 'x-muvuca-token': token } })).json()).rodando === true; } catch { return false; }
 }
 
 function abrirJanela() {
@@ -67,7 +75,8 @@ function abrirJanela() {
     confirmado = true; janela.close();
   });
   janela.on('closed', () => { janela = null; });
-  return janela.loadURL(endereco + '/');
+  // a chave de acesso vai uma vez no endereço; o servidor devolve um cookie e a tela tira a chave da barra
+  return janela.loadURL(`${endereco}/?t=${token}`);
 }
 
 // Modo de captura (só para gerar as imagens da documentação): MUVUCA_CAPTURA=pasta tira as fotos e sai.

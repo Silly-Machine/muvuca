@@ -47,7 +47,11 @@ export function normalizarConexoes(dados) {
     if (vistos.has(id)) throw new Error(`já existe uma conexão chamada "${nome}"`);
     vistos.add(id);
     const tipo = c?.tipo === 'http' ? 'http' : 'comando';
-    const limpa = { id, nome, tipo, descricao: texto(c?.descricao, 200), ativa: c?.ativa !== false };
+    // Ferramentas liberadas: em branco, todas as do servidor. Com nomes, só essas (um servidor grande pode ter
+    // ferramentas que agem fora da pasta; assim dá para deixar só as de consulta).
+    const pedidas = (Array.isArray(c?.ferramentas) ? c.ferramentas : texto(c?.ferramentas, 8000).split(/[\s,;]+/)).map((f) => texto(f, 80)).filter(Boolean);
+    for (const f of pedidas) if (!/^[A-Za-z0-9_.-]+$/.test(f)) throw new Error(`${nome}: "${f}" não é nome de ferramenta`);
+    const limpa = { id, nome, tipo, descricao: texto(c?.descricao, 200), ativa: c?.ativa !== false, ferramentas: [...new Set(pedidas)].slice(0, 300) };
     if (tipo === 'comando') {
       const p = Array.isArray(c?.args) ? [texto(c?.comando, 300), ...c.args.map((a) => String(a ?? '').slice(0, 500))] : partes(texto(c?.comando, 2000));
       if (!p[0]) throw new Error(`${nome}: falta o comando`);
@@ -107,7 +111,9 @@ export async function prepararMcp(pasta, idAgente, conexoes) {
   await fs.mkdir(pasta, { recursive: true });
   const arquivo = path.join(pasta, `${idAgente}.json`);
   await fs.writeFile(arquivo, JSON.stringify(montarConfigMcp(conexoes), null, 2) + '\n');
-  return { arquivo, permissoes: conexoes.map((c) => `mcp__${c.id}`).join(','), servidores: conexoes.map(({ id, nome, descricao }) => ({ id, nome, descricao })) };
+  // permissão: o servidor inteiro, ou só as ferramentas escolhidas
+  const permissoes = conexoes.flatMap((c) => (c.ferramentas?.length ? c.ferramentas.map((f) => `mcp__${c.id}__${f}`) : [`mcp__${c.id}`])).join(',');
+  return { arquivo, permissoes, servidores: conexoes.map(({ id, nome, descricao }) => ({ id, nome, descricao })) };
 }
 
 // ---------- cliente mínimo, para o botão "Testar"

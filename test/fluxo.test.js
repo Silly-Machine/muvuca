@@ -106,8 +106,8 @@ test('leitura tolerante de JSON e de saída de CLI', () => {
   assert.deepStrictEqual(extrairJson('Claro!\n```json\n{"a":1}\n```\nPronto.'), { a: 1 });
   assert.strictEqual(extrairJson('sem json'), null);
   const claude = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write"}]}}\n{"type":"result","result":"feito"}';
-  assert.deepStrictEqual(lerSaidaCli(claude), { texto: 'feito', passos: 1 });
-  assert.deepStrictEqual(lerSaidaCli('{"response":"oi","stats":{}}'), { texto: 'oi', passos: 0 });
+  assert.deepStrictEqual(lerSaidaCli(claude), { texto: 'feito', passos: 1, uso: null });
+  assert.deepStrictEqual(lerSaidaCli('{"response":"oi","stats":{}}'), { texto: 'oi', passos: 0, uso: null });
   assert.strictEqual(lerSaidaCli('texto puro').texto, 'texto puro');
 });
 

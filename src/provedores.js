@@ -48,13 +48,15 @@ async function openai(prov, { sistema, mensagens, ferramentas, sinal }) {
 
 // Lê a saída de um CLI: tenta JSON por linha; conta usos de ferramenta; acha o texto final.
 export function lerSaidaCli(saida) {
-  let passos = 0; let texto = '';
+  let passos = 0; let texto = ''; let uso = null;
   const olhar = (o) => {
     if (!o || typeof o !== 'object') return;
     if (Array.isArray(o)) return o.forEach(olhar);
     const tipo = String(o.type || '');
     if (/tool_use|command_execution|function_call|file_change|tool_call/.test(tipo)) passos++;
     if (tipo === 'result' && typeof o.result === 'string') texto = o.result;            // claude
+    // o claude informa, no resultado, quanto a chamada custaria pela tabela da API e quantos tokens usou
+    if (tipo === 'result' && (typeof o.total_cost_usd === 'number' || o.usage)) uso = { custo: Number(o.total_cost_usd) || 0, entrada: (Number(o.usage?.input_tokens) || 0) + (Number(o.usage?.cache_read_input_tokens) || 0) + (Number(o.usage?.cache_creation_input_tokens) || 0), saida: Number(o.usage?.output_tokens) || 0 };
     else if (typeof o.response === 'string') texto = o.response;                         // gemini
     else if (/agent_message|message/.test(tipo) && typeof o.text === 'string') texto = o.text; // codex
     for (const v of Object.values(o)) olhar(v);
@@ -65,7 +67,7 @@ export function lerSaidaCli(saida) {
     try { olhar(JSON.parse(l)); algumJson = true; } catch { /* linha não é JSON */ }
   }
   if (!algumJson) { try { olhar(JSON.parse(saida)); algumJson = true; } catch { /* texto puro */ } }
-  return { texto: texto || saida.trim().slice(-4000), passos };
+  return { texto: texto || saida.trim().slice(-4000), passos, uso };
 }
 
 async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso, mcp }) {
@@ -87,7 +89,7 @@ async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso,
   const lido = lerSaidaCli(r.saida);
   if (r.codigo !== 0 && !lido.texto) throw new Error(`${prov.comando} saiu com código ${r.codigo}: ${r.saida.slice(-300)}`);
   if (r.codigo !== 0) lido.texto += `\n[aviso: ${prov.comando} saiu com código ${r.codigo}]`;
-  return { texto: lido.texto, chamadas: [], passos: lido.passos, msg: { role: 'assistant', content: lido.texto } };
+  return { texto: lido.texto, chamadas: [], passos: lido.passos, uso: lido.uso, msg: { role: 'assistant', content: lido.texto } };
 }
 
 export async function chamar(prov, pedido) {
