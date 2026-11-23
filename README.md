@@ -173,7 +173,7 @@ Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada 
 - [x] Mais de um pedido ao mesmo tempo, em conversas paralelas
 - [x] Especificação em etapas, vigias e lições do time
 - [ ] Tela para celular e testes automáticos da tela
-- [ ] Publicação no npm
+- [x] Publicação no npm (`npx muvuca`)
 - [ ] Tirar do repositório as imagens-fonte dos personagens (`assets/personagens/plush/gpt/`, 41 MB dos 48 MB) e guardá-las como anexo de uma versão
 - [ ] Celular como controle remoto da Muvuca do computador (PWA com pareamento)
 
