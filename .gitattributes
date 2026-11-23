@@ -1,0 +1,4 @@
+# A barra de linguagens do GitHub conta só o programa.
+# assets/ guarda as fontes dos personagens; folha.html é uma folha gerada com todos os desenhos, não é código da tela.
+assets/** linguist-vendored
+docs/** linguist-documentation
