@@ -114,7 +114,7 @@ export async function prepararMcp(pasta, idAgente, conexoes) {
 
 const PROTOCOLO = '2025-03-26';
 const INICIAR = { protocolVersion: PROTOCOLO, capabilities: {}, clientInfo: { name: 'muvuca', version: '1' } };
-const resumo = (tools) => (Array.isArray(tools) ? tools : []).slice(0, 100).map((t) => ({ nome: texto(t?.name, 80), descricao: texto(t?.description, 200) }));
+const resumo = (tools) => (Array.isArray(tools) ? tools : []).slice(0, 1000).map((t) => ({ nome: texto(t?.name, 80), descricao: texto(t?.description, 200) }));
 
 // Servidor por comando: conversa pela entrada e saída padrão, uma mensagem JSON por linha.
 function testarComando(c, limiteMs) {

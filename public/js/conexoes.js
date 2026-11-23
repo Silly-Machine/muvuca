@@ -18,7 +18,10 @@ function conexaoDoFormulario() {
 }
 function mostrarTeste(onde, r) {
   onde.className = 'situacao' + (r.ok ? '' : ' ruim');
-  onde.textContent = r.ok ? (r.ferramentas.length ? `Respondeu com ${r.ferramentas.length} ferramenta(s): ${r.ferramentas.map((f) => f.nome).join(', ')}` : 'Respondeu, mas não oferece nenhuma ferramenta.') : 'Não respondeu: ' + r.erro;
+  // servidor grande (o REA tem mais de 200 ferramentas): mostra as primeiras e diz quantas ficaram de fora
+  const nomes = (r.ferramentas || []).map((f) => f.nome), MOSTRA = 12;
+  onde.textContent = r.ok ? (nomes.length ? `Respondeu com ${nomes.length} ferramenta(s): ${nomes.slice(0, MOSTRA).join(', ')}${nomes.length > MOSTRA ? ` e mais ${nomes.length - MOSTRA}` : ''}` : 'Respondeu, mas não oferece nenhuma ferramenta.') : 'Não respondeu: ' + r.erro;
+  onde.title = nomes.length > MOSTRA ? nomes.join(', ') : '';
 }
 async function testarConexao(corpo, onde, botao) {
   botao.disabled = true; onde.className = 'situacao'; onde.textContent = 'Testando… (pode levar alguns segundos na primeira vez)';

@@ -2,6 +2,10 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: conexões com muitas ferramentas
+
+- **O teste de uma conexão conta todas as ferramentas.** Antes a lista era cortada em 100, e um servidor grande aparecia com o número errado. Agora a tela mostra o total, as 12 primeiras e quantas ficaram de fora; o nome de todas aparece ao passar o mouse.
+
 ## 0.4.0 (22/11/2026): conexões (MCP)
 
 - **Aba Conexões.** Os agentes passam a alcançar o que está fora da pasta do projeto por servidores MCP: documentação, issues, um banco de dados. Uma conexão pode ser um comando neste computador ou um endereço na rede, e o botão "Testar" mostra as ferramentas que ela oferece.
