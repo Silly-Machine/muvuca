@@ -83,10 +83,14 @@ export async function prepararIsolamento(projeto) {
   if (!s.ok) return { ok: false, motivo: s.motivo };
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-testes-'));
   const pasta = path.resolve(projeto);
+  // Libera o caminho como foi dado e o caminho verdadeiro: quando há um link simbólico no meio (no macOS, /var é um
+  // atalho para /private/var, e a pasta temporária fica ali), o Node confere a permissão pelo caminho verdadeiro.
+  const real = async (p) => fs.realpath(p).catch(() => p);
+  const liberadas = [...new Set([pasta, await real(pasta), tmp, await real(tmp)])];
   return {
     ok: true, tmp,
     // TMP, TEMP e TMPDIR levam os.tmpdir() para a pasta liberada: teste que cria arquivo temporário continua funcionando
-    env: { NODE_OPTIONS: opcoes(s.permissao, [pasta, tmp], s.noAmbiente), TMP: tmp, TEMP: tmp, TMPDIR: tmp },
+    env: { NODE_OPTIONS: opcoes(s.permissao, liberadas, s.noAmbiente), TMP: tmp, TEMP: tmp, TMPDIR: tmp },
     // o comando "node --test ..." como deve ser executado nesta versão do Node
     comando: (c) => (s.naLinha ? c.replace(/^node /, `node ${s.naLinha} `) : c),
     // o ambiente basta para isolar um "node --test" que outro programa dispare (o agente)? Só quando nada precisa ir na linha de comando.

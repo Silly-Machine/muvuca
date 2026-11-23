@@ -2,6 +2,10 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: isolamento no macOS
+
+- **O isolamento dos testes funciona no macOS e em projetos acessados por link simbólico.** O Node confere a permissão pelo caminho verdadeiro da pasta, e a Muvuca liberava só o caminho como foi escrito. No macOS a pasta temporária fica atrás de um atalho, então todo teste era bloqueado. Achado pelos testes automáticos no GitHub; por isso a 0.6.1 também não chegou a ter instaladores publicados.
+
 ## 0.6.1 (23/11/2026): isolamento no Node 22
 
 - **O isolamento dos testes passa a funcionar no Node 22**, no portão. Na 0.6.0 ele só ligava no Node 24, e os testes automáticos do próprio projeto falhavam no Node 22 (por isso a 0.6.0 não chegou a ter instaladores publicados). Os testes que o agente roda por conta própria continuam isolados só a partir do Node 24; no Node 22 a conversa avisa.

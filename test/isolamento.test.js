@@ -100,6 +100,21 @@ test('teste que depende de sair da pasta falha no portão com uma explicação, 
   assert.equal(existsSync(fora), false);
 });
 
+test('projeto acessado por um link simbólico: o isolamento libera o caminho verdadeiro também', async (ctx) => {
+  const { proj, fora, sonda } = await projetoCurioso('muvuca link ');
+  const atalho = path.join(path.dirname(proj), 'atalho');
+  // no Windows, criar link de pasta pede a junção; se nem isso for permitido, o teste é pulado
+  try { await fs.symlink(proj, atalho, 'junction'); } catch (e) { return ctx.skip('não deu para criar o link: ' + e.code); }
+  const e = new Muvuca(structuredClone(cfg));
+  e.projeto = atalho; e.abort = new AbortController();
+  const g = await e.portao();
+  assert.equal(g.ok, true, g.saida);
+  assert.equal(g.isolado, true);
+  const r = await sonda();
+  assert.deepEqual([r.escreverDentro, r.escreverFora, r.lerFora, r.temporario], ['passou', 'ERR_ACCESS_DENIED', 'ERR_ACCESS_DENIED', 'passou']);
+  assert.equal(existsSync(path.join(fora, 'invadido.txt')), false);
+});
+
 test('comando de teste que não dá para isolar roda, e o portão avisa qual é o motivo', async () => {
   const proj = await pasta('muvuca-outro-');
   await fs.writeFile(path.join(proj, 'verifica.js'), 'process.exit(0)');
