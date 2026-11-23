@@ -1,5 +1,7 @@
 // Histórico de conversas: as conversas encerradas ficam guardadas na pasta de dados e podem ser relidas aqui.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+import { $, avisar, el, lerDoServidor, textoDoUso } from './base.js';
+
 
 /* ---------- histórico ---------- */
 const dataCurta = (iso) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -40,7 +42,7 @@ async function abrirHistorico() {
     const c = await lerDoServidor('/api/conversas/' + id);
     $('#hTitulo').textContent = dataCurta(c.quando); $('#hVoltar').hidden = false; corpo.replaceChildren();
     // nomes dos agentes daquela conversa: os do time atual quando o identificador bate; senão, o próprio identificador
-    const nome = (idAg) => agentes.find((a) => a.id === idAg)?.nome || idAg || 'alguém';
+    const nome = (idAg) => compartilhado.agentes.find((a) => a.id === idAg)?.nome || idAg || 'alguém';
     for (const e of c.eventos) { const l = linhaDoHistorico(e, nome); if (l) corpo.append(el('p', 'linha-historico ' + l[0], l[1])); }
   };
   $('#hVoltar').onclick = () => lista().catch((e) => avisar(e.message));

@@ -1,21 +1,27 @@
 // Construtor de times: galeria, editor, biblioteca, setas, borracha, desfazer.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+import { depois } from './tardias.js';
+import * as Regras from './regras/indice.js';
+import { $, el, lerDoServidor } from './base.js';
+import { mascote } from './personagens.js';
+import { NOME_ARQ, NOME_FORMA, NOME_FUNCAO, SEM_LIDER, camadas, chefeDe, montarGrafo, ns, vizinhosDe } from './palco.js';
+
 /* ---------- construtor de times ---------- */
 const PALETA = ['#ff8e6b', '#4fb3ff', '#ffc94d', '#a48bff', '#4fe0a0', '#ff7bc8', '#5a8dff', '#63e6a3', '#ffb347'];
-let rascunho = null, galeria = [], catalogo = [], tempoPrevia = 0, avisoTime = '', tempoDica = 0;
+compartilhado.rascunho = null; compartilhado.galeria = []; compartilhado.catalogo = []; let tempoPrevia = 0; compartilhado.avisoTime = ''; let tempoDica = 0;
 const copiaAgente = (a) => ({ id: a.id, nome: a.nome, funcao: a.funcao || '', papel: a.papel || '', chefe: a.chefe || '', ferramentas: [...(a.ferramentas || [])], cor: a.cor || '#8f7bff', forma: a.forma || 'pilha', provedor: a.provedor || '', modelo: a.modeloFixo ?? a.modelo ?? '', complexidade: a.complexidade || '', sistema: a.sistema || '', conexoes: Array.isArray(a.conexoes) ? [...a.conexoes] : null });
-const timeAtual = () => ({ nome: nomeTime, descricao: '', arquitetura, agentes: agentes.map(copiaAgente) });
+const timeAtual = () => ({ nome: compartilhado.nomeTime, descricao: '', arquitetura: compartilhado.arquitetura, agentes: compartilhado.agentes.map(copiaAgente) });
 const EM_BRANCO = { nome: 'Time novo', arquitetura: 'centralizada', descricao: 'Começa com um líder, um executor e um revisor.', agentes: [
   { id: 'lider', nome: 'Líder', funcao: 'lider', papel: 'coordena o time e monta o plano', cor: '#ff8e6b', forma: 'regente' },
   { id: 'dev', nome: 'Dev', papel: 'implementa com teste junto', ferramentas: ['listar', 'ler', 'escrever', 'rodar'], cor: '#4fb3ff', forma: 'pilha' },
   { id: 'revisor', nome: 'Revisor', funcao: 'revisor', papel: 'revisão de código', ferramentas: ['listar', 'ler'], cor: '#4fe0a0', forma: 'escudo' }] };
 
 async function abrirConstrutor() {
-  secao('construtor');
-  try { const j = await lerDoServidor('/api/times'); galeria = j.times || []; catalogo = j.catalogo || []; } catch { galeria = []; }
+  depois.secao('construtor');
+  try { const j = await lerDoServidor('/api/times'); compartilhado.galeria = j.times || []; compartilhado.catalogo = j.catalogo || []; } catch { compartilhado.galeria = []; }
   montarBiblioteca();
   montarGaleria();
-  if (!rascunho) usarComoBase(timeAtual());
+  if (!compartilhado.rascunho) usarComoBase(timeAtual());
 }
 function montarGaleria() {
   const g = $('#galeria'); g.innerHTML = '';
@@ -29,32 +35,32 @@ function montarGaleria() {
   };
   cartao(timeAtual(), 'No palco agora');
   const rotulos = { pronto: 'Pronto', salvo: 'Salvo por você', arquivo: 'Do arquivo' };
-  for (const t of galeria) if (!(t.origem === 'arquivo' && t.nome === nomeTime)) cartao(t, rotulos[t.origem] || t.origem);
+  for (const t of compartilhado.galeria) if (!(t.origem === 'arquivo' && t.nome === compartilhado.nomeTime)) cartao(t, rotulos[t.origem] || t.origem);
   cartao(EM_BRANCO, 'Do zero');
 }
 function usarComoBase(t) {
-  rascunho = { nome: t.nome, descricao: t.descricao || '', arquitetura: t.arquitetura || 'centralizada', agentes: (t.agentes || []).map(copiaAgente) };
+  compartilhado.rascunho = { nome: t.nome, descricao: t.descricao || '', arquitetura: t.arquitetura || 'centralizada', agentes: (t.agentes || []).map(copiaAgente) };
   $('#cErro').textContent = ''; montarEditor();
 }
 function montarEditor() {
-  $('#cNome').value = rascunho.nome; $('#cArq').value = rascunho.arquitetura;
-  $('#cArqDesc').textContent = arquiteturas[rascunho.arquitetura] || '';
+  $('#cNome').value = compartilhado.rascunho.nome; $('#cArq').value = compartilhado.rascunho.arquitetura;
+  $('#cArqDesc').textContent = compartilhado.arquiteturas[compartilhado.rascunho.arquitetura] || '';
   const box = $('#cAgentes'); const abertos = new Set([...box.querySelectorAll('details[open]')].map((d) => d.dataset.i));
   box.innerHTML = '';
-  rascunho.agentes.forEach((a, i) => box.append(cartaoAgente(a, i, abertos.has(String(i)))));
+  compartilhado.rascunho.agentes.forEach((a, i) => box.append(cartaoAgente(a, i, abertos.has(String(i)))));
   atualizarPrevia(true);
 }
 function campo(rotulo, entrada, largo) { const l = el('label', 'campo' + (largo ? ' largo' : '')); l.append(el('span', '', rotulo), entrada); return l; }
 function opcoes(sel, pares, atual) { for (const [v, t] of pares) { const o = el('option', '', t); o.value = v; if (v === atual) o.selected = true; sel.append(o); } return sel; }
 function cartaoAgente(a, i, aberto) {
-  const arq = rascunho.arquitetura;
+  const arq = compartilhado.rascunho.arquitetura;
   const d = el('details', 'ag-cartao'); d.dataset.i = i; d.open = aberto; d.style.setProperty('--cor', a.cor);
   const s = el('summary'); const titulo = el('b', '', a.nome || '(sem nome)'); const fn = el('span', 'arq', NOME_FUNCAO[a.funcao] || a.funcao);
   const acoes = el('span', 'acoes');
   const botao = (txt, rot, f, off) => { const b = el('button', '', txt); b.type = 'button'; b.title = rot; b.setAttribute('aria-label', rot); b.disabled = !!off; b.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); f(); }; return b; };
   acoes.append(
-    botao('↑', 'Subir', () => { [rascunho.agentes[i - 1], rascunho.agentes[i]] = [rascunho.agentes[i], rascunho.agentes[i - 1]]; montarEditor(); }, i === 0),
-    botao('↓', 'Descer', () => { [rascunho.agentes[i + 1], rascunho.agentes[i]] = [rascunho.agentes[i], rascunho.agentes[i + 1]]; montarEditor(); }, i === rascunho.agentes.length - 1),
+    botao('↑', 'Subir', () => { [compartilhado.rascunho.agentes[i - 1], compartilhado.rascunho.agentes[i]] = [compartilhado.rascunho.agentes[i], compartilhado.rascunho.agentes[i - 1]]; montarEditor(); }, i === 0),
+    botao('↓', 'Descer', () => { [compartilhado.rascunho.agentes[i + 1], compartilhado.rascunho.agentes[i]] = [compartilhado.rascunho.agentes[i], compartilhado.rascunho.agentes[i + 1]]; montarEditor(); }, i === compartilhado.rascunho.agentes.length - 1),
     botao('✕', 'Remover agente', () => removerAgente(a.id)));
   s.append(el('i'), titulo, fn, acoes); d.append(s);
 
@@ -63,17 +69,17 @@ function cartaoAgente(a, i, aberto) {
   const entrada = (v, f, extra = {}) => { const x = el(extra.tag || 'input'); if (extra.tipo) x.type = extra.tipo; x.value = v; if (extra.ph) x.placeholder = extra.ph; x.oninput = muda(f); return x; };
 
   corpo.append(campo('Nome', entrada(a.nome, (v) => { a.nome = v; titulo.textContent = v || '(sem nome)'; })));
-  corpo.append(campo('Id (curto, sem espaço)', entrada(a.id, (v) => { const velho = a.id; a.id = v.trim().toLowerCase(); rascunho.agentes.forEach((x) => { if (x.chefe === velho) x.chefe = a.id; if (x.conexoes) x.conexoes = x.conexoes.map((c) => (c === velho ? a.id : c)); }); })));
+  corpo.append(campo('Id (curto, sem espaço)', entrada(a.id, (v) => { const velho = a.id; a.id = v.trim().toLowerCase(); compartilhado.rascunho.agentes.forEach((x) => { if (x.chefe === velho) x.chefe = a.id; if (x.conexoes) x.conexoes = x.conexoes.map((c) => (c === velho ? a.id : c)); }); })));
   const funcoes = SEM_LIDER.includes(arq) ? ['', 'revisor'] : arq === 'centralizada' ? ['', 'lider', 'revisor'] : ['', 'lider', 'sublider', 'revisor'];
   const selF = opcoes(el('select'), funcoes.map((f) => [f, NOME_FUNCAO[f]]), a.funcao); selF.onchange = muda((v) => { a.funcao = v; if (v === 'lider' || v === 'sublider') a.forma = 'regente'; }, true);
   corpo.append(campo('Função', selF));
   if (arq === 'hierarquica' && a.funcao !== 'lider') {
-    const chefes = rascunho.agentes.filter((x) => x !== a && (x.funcao === 'lider' || x.funcao === 'sublider'));
+    const chefes = compartilhado.rascunho.agentes.filter((x) => x !== a && (x.funcao === 'lider' || x.funcao === 'sublider'));
     const selC = opcoes(el('select'), [['', 'o líder'], ...chefes.map((x) => [x.id, x.nome])], a.chefe); selC.onchange = muda((v) => { a.chefe = v; });
     corpo.append(campo('Responde a', selC));
   } else corpo.append(el('span'));
   if (arq === 'rede' && a.funcao !== 'revisor') {
-    const outros = rascunho.agentes.filter((x) => x !== a && x.funcao !== 'revisor');
+    const outros = compartilhado.rascunho.agentes.filter((x) => x !== a && x.funcao !== 'revisor');
     const cx = el('div', 'ferr');
     for (const o of outros) {
       const l = el('label'); const c = el('input'); c.type = 'checkbox';
@@ -82,15 +88,15 @@ function cartaoAgente(a, i, aberto) {
       l.append(c, o.nome || o.id); cx.append(l);
     }
     if (!outros.length) cx.append(el('span', 'nota', 'Sozinho na rede: ninguém para passar a vez.'));
-    corpo.append(campo(i === rascunho.agentes.findIndex((x) => x.funcao !== 'revisor') ? 'Pode passar a vez para (este começa a rede)' : 'Pode passar a vez para', cx, true));
+    corpo.append(campo(i === compartilhado.rascunho.agentes.findIndex((x) => x.funcao !== 'revisor') ? 'Pode passar a vez para (este começa a rede)' : 'Pode passar a vez para', cx, true));
   }
   corpo.append(campo('Papel (o que o líder lê para escolher)', entrada(a.papel, (v) => { a.papel = v; }), true));
-  const selP = opcoes(el('select'), Object.entries(NOME_FORMA).filter(([k]) => k !== 'salsicha' || buzinaSolta() || a.forma === 'salsicha'), a.forma); selP.onchange = muda((v) => { a.forma = v; });
+  const selP = opcoes(el('select'), Object.entries(NOME_FORMA).filter(([k]) => k !== 'salsicha' || depois.buzinaSolta() || a.forma === 'salsicha'), a.forma); selP.onchange = muda((v) => { a.forma = v; });
   corpo.append(campo('Personagem', selP));
   corpo.append(campo('Cor', entrada(a.cor, (v) => { a.cor = v; d.style.setProperty('--cor', v); }, { tipo: 'color' })));
-  const selV = opcoes(el('select'), [['', 'padrão do arquivo'], ...provedores.map((p) => [p.nome, `${p.nome} (${p.tipo})`])], a.provedor); selV.onchange = muda((v) => { a.provedor = v; }, true);
+  const selV = opcoes(el('select'), [['', 'padrão do arquivo'], ...compartilhado.provedores.map((p) => [p.nome, `${p.nome} (${p.tipo})`])], a.provedor); selV.onchange = muda((v) => { a.provedor = v; }, true);
   corpo.append(campo('Provedor', selV));
-  const prov = provedores.find((p) => p.nome === a.provedor) || provedores.find((p) => p.modelos) || provedores[0] || {};
+  const prov = compartilhado.provedores.find((p) => p.nome === a.provedor) || compartilhado.provedores.find((p) => p.modelos) || compartilhado.provedores[0] || {};
   const dica = prov.modelos ? `pelo nível: ${['baixa', 'media', 'alta'].map((c) => prov.modelos[c]).filter(Boolean).join(' / ')}` : (prov.modelo || 'padrão do provedor');
   corpo.append(campo('Modelo fixo (vazio = automático)', entrada(a.modelo, (v) => { a.modelo = v; }, { ph: dica })));
   if (a.funcao !== 'lider' && a.funcao !== 'sublider') {
@@ -127,11 +133,11 @@ function avisos(t) {
 function atualizarPrevia(ja) {
   clearTimeout(tempoPrevia);
   tempoPrevia = setTimeout(() => {
-    const lista = rascunho.agentes.map((a, i) => ({ ...a, id: a.id || `sem-id-${i}` }));
-    montarGrafo($('#previa'), lista, rascunho.arquitetura, 'p');
+    const lista = compartilhado.rascunho.agentes.map((a, i) => ({ ...a, id: a.id || `sem-id-${i}` }));
+    montarGrafo($('#previa'), lista, compartilhado.rascunho.arquitetura, 'p');
     prepararArrasto(); if (!$('#cDica').classList.contains('feito')) dica();   // não apaga a confirmação do último arrasto
-    const av = avisos(rascunho); $('#cAvisos').textContent = av.join(' ');
-    $('#cResumo').textContent = `${lista.length} agente(s), arquitetura ${NOME_ARQ[rascunho.arquitetura]}.`;
+    const av = avisos(compartilhado.rascunho); $('#cAvisos').textContent = av.join(' ');
+    $('#cResumo').textContent = `${lista.length} agente(s), arquitetura ${NOME_ARQ[compartilhado.rascunho.arquitetura]}.`;
     registrarHistorico();
     if (!setaSel) estadoSetas();
   }, ja ? 0 : 150);
@@ -139,7 +145,7 @@ function atualizarPrevia(ja) {
 /* ---------- biblioteca e arrastar e soltar ---------- */
 function montarBiblioteca() {
   const b = $('#biblioteca'); b.innerHTML = '';
-  catalogo.filter((a) => !a.secreto || buzinaSolta()).forEach((a, k) => {
+  compartilhado.catalogo.filter((a) => !a.secreto || depois.buzinaSolta()).forEach((a, k) => {
     const p = el('button', 'peca' + (a.secreto ? ' secreta' : '')); p.type = 'button'; p.draggable = true; p.title = `${a.nome}: ${a.papel}`;
     p.innerHTML = mascote(a, k, 'b'); p.append(el('span', '', a.nome));
     p.ondragstart = (e) => { e.dataTransfer.setData('text/plain', 'catalogo:' + a.id); e.dataTransfer.effectAllowed = 'copy'; document.body.classList.add('arrastando'); };
@@ -157,22 +163,22 @@ const DICAS = {
 };
 function dica(texto) {
   clearTimeout(tempoDica);
-  $('#cDica').textContent = texto || DICAS[rascunho?.arquitetura] || '';
+  $('#cDica').textContent = texto || DICAS[compartilhado.rascunho?.arquitetura] || '';
   $('#cDica').classList.toggle('feito', !!texto);
   if (texto) tempoDica = setTimeout(() => dica(), 4500);
 }
-const achar = (id) => rascunho.agentes.find((a) => a.id === id);
+const achar = (id) => compartilhado.rascunho.agentes.find((a) => a.id === id);
 function removerAgente(id) {
-  rascunho.agentes = rascunho.agentes.filter((a) => a.id !== id);
-  rascunho.agentes.forEach((x) => { if (x.chefe === id) x.chefe = ''; if (x.conexoes) x.conexoes = x.conexoes.filter((c) => c !== id); });
+  compartilhado.rascunho.agentes = compartilhado.rascunho.agentes.filter((a) => a.id !== id);
+  compartilhado.rascunho.agentes.forEach((x) => { if (x.chefe === id) x.chefe = ''; if (x.conexoes) x.conexoes = x.conexoes.filter((c) => c !== id); });
   montarEditor();
 }
 function adicionarDoCatalogo(cid, alvo) {
-  const base = catalogo.find((x) => x.id === cid); if (!base || !rascunho) return;
+  const base = compartilhado.catalogo.find((x) => x.id === cid); if (!base || !compartilhado.rascunho) return;
   const novo = copiaAgente({ ...base, ferramentas: base.ferramentas || [] });
-  let n = 1; while (rascunho.agentes.some((a) => a.id === (n === 1 ? base.id : `${base.id}-${n}`))) n++;
+  let n = 1; while (compartilhado.rascunho.agentes.some((a) => a.id === (n === 1 ? base.id : `${base.id}-${n}`))) n++;
   if (n > 1) { novo.id = `${base.id}-${n}`; novo.nome = `${base.nome} ${n}`; }
-  const arq = rascunho.arquitetura, temLider = rascunho.agentes.some((a) => a.funcao === 'lider');
+  const arq = compartilhado.rascunho.arquitetura, temLider = compartilhado.rascunho.agentes.some((a) => a.funcao === 'lider');
   // a função se ajusta à arquitetura: esteira e rede não têm líder; o segundo líder vira sub-líder
   if (SEM_LIDER.includes(arq) && (novo.funcao === 'lider' || novo.funcao === 'sublider')) novo.funcao = '';
   if (novo.funcao === 'lider' && temLider) novo.funcao = arq === 'hierarquica' ? 'sublider' : '';
@@ -187,13 +193,13 @@ function adicionarDoCatalogo(cid, alvo) {
     msg = `${novo.nome} entrou ligado a ${b.nome}.`;
   }
   // o revisor fica no fim; os outros entram antes dele
-  const iRev = rascunho.agentes.findIndex((a) => a.funcao === 'revisor');
-  rascunho.agentes.splice(novo.funcao !== 'revisor' && iRev >= 0 ? iRev : rascunho.agentes.length, 0, novo);
+  const iRev = compartilhado.rascunho.agentes.findIndex((a) => a.funcao === 'revisor');
+  compartilhado.rascunho.agentes.splice(novo.funcao !== 'revisor' && iRev >= 0 ? iRev : compartilhado.rascunho.agentes.length, 0, novo);
   montarEditor(); dica(msg);
 }
 function moverNo(src, alvo) {
   const a = achar(src), b = achar(alvo); if (!a || !b || a === b) return;
-  const arq = rascunho.arquitetura;
+  const arq = compartilhado.rascunho.arquitetura;
   if (arq === 'hierarquica') {
     if (a.funcao === 'lider') return dica('O líder não responde a ninguém.');
     if (b.funcao !== 'lider' && b.funcao !== 'sublider') return dica('Solte sobre um líder ou sub-líder para mudar de chefe.');
@@ -202,12 +208,12 @@ function moverNo(src, alvo) {
   }
   if (arq === 'rede') {
     if (a.funcao === 'revisor' || b.funcao === 'revisor') return dica('O revisor fica fora da rede.');
-    const todos = rascunho.agentes.filter((x) => x !== a && x.funcao !== 'revisor').map((x) => x.id);
+    const todos = compartilhado.rascunho.agentes.filter((x) => x !== a && x.funcao !== 'revisor').map((x) => x.id);
     const atual = Array.isArray(a.conexoes) ? a.conexoes : todos, tinha = atual.includes(b.id);
     a.conexoes = tinha ? atual.filter((x) => x !== b.id) : [...atual, b.id];
     montarEditor(); return dica(`${a.nome} ${tinha ? 'não passa mais' : 'agora passa'} a vez para ${b.nome}.`);
   }
-  const L = rascunho.agentes; L.splice(L.indexOf(a), 1); L.splice(L.indexOf(b), 0, a);
+  const L = compartilhado.rascunho.agentes; L.splice(L.indexOf(a), 1); L.splice(L.indexOf(b), 0, a);
   montarEditor(); dica(`${a.nome} foi para antes de ${b.nome}.`);
 }
 /* ---------- desenhar setas na prévia ---------- */
@@ -222,13 +228,13 @@ const DICAS_SETAS = {
   unico: 'Com um agente só não há setas. Adicione agentes ou troque a arquitetura.',
 };
 let modoBorracha = false;
-function estadoSetas(texto) { $('#cSetasEstado').textContent = texto ?? (modoBorracha ? 'Borracha: clique numa seta ou num agente para apagar. Ctrl+Z desfaz.' : modoSetas ? DICAS_SETAS[rascunho?.arquitetura] || '' : ''); }
+function estadoSetas(texto) { $('#cSetasEstado').textContent = texto ?? (modoBorracha ? 'Borracha: clique numa seta ou num agente para apagar. Ctrl+Z desfaz.' : modoSetas ? DICAS_SETAS[compartilhado.rascunho?.arquitetura] || '' : ''); }
 // Borracha: um clique apaga a seta ou tira o agente do time. Não convive com o modo de desenhar.
 function ligarBorracha(liga) {
   if (liga && modoSetas) ligarModoSetas(false);
   modoBorracha = liga; setaSel = null;
   $('#cBorracha').setAttribute('aria-pressed', liga); $('#previa').classList.toggle('modo-borracha', liga);
-  if (rascunho) { prepararArrasto(); marcarSetaSel(); }
+  if (compartilhado.rascunho) { prepararArrasto(); marcarSetaSel(); }
   estadoSetas();
 }
 $('#cBorracha').onclick = () => ligarBorracha(!modoBorracha);
@@ -237,7 +243,7 @@ function ligarModoSetas(liga) {
   modoSetas = liga; origemSeta = null;
   $('#cSetas').setAttribute('aria-pressed', liga); $('#previa').classList.toggle('modo-setas', liga);
   $('#previa').querySelectorAll('.origem').forEach((x) => x.classList.remove('origem'));
-  if (rascunho) prepararArrasto();   // com o modo ligado, clicar num agente começa uma seta em vez de abrir a ficha
+  if (compartilhado.rascunho) prepararArrasto();   // com o modo ligado, clicar num agente começa uma seta em vez de abrir a ficha
   estadoSetas();
 }
 $('#cSetas').onclick = () => ligarModoSetas(!modoSetas);
@@ -281,13 +287,13 @@ function cliqueSeta(id) {
 // cria a seta "de → para"
 // As regras (o que cada seta quer dizer em cada arquitetura) ficam em js/regras/setas.js, com testes. Aqui, só a tela.
 function ligarSeta(de, para) {
-  const r = Regras.setas.ligarSeta(rascunho, de, para); if (!r) return;
+  const r = Regras.setas.ligarSeta(compartilhado.rascunho, de, para); if (!r) return;
   if (r.mudou) montarEditor(); else $('#previa').querySelectorAll('.origem').forEach((x) => x.classList.remove('origem'));
   dica(r.mensagem); estadoSetas();
 }
 // tira a seta "de → para"
 function desligarSeta(de, para) {
-  const r = Regras.setas.desligarSeta(rascunho, de, para); if (!r) return;
+  const r = Regras.setas.desligarSeta(compartilhado.rascunho, de, para); if (!r) return;
   if (!r.mudou) return dica(r.mensagem);
   montarEditor(); dica(r.mensagem); estadoSetas();
 }
@@ -322,14 +328,14 @@ const oHistorico = () => (historico ||= Regras.criarHistorico(80));
 function botoesHistorico() { $('#cDesfazer').disabled = !oHistorico().podeDesfazer; $('#cRefazer').disabled = !oHistorico().podeRefazer; }
 function limparHistorico() { oHistorico().limpar(); botoesHistorico(); }
 function registrarHistorico() {
-  if (!rascunho) return;
-  oHistorico().registrar(JSON.stringify(rascunho)); botoesHistorico();
+  if (!compartilhado.rascunho) return;
+  oHistorico().registrar(JSON.stringify(compartilhado.rascunho)); botoesHistorico();
 }
 function voltarHistorico(passo, feito, vazio2) {
-  if (!rascunho) return;
-  const estado = oHistorico()[passo](JSON.stringify(rascunho));
+  if (!compartilhado.rascunho) return;
+  const estado = oHistorico()[passo](JSON.stringify(compartilhado.rascunho));
   if (estado === null) { botoesHistorico(); return dica(vazio2); }
-  rascunho = JSON.parse(estado);
+  compartilhado.rascunho = JSON.parse(estado);
   setaSel = null; origemSeta = null; $('#cErro').textContent = '';
   montarEditor(); botoesHistorico(); dica(feito);
 }
@@ -337,7 +343,7 @@ const desfazer = () => voltarHistorico('desfazer', 'Desfeito.', 'Nada para desfa
 const refazer = () => voltarHistorico('refazer', 'Refeito.', 'Nada para refazer.');
 $('#cDesfazer').onclick = desfazer; $('#cRefazer').onclick = refazer;
 document.addEventListener('keydown', (e) => {
-  if (!rascunho || !document.body.classList.contains('ver-construtor')) return;
+  if (!compartilhado.rascunho || !document.body.classList.contains('ver-construtor')) return;
   if (e.target.closest?.('input, textarea, select, [contenteditable]')) return;   // dentro de um campo, vale o desfazer do próprio campo
   const k = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && !e.altKey && k === 'z') { e.preventDefault(); return e.shiftKey ? refazer() : desfazer(); }
@@ -346,7 +352,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 function abrirCartao(id) {
-  const i = rascunho.agentes.findIndex((a) => a.id === id); const d = $(`#cAgentes details[data-i="${i}"]`); if (!d) return;
+  const i = compartilhado.rascunho.agentes.findIndex((a) => a.id === id); const d = $(`#cAgentes details[data-i="${i}"]`); if (!d) return;
   d.open = true; d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 function prepararArrasto() {
@@ -413,15 +419,15 @@ function miniatura(t) {
 }
 
 function novoAgente() {
-  let n = rascunho.agentes.length + 1; while (rascunho.agentes.some((a) => a.id === 'agente-' + n)) n++;
-  rascunho.agentes.push({ id: 'agente-' + n, nome: 'Agente ' + n, funcao: '', papel: '', chefe: '', ferramentas: ['listar', 'ler', 'escrever'], cor: PALETA[n % PALETA.length], forma: 'pilha', provedor: '', modelo: '', complexidade: '', sistema: '' });
+  let n = compartilhado.rascunho.agentes.length + 1; while (compartilhado.rascunho.agentes.some((a) => a.id === 'agente-' + n)) n++;
+  compartilhado.rascunho.agentes.push({ id: 'agente-' + n, nome: 'Agente ' + n, funcao: '', papel: '', chefe: '', ferramentas: ['listar', 'ler', 'escrever'], cor: PALETA[n % PALETA.length], forma: 'pilha', provedor: '', modelo: '', complexidade: '', sistema: '' });
   montarEditor();
   const ult = $('#cAgentes').lastElementChild; if (ult) { ult.open = true; ult.scrollIntoView({ block: 'nearest' }); ult.querySelector('input')?.focus(); }
 }
 const limpar = (t) => ({ nome: t.nome, descricao: t.descricao, arquitetura: t.arquitetura, agentes: t.agentes.map((a) => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== '' && v != null))) });
 async function aplicarTime(salvar) {
   $('#cErro').className = 'ruim'; $('#cErro').textContent = '';
-  const r = await fetch('/api/time', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ time: limpar(rascunho), salvar }) });
+  const r = await fetch('/api/time', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ time: limpar(compartilhado.rascunho), salvar }) });
   const j = await r.json().catch(() => ({}));
   $('#cDecidir').hidden = true;
   if (j.codigo === 'decisao') {
@@ -441,7 +447,12 @@ async function aplicarTime(salvar) {
     return;
   }
   if (!r.ok) { $('#cErro').textContent = 'Não deu: ' + (j.erro || r.status); return; }
-  rascunho = null; limparHistorico(); secao('time');
+  compartilhado.rascunho = null; limparHistorico(); depois.secao('time');
   // o evento "time" do servidor limpa a conversa e mostra este aviso
-  avisoTime = salvar ? `Time "${j.time.nome}" salvo em times/${j.arquivo} e posto no palco.` : `Time "${j.time.nome}" posto no palco.`;
+  compartilhado.avisoTime = salvar ? `Time "${j.time.nome}" salvo em times/${j.arquivo} e posto no palco.` : `Time "${j.time.nome}" posto no palco.`;
 }
+
+// chamadas por arquivos carregados antes deste, em resposta a eventos (ver tardias.js)
+Object.assign(depois, { marcarSetaSel });
+
+export { abrirConstrutor, adicionarDoCatalogo, aplicarTime, limparHistorico, montarBiblioteca, montarEditor, novoAgente };

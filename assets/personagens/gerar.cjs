@@ -11,7 +11,8 @@ fs.mkdirSync(SAIDA, { recursive: true });
 
 // 1. código dos personagens: funções puras de texto, entre os dois marcadores
 const ini = html.indexOf('/* ---------- personagens ---------- */'), fim = html.indexOf('/* ---------- palco ---------- */');
-const codigo = html.slice(ini, fim);
+// os arquivos da tela são módulos: as linhas de importação e exportação saem, porque aqui o código roda solto
+const codigo = html.slice(ini, fim).split('\n').filter((l) => !/^(import|export) /.test(l) && !/^Object\.assign\(depois/.test(l)).join('\n');
 const ctx = {}; vm.createContext(ctx);
 vm.runInContext(codigo + '\nthis.mascote = mascoteVetor; this.PERSONAGENS = PERSONAGENS;', ctx);
 

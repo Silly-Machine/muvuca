@@ -1,5 +1,10 @@
 // Conversa com o time: envio do pedido, eventos, anexos e painel retrátil.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+import { depois } from './tardias.js';
+import { $, el, textoDoUso } from './base.js';
+import { NOME_ARQ, NOME_CX, ag, ajustarEscala, alarme, balao, desenharArestas, estado, modeloPadrao, montarDestinos, noPalco, rotuloModelo, viagem } from './palco.js';
+import { abrirConstrutor } from './construtor.js';
+
 /* ---------- conversa ---------- */
 function por(no) { const f = $('#fluxo'); f.querySelector('.vazio')?.remove(); f.append(no); f.scrollTop = f.scrollHeight; if (document.body.classList.contains('sem-conversa')) $('#alternarConversa').classList.add('novo'); return no; }
 function msg(id, texto, hora) {
@@ -12,21 +17,21 @@ function saida(titulo, texto) { const d = el('details'); d.append(el('summary', 
 let inicioPedido = 0, relogio = 0, terminouLonge = false;
 const mmss = (ms) => { const t = Math.max(0, Math.round(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 function atualizarAndamento() {
-  const ativos = agentes.map((a) => [a, noPalco(a.id)?.dataset.estado]).filter(([, e]) => e && e !== 'disponivel' && e !== 'concluido');
+  const ativos = compartilhado.agentes.map((a) => [a, noPalco(a.id)?.dataset.estado]).filter(([, e]) => e && e !== 'disponivel' && e !== 'concluido');
   const espera = ativos.some(([, e]) => e === 'aguardando');
   $('#andTexto').textContent = ativos.length ? ativos.map(([a, e]) => a.nome + ' ' + (e === 'aguardando' ? 'aguarda você' : e)).join(' · ') : 'Time trabalhando…';
   $('#andTempo').textContent = mmss(Date.now() - inicioPedido);
-  document.title = (rodando ? (espera ? '⚠ ' : '● ') : terminouLonge ? '✓ ' : '') + 'Muvuca';
+  document.title = (compartilhado.rodando ? (espera ? '⚠ ' : '● ') : terminouLonge ? '✓ ' : '') + 'Muvuca';
 }
 function ocupado(v, desde) {
-  const antes = rodando; rodando = v; $('#enviar').disabled = v; $('#parar').hidden = !v; $('#andamento').hidden = !v;
+  const antes = compartilhado.rodando; compartilhado.rodando = v; $('#enviar').disabled = v; $('#parar').hidden = !v; $('#andamento').hidden = !v;
   clearInterval(relogio);
   if (v) { inicioPedido = desde || Date.now(); relogio = setInterval(atualizarAndamento, 1000); }
   else if (antes && document.hidden) terminouLonge = true;   // acabou com a aba em segundo plano: marca no título
   atualizarAndamento();
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && terminouLonge) { terminouLonge = false; atualizarAndamento(); } });
-function pendencia(v) { $('#pendencia').hidden = !v; atualizarBuzina(); }
+function pendencia(v) { $('#pendencia').hidden = !v; depois.atualizarBuzina(); }
 function crescer() { const t = $('#texto'); t.style.height = 'auto'; t.style.height = Math.min(260, Math.max(92, t.scrollHeight + 2)) + 'px'; t.style.overflowY = t.scrollHeight > 260 ? 'auto' : 'hidden'; }
 function vazio() {
   const v = el('div', 'vazio'); v.append(el('h2', '', 'Fale com o time'), el('p', '', 'O líder monta o plano, o time executa, os testes rodam e o revisor confere. Você decide o que fica.'));
@@ -35,16 +40,16 @@ function vazio() {
 }
 
 const trata = {
-  nova() { tarefas.clear(); desenharQuadro(); pendencia(false); vazio(); agentes.forEach((a) => { estado(a.id, 'disponivel'); rotuloModelo(a.id, modeloPadrao(a)); }); ocupado(false); },
-  pedido(e) { tarefas.clear(); desenharQuadro(); ocupado(true, e.hora); $('#titulo').textContent = e.texto; por(el('div', 'rotulo', e.para === 'time' ? 'Para o time' : 'Para ' + ag(e.para).nome)); por(el('div', 'pedido', e.texto)); },
+  nova() { compartilhado.tarefas.clear(); depois.desenharQuadro(); pendencia(false); vazio(); compartilhado.agentes.forEach((a) => { estado(a.id, 'disponivel'); rotuloModelo(a.id, modeloPadrao(a)); }); ocupado(false); },
+  pedido(e) { compartilhado.tarefas.clear(); depois.desenharQuadro(); ocupado(true, e.hora); $('#titulo').textContent = e.texto; por(el('div', 'rotulo', e.para === 'time' ? 'Para o time' : 'Para ' + ag(e.para).nome)); por(el('div', 'pedido', e.texto)); },
   status(e) { estado(e.agente, e.estado); if (e.modelo) rotuloModelo(e.agente, e.modelo, e.complexidade); },
   fala(e) { balao(e.agente, e.texto); msg(e.agente, e.texto, e.hora); },
   aviso(e) { por(el('div', 'linha aviso', e.texto)); },
-  nivel_agente() { carregarConfig(); },
-  provedor(e) { por(el('div', 'linha', `O time passou a usar ${e.nome}` + (e.modelos ? ` (simples: ${e.modelos.baixa || e.modelo || 'padrão'}, comum: ${e.modelos.media || e.modelo || 'padrão'}, difícil: ${e.modelos.alta || e.modelo || 'padrão'}).` : '.'))); carregarConfig(); },
-  tarefa(e) { tarefas.set(e.id, e); desenharQuadro(); },
+  nivel_agente() { depois.carregarConfig(); },
+  provedor(e) { por(el('div', 'linha', `O time passou a usar ${e.nome}` + (e.modelos ? ` (simples: ${e.modelos.baixa || e.modelo || 'padrão'}, comum: ${e.modelos.media || e.modelo || 'padrão'}, difícil: ${e.modelos.alta || e.modelo || 'padrão'}).` : '.'))); depois.carregarConfig(); },
+  tarefa(e) { compartilhado.tarefas.set(e.id, e); depois.desenharQuadro(); },
   rotina(e) { por(el('div', 'rotulo', e.manual ? `Rotina "${e.nome}" (rodada por você)` : `Rotina "${e.nome}" (na hora marcada)`)); },
-  memoria(e) { const l = el('div', 'linha'); l.append(el('b', '', `${ag(e.agente).nome} anotou para lembrar: `), e.nota); por(l); if (document.body.classList.contains('ver-fichas')) montarMemoria(); },
+  memoria(e) { const l = el('div', 'linha'); l.append(el('b', '', `${ag(e.agente).nome} anotou para lembrar: `), e.nota); por(l); if (document.body.classList.contains('ver-fichas')) depois.montarMemoria(); },
   consultando(e) { viagem(e.de, e.agente); },
   consulta(e) { const c = el('div', 'cartao'); c.append(el('h3', '', `${ag(e.de).nome} consultou ${ag(e.agente).nome}` + (e.modelo ? ` (${e.modelo})` : '')), el('div', 'linha', e.pergunta), el('div', '', e.resposta)); por(c); balao(e.agente, e.resposta); viagem(e.agente, e.de); },
   plano(e) {
@@ -61,9 +66,9 @@ const trata = {
   },
   rede(e) { por(el('div', 'linha', `Rede sem chefe: ${ag(e.entrada).nome} começa, e cada um escolhe quem continua (até ${e.teto} passagens).`)); },
   async time(e) {
-    tarefas.clear(); desenharQuadro();
-    await carregarConfig(); vazio(); ocupado(false); pendencia(false);
-    const aviso = el('p', 'ok', avisoTime || `Time "${e.nome}" no palco (${NOME_ARQ[e.arquitetura] || e.arquitetura}).`); avisoTime = '';
+    compartilhado.tarefas.clear(); depois.desenharQuadro();
+    await depois.carregarConfig(); vazio(); ocupado(false); pendencia(false);
+    const aviso = el('p', 'ok', compartilhado.avisoTime || `Time "${e.nome}" no palco (${NOME_ARQ[e.arquitetura] || e.arquitetura}).`); compartilhado.avisoTime = '';
     $('.vazio')?.prepend(aviso);
   },
   uso(e) { const l = el('div', 'linha uso', textoDoUso(e)); if (e.custo !== undefined) l.title = 'O custo é o que essas chamadas custariam pela tabela da API. Na assinatura do Claude não há cobrança por pedido.'; por(l); },
@@ -83,18 +88,18 @@ const trata = {
     const l = el('div', 'linha ruim'); l.append(el('b', '', `↩ ${e.de === 'portao' ? 'Testes' : ag(e.de).nome} para ${ag(e.para).nome}: `), e.texto);
     if (e.complexidade) l.append(' Tenta de novo em ', el('span', 'cx ' + e.complexidade, NOME_CX[e.complexidade]), '.');
     por(l);
-    if (agentes.some((a) => a.id === e.de)) viagem(e.de, e.para, { ruim: true }); else alarme(e.para);
+    if (compartilhado.agentes.some((a) => a.id === e.de)) viagem(e.de, e.para, { ruim: true }); else alarme(e.para);
   },
   portao_rodando(e) { por(el('div', 'linha', `Rodando os testes (${e.comando})...`)); },
   portao(e) { const c = el('div', 'cartao'); c.append(el('h3', '', 'Portão de testes'), el('div', e.ok ? 'ok' : 'ruim', e.ok ? `✓ passou (${e.comando}), rodado depois da última edição` : `✗ não passou (${e.comando || 'nenhum teste no projeto'})`), saida('Ver a saída', e.saida)); c.append(el('div', 'isolamento' + (e.isolado ? '' : ' sem'), e.isolado ? 'Testes isolados: só alcançaram a pasta do projeto.' : e.semIsolamento ? `Sem isolamento: ${e.semIsolamento}.` : '')); por(c); },
-  veredito(e) { if (liderId) viagem(e.agente, liderId, { ruim: !e.aprovado }); balao(e.agente, e.texto); const m = msg(e.agente, e.texto, e.hora); const c = el('div', 'cartao'); c.append(el('h3', '', 'Veredito'), el('div', e.aprovado ? 'ok' : 'ruim', e.aprovado ? '✓ aprovado' : '✗ reprovado')); for (const a of e.achados) c.append(el('div', 'linha', `${a.arquivo || '?'}: ${a.problema}`)); m.append(c); },
+  veredito(e) { if (compartilhado.liderId) viagem(e.agente, compartilhado.liderId, { ruim: !e.aprovado }); balao(e.agente, e.texto); const m = msg(e.agente, e.texto, e.hora); const c = el('div', 'cartao'); c.append(el('h3', '', 'Veredito'), el('div', e.aprovado ? 'ok' : 'ruim', e.aprovado ? '✓ aprovado' : '✗ reprovado')); for (const a of e.achados) c.append(el('div', 'linha', `${a.arquivo || '?'}: ${a.problema}`)); m.append(c); },
   aprovacao(e) {
     const c = el('div', 'cartao aprovar'); c.id = e.id; c.append(el('h3', '', 'Precisa da sua aprovação'), el('div', '', `${ag(e.agente).nome} quer rodar este comando:`), el('code', '', e.comando));
     const bs = el('div', 'botoes'); const s = el('button', '', 'Aprovar comando'); const n = el('button', '', 'Negar'); s.onclick = () => post('/api/aprovar', { id: e.id, ok: true }); n.onclick = () => post('/api/aprovar', { id: e.id, ok: false }); bs.append(s, n); c.append(bs); por(c);
   },
   aprovacao_resolvida(e) { const c = document.getElementById(e.id); if (c) { c.querySelector('.botoes')?.remove(); c.append(el('div', e.ok ? 'ok' : 'ruim', e.ok ? 'Comando aprovado por você.' : 'Comando negado por você.')); } },
   final(e) {
-    if (e.aprovado && Date.now() - e.hora < 5000) { buzinaFesta = Date.now() + 6000; atualizarBuzina(); }
+    if (e.aprovado && Date.now() - e.hora < 5000) { compartilhado.buzinaFesta = Date.now() + 6000; depois.atualizarBuzina(); }
     const texto = e.aprovado ? (!e.ciclos ? 'Entrega aprovada de primeira.' : `Entrega aprovada após ${e.ciclos} ${e.ciclos === 1 ? 'devolução' : 'devoluções'}.`) : e.aprovado === false ? `Entrega não aprovada: ${e.motivo}. O limite de devoluções acabou.`
       : e.conversa ? 'Só conversa: o líder não montou plano e ninguém mexeu na pasta.' : 'Pedido direto: não passou por testes nem revisão.';
     por(el('div', 'linha ' + (e.aprovado ? 'ok' : e.aprovado === false ? 'ruim' : ''), texto));
@@ -104,8 +109,8 @@ const trata = {
       for (const r of e.ressalvas) c.append(el('div', 'linha', `${r.arquivo}: ${r.problema}`));
       const bs = el('div', 'botoes'); const b = el('button', 'primario', 'Corrigir ressalvas');
       b.onclick = () => {
-        if (rodando) return;
-        destino = 'time'; montarDestinos?.();
+        if (compartilhado.rodando) return;
+        compartilhado.destino = 'time'; montarDestinos?.();
         $('#texto').value = 'Corrija as ressalvas que o revisor apontou ao aprovar a última entrega, com teste para cada uma quando fizer sentido:\n' + e.ressalvas.map((r) => `- ${r.arquivo}: ${r.problema}`).join('\n');
         crescer(); secao('time'); b.disabled = true; enviar();
       };
@@ -136,7 +141,7 @@ async function post(url, corpo) {
   const j = await r.json().catch(() => ({})); if (!r.ok) por(el('div', 'linha ruim', 'Erro: ' + (j.erro || r.status))); return j;
 }
 async function enviar() {
-  const texto = $('#texto').value.trim(); if (!texto || rodando) return;
+  const texto = $('#texto').value.trim(); if (!texto || compartilhado.rodando) return;
   const projeto = $('#projeto').value.trim(); $('#erroEnvio').textContent = '';
   if (!projeto) { $('#erroEnvio').textContent = 'Escolha o projeto, embaixo da caixa de texto, antes de enviar.'; $('#projetoChip').focus(); return; }
   try { localStorage.setItem('muvuca.projeto', projeto); } catch {}
@@ -150,17 +155,17 @@ async function enviar() {
       const up = await fetch('/api/anexos', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ projeto, arquivos }) });
       const uj = await up.json().catch(() => ({}));
       $('#erroEnvio').className = 'ruim';
-      if (!up.ok) { $('#erroEnvio').textContent = 'Não deu para anexar: ' + (uj.erro || up.status); $('#enviar').disabled = rodando; return; }
+      if (!up.ok) { $('#erroEnvio').textContent = 'Não deu para anexar: ' + (uj.erro || up.status); $('#enviar').disabled = compartilhado.rodando; return; }
       const salvos = uj.salvos || [];
       textoFinal += '\n\nO usuário anexou ' + salvos.length + ' arquivo(s), já gravados na pasta do projeto: ' +
         (salvos.length <= 15 ? salvos.join(', ') : [...new Set(salvos.map((p) => p.split('/').slice(0, 2).join('/')))].slice(0, 15).join(', ') + ' (pastas e arquivos; liste para ver tudo)') + '. Leia-os antes de começar.';
-    } catch (e) { $('#erroEnvio').className = 'ruim'; $('#erroEnvio').textContent = 'Não deu para anexar: ' + e.message; $('#enviar').disabled = rodando; return; }
+    } catch (e) { $('#erroEnvio').className = 'ruim'; $('#erroEnvio').textContent = 'Não deu para anexar: ' + e.message; $('#enviar').disabled = compartilhado.rodando; return; }
     $('#erroEnvio').textContent = '';
   }
-  try { r = await fetch('/api/pedido', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texto: textoFinal, projeto, para: destino }) }); j = await r.json().catch(() => ({})); }
-  catch { $('#erroEnvio').textContent = 'Sem conexão com o servidor da Muvuca. Ele está rodando?'; $('#enviar').disabled = rodando; return; }
+  try { r = await fetch('/api/pedido', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texto: textoFinal, projeto, para: compartilhado.destino }) }); j = await r.json().catch(() => ({})); }
+  catch { $('#erroEnvio').textContent = 'Sem conexão com o servidor da Muvuca. Ele está rodando?'; $('#enviar').disabled = compartilhado.rodando; return; }
   // só limpa a caixa quando o pedido foi aceito: recusa não faz perder o que você digitou
-  if (!r.ok) { $('#erroEnvio').textContent = 'Não deu: ' + (j.erro || r.status); $('#enviar').disabled = rodando; return; }
+  if (!r.ok) { $('#erroEnvio').textContent = 'Não deu: ' + (j.erro || r.status); $('#enviar').disabled = compartilhado.rodando; return; }
   $('#texto').value = ''; crescer(); anexos.length = 0; desenharAnexos();
 }
 
@@ -248,10 +253,15 @@ $('#pendVer').onclick = () => { secao('time'); const d = document.getElementById
 function secao(nome) {
   for (const n of ['fichas', 'construtor', 'projetos', 'config', 'quadro', 'rotinas', 'conexoes']) document.body.classList.toggle('ver-' + n, nome === n);
   for (const [b, n] of [['#navTime', 'time'], ['#navFichas', 'fichas'], ['#navConstrutor', 'construtor'], ['#navProjetos', 'projetos'], ['#navConfig', 'config'], ['#navQuadro', 'quadro'], ['#navRotinas', 'rotinas'], ['#navConexoes', 'conexoes']]) $(b).setAttribute('aria-pressed', nome === n);
-  if (nome === 'fichas') { montarMemoria(); montarBasicos(true); }
+  if (nome === 'fichas') { depois.montarMemoria(); depois.montarBasicos(true); }
   if (nome === 'time') requestAnimationFrame(() => { ajustarEscala(); desenharArestas(); });
 }
 $('#enviar').onclick = enviar; $('#parar').onclick = () => post('/api/parar'); $('#nova').onclick = () => post('/api/nova');
 $('#navTime').onclick = () => secao('time'); $('#navFichas').onclick = () => secao('fichas'); $('#navConstrutor').onclick = abrirConstrutor;
-$('#navProjetos').onclick = () => { secao('projetos'); montarProjetos(); };
-$('#navConfig').onclick = () => { secao('config'); montarConfig(); };
+$('#navProjetos').onclick = () => { secao('projetos'); depois.montarProjetos(); };
+$('#navConfig').onclick = () => { secao('config'); depois.montarConfig(); };
+
+// chamadas por arquivos carregados antes deste, em resposta a eventos (ver tardias.js)
+Object.assign(depois, { atualizarAndamento, secao });
+
+export { enviar, ocupado, pendencia, secao, trata, vazio };

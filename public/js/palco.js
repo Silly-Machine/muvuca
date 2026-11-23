@@ -1,5 +1,9 @@
 // O palco e o grafo de setas (usado também pela prévia do construtor).
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+import { depois } from './tardias.js';
+import { $, ESTADOS, el } from './base.js';
+import { PERSONAGENS, mascote } from './personagens.js';
+
 /* ---------- palco ---------- */
 PERSONAGENS.salsicha = PERSONAGENS.regente;   // a Buzina só tem versão em imagem (public/bonecos/salsicha-*.webp)
 const NOME_CX = { baixa: 'baixa', media: 'média', alta: 'alta' };
@@ -7,7 +11,7 @@ const NOME_FUNCAO = { '': 'executor', lider: 'líder', sublider: 'sub-líder', r
 const NOME_FORMA = { salsicha: 'Buzina, a salsicha astronauta', cartola: 'Maestro de cartola', engrenagem: 'Engrenagem', regente: 'Cápsula de batuta', pilha: 'Pilha de discos', cristal: 'Cristal lapidado', lente: 'Esfera de lente', escudo: 'Escudo de óculos', tela: 'Monitor de antena', gota: 'Gota', nuvem: 'Nuvem', cogumelo: 'Cogumelo', polvo: 'Polvo', foguete: 'Foguete', gato: 'Gato vigia', livro: 'Livro', planta: 'Vaso de planta' };
 const NOME_ARQ = { unico: 'agente único', centralizada: 'supervisor', hierarquica: 'hierárquica', sequencial: 'esteira', rede: 'rede' };
 const SEM_LIDER = ['unico', 'sequencial', 'rede'];
-let liderId = null, arquitetura = 'centralizada', nomeTime = '', arquiteturas = {}, provedores = [];
+compartilhado.liderId = null; compartilhado.arquitetura = 'centralizada'; compartilhado.nomeTime = ''; compartilhado.arquiteturas = {}; compartilhado.provedores = [];
 // Relação de cada agente com quem está acima dele, escrita na aresta do grafo.
 const relacao = (a) => (a.funcao === 'revisor' ? 'revisa' : a.funcao === 'sublider' ? 'coordena' : (a.ferramentas || []).includes('escrever') ? 'executa' : 'consulta');
 const ROTULO_NIVEL = { baixa: 'simples', media: 'comum', alta: 'difícil' };
@@ -158,7 +162,7 @@ function desenharArestas(raiz = palco()) {
       const i = p.getPointAtLength(0), m = p.getPointAtLength(L / 2), f = p.getPointAtLength(L);
       criar(`M${m.x} ${m.y}L${f.x} ${f.y}`, de, para, 0.72); criar(`M${i.x} ${i.y}L${m.x} ${m.y}`, para, de, 0.28);
     }
-    marcarSetaSel();
+    depois.marcarSetaSel();
   }
 }
 function marcarAresta(id) {
@@ -203,20 +207,20 @@ new ResizeObserver(() => { ajustarEscala(); desenharArestas(); }).observe($('#ti
 document.fonts?.ready.then(() => { ajustarEscala(); desenharArestas(); });
 
 function montarTime() {
-  liderId = SEM_LIDER.includes(arquitetura) ? null : (agentes.find((a) => a.funcao === 'lider') || agentes[0])?.id;
+  compartilhado.liderId = SEM_LIDER.includes(compartilhado.arquitetura) ? null : (compartilhado.agentes.find((a) => a.funcao === 'lider') || compartilhado.agentes[0])?.id;
   $('#time').innerHTML = '<div class="grafo"></div>';
-  montarGrafo(palco(), agentes, arquitetura); requestAnimationFrame(ajustarEscala);
-  agentes.forEach((a) => rotuloModelo(a.id, modeloPadrao(a)));
+  montarGrafo(palco(), compartilhado.agentes, compartilhado.arquitetura); requestAnimationFrame(ajustarEscala);
+  compartilhado.agentes.forEach((a) => rotuloModelo(a.id, modeloPadrao(a)));
   $('#fichas').innerHTML = '';
-  const tituloTime = el('h2', 'sec', 'Time no palco'); tituloTime.append(el('small', '', `${nomeTime || 'sem nome'} · ${agentes.length} agente(s)`)); $('#fichas').append(tituloTime);
-  const fila = camadas(agentes, arquitetura)[0] || [];
-  agentes.forEach((a, i) => {
+  const tituloTime = el('h2', 'sec', 'Time no palco'); tituloTime.append(el('small', '', `${compartilhado.nomeTime || 'sem nome'} · ${compartilhado.agentes.length} agente(s)`)); $('#fichas').append(tituloTime);
+  const fila = camadas(compartilhado.agentes, compartilhado.arquitetura)[0] || [];
+  compartilhado.agentes.forEach((a, i) => {
     const f = el('div', 'ficha'); f.innerHTML = mascote(a, i, 's');
-    const subs = agentes.filter((x) => chefeDe(agentes, x, arquitetura) === a.id).map((x) => x.nome);
-    const chefe = chefeDe(agentes, a, arquitetura);
-    const lugar = arquitetura === 'rede' && a.funcao !== 'revisor' ? `${a.papel} (passa a vez para: ${vizinhosDe(agentes, a).map((x) => x.nome).join(', ') || 'ninguém'})`
-      : arquitetura === 'unico' || (SEM_LIDER.includes(arquitetura) && a.funcao === 'revisor') ? a.papel
-      : arquitetura === 'sequencial' ? `${a.papel} (etapa ${fila.indexOf(a) + 1} de ${fila.length} da esteira)`
+    const subs = compartilhado.agentes.filter((x) => chefeDe(compartilhado.agentes, x, compartilhado.arquitetura) === a.id).map((x) => x.nome);
+    const chefe = chefeDe(compartilhado.agentes, a, compartilhado.arquitetura);
+    const lugar = compartilhado.arquitetura === 'rede' && a.funcao !== 'revisor' ? `${a.papel} (passa a vez para: ${vizinhosDe(compartilhado.agentes, a).map((x) => x.nome).join(', ') || 'ninguém'})`
+      : compartilhado.arquitetura === 'unico' || (SEM_LIDER.includes(compartilhado.arquitetura) && a.funcao === 'revisor') ? a.papel
+      : compartilhado.arquitetura === 'sequencial' ? `${a.papel} (etapa ${fila.indexOf(a) + 1} de ${fila.length} da esteira)`
       : subs.length ? `coordena: ${subs.join(', ')}` + (chefe ? `; responde a ${ag(chefe).nome}` : '')
       : `${a.papel} (${relacao(a)} para ${ag(chefe).nome})`;
     const pr = el('p'); pr.append('Provedor ', el('code', '', a.provedor + (a.modeloFixo ? ' / ' + a.modeloFixo : '')));
@@ -230,27 +234,29 @@ function montarTime() {
     t.append(fe); f.append(t);
     $('#fichas').append(f);
   });
-  montarBasicos();
+  depois.montarBasicos();
   montarDestinos(); atualizarResumo();
 }
 function montarDestinos() {
   const dst = $('#destinos'); dst.innerHTML = '';
-  for (const o of [{ id: 'time', nome: 'Time' }, ...agentes]) {
-    const b = el('button', o.id === destino ? 'ativo' : ''); if (o.cor) b.style.setProperty('--cor', o.cor);
-    b.append(el('i'), o.nome); b.setAttribute('aria-pressed', o.id === destino); b.onclick = () => { destino = o.id; montarDestinos(); };
+  for (const o of [{ id: 'time', nome: 'Time' }, ...compartilhado.agentes]) {
+    const b = el('button', o.id === compartilhado.destino ? 'ativo' : ''); if (o.cor) b.style.setProperty('--cor', o.cor);
+    b.append(el('i'), o.nome); b.setAttribute('aria-pressed', o.id === compartilhado.destino); b.onclick = () => { compartilhado.destino = o.id; montarDestinos(); };
     dst.append(b);
   }
-  $('#dicaDestino').textContent = destino !== 'time' ? 'Pedido direto: sem plano, testes nem revisão.' : ({ sequencial: 'A esteira roda na ordem do time.', rede: 'Na rede, o primeiro começa e cada um escolhe quem continua.', unico: 'Um agente faz tudo; o portão confere.' })[arquitetura] || 'O líder decide quem assume.';
+  $('#dicaDestino').textContent = compartilhado.destino !== 'time' ? 'Pedido direto: sem plano, testes nem revisão.' : ({ sequencial: 'A esteira roda na ordem do time.', rede: 'Na rede, o primeiro começa e cada um escolhe quem continua.', unico: 'Um agente faz tudo; o portão confere.' })[compartilhado.arquitetura] || 'O líder decide quem assume.';
 }
 function atualizarResumo() {
   const nos = [...document.querySelectorAll('#time .agente')];
   const ocupados = nos.filter((d) => !['disponivel', 'concluido'].includes(d.dataset.estado)).length;
   $('#time').classList.toggle('ocupado', ocupados > 0);
-  const demo = agentes.every((a) => a.tipo === 'demo');
-  { const provs = [...new Set(agentes.map((a) => a.provedor))]; const chip = $('#chipModelo');
+  const demo = compartilhado.agentes.every((a) => a.tipo === 'demo');
+  { const provs = [...new Set(compartilhado.agentes.map((a) => a.provedor))]; const chip = $('#chipModelo');
     chip.replaceChildren(provs.length === 1 ? (demo ? 'Demonstração' : provs[0]) : `${provs.length} provedores`, el('small', '', demo ? 'sem custo' : 'modelos por tarefa')); }
-  $('#resumo').textContent = `${nomeTime || 'Time'}, ${NOME_ARQ[arquitetura] || arquitetura} · ` + (ocupados ? `${ocupados} de ${agentes.length} trabalhando` : `${agentes.length} agentes, todos disponíveis`) + (demo ? ', em modo demonstração' : '');
+  $('#resumo').textContent = `${compartilhado.nomeTime || 'Time'}, ${NOME_ARQ[compartilhado.arquitetura] || compartilhado.arquitetura} · ` + (ocupados ? `${ocupados} de ${compartilhado.agentes.length} trabalhando` : `${compartilhado.agentes.length} agentes, todos disponíveis`) + (demo ? ', em modo demonstração' : '');
 }
-const ag = (id) => agentes.find((a) => a.id === id) || { nome: id, cor: '#aaaaaa' };
-function estado(id, e) { const d = noPalco(id); if (!d) return; d.dataset.estado = e; d.querySelector('.pilula span').textContent = ESTADOS[e] || e; atualizarResumo(); marcarAresta(id); if (rodando) atualizarAndamento(); atualizarBuzina(); }
-function balao(id, texto) { const d = noPalco(id); if (!d || !texto) return; const b = d.querySelector('.balao'); b.textContent = texto.length > 130 ? texto.slice(0, 128) + '…' : texto; b.classList.add('visivel'); clearTimeout(baloes[id]); baloes[id] = setTimeout(() => b.classList.remove('visivel'), 8000); }
+const ag = (id) => compartilhado.agentes.find((a) => a.id === id) || { nome: id, cor: '#aaaaaa' };
+function estado(id, e) { const d = noPalco(id); if (!d) return; d.dataset.estado = e; d.querySelector('.pilula span').textContent = ESTADOS[e] || e; atualizarResumo(); marcarAresta(id); if (compartilhado.rodando) depois.atualizarAndamento(); depois.atualizarBuzina(); }
+function balao(id, texto) { const d = noPalco(id); if (!d || !texto) return; const b = d.querySelector('.balao'); b.textContent = texto.length > 130 ? texto.slice(0, 128) + '…' : texto; b.classList.add('visivel'); clearTimeout(compartilhado.baloes[id]); compartilhado.baloes[id] = setTimeout(() => b.classList.remove('visivel'), 8000); }
+
+export { NOME_ARQ, NOME_CX, NOME_FORMA, NOME_FUNCAO, ROTULO_NIVEL, SEM_LIDER, ag, ajustarEscala, alarme, balao, camadas, chefeDe, desenharArestas, estado, modeloDoNivel, modeloPadrao, montarDestinos, montarGrafo, montarTime, noPalco, ns, rotuloModelo, viagem, vizinhosDe };

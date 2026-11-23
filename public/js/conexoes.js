@@ -1,5 +1,7 @@
 // Aba Conexões: servidores MCP que dão aos agentes acesso a coisas fora da pasta do projeto.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { $, el, lerDoServidor } from './base.js';
+import { secao } from './conversa.js';
+
 
 /* ---------- conexões ---------- */
 let conexoes = { conexoes: [], agentes: {}, time: [] };

@@ -89,7 +89,7 @@ async function capturar(pasta) {
   await foto('palco.png');
   await js(`document.getElementById('navConstrutor').click(); setTimeout(() => document.querySelectorAll('#galeria > *')[3]?.click(), 300)`);
   await foto('construtor.png');
-  await js(`document.getElementById('navTime').click(); boasVindas(true).then(() => { document.getElementById('bvPasta').value = 'C:\\\\Projetos\\\\meu-projeto'; })`);
+  await js(`document.getElementById('navTime').click(); window.muvucaAbrirBoasVindas().then(() => { document.getElementById('bvPasta').value = 'C:\\\\Projetos\\\\meu-projeto'; })`);
   await foto('boas-vindas.png');
 }
 

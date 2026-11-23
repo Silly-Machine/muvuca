@@ -245,18 +245,7 @@
     <div class="fim"><span id="bvErro" role="alert"></span><button type="submit" id="bvComecar">Começar</button></div>
   </form>
 </dialog>
-<!-- A tela é dividida em arquivos que compartilham o mesmo escopo. A ordem importa: as regras e a base primeiro, inicio por último. -->
-<script type="module" src="/js/regras/ponte.js"></script>
-<script defer src="/js/base.js"></script>
-<script defer src="/js/personagens.js"></script>
-<script defer src="/js/palco.js"></script>
-<script defer src="/js/construtor.js"></script>
-<script defer src="/js/conversa.js"></script>
-<script defer src="/js/buzina.js"></script>
-<script defer src="/js/quadro.js"></script>
-<script defer src="/js/abas.js"></script>
-<script defer src="/js/conexoes.js"></script>
-<script defer src="/js/historico.js"></script>
-<script defer src="/js/inicio.js"></script>
+<!-- A tela é feita de módulos: principal.js carrega as partes em ordem, e cada parte importa o que usa. -->
+<script type="module" src="/js/principal.js"></script>
 </body>
 </html>

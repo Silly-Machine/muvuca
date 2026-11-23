@@ -1,5 +1,12 @@
 // Boas-vindas da primeira abertura e partida da tela (carregado por último).
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+import { $, el } from './base.js';
+import { NOME_ARQ, estado } from './palco.js';
+import { ocupado, pendencia, trata, vazio } from './conversa.js';
+import { soltarBuzina } from './buzina.js';
+import { desenharQuadro } from './quadro.js';
+import { carregarConfig, lerProjetos } from './abas.js';
+
 /* ---------- boas-vindas: primeira abertura ---------- */
 // No aplicativo de mesa, "window.muvucaDesktop" traz o seletor de pasta do sistema.
 const desktop = window.muvucaDesktop || null;
@@ -46,12 +53,12 @@ if (new URLSearchParams(location.search).has('t')) { const q = new URLSearchPara
   $('#projeto').value = salvo || c.projetoPadrao; vazio(); lerProjetos();
   // quem soltou a Buzina num navegador antes de a escolha ir para a pasta de dados leva a escolha junto
   let noNavegador = false; try { noNavegador = localStorage.getItem('muvuca.buzina') === '1'; } catch {}
-  buzinaGuardada = c.buzina === true;
-  if (buzinaGuardada || noNavegador) soltarBuzina(true, false);
+  compartilhado.buzinaGuardada = c.buzina === true;
+  if (compartilhado.buzinaGuardada || noNavegador) soltarBuzina(true, false);
   for (const [v, t] of Object.entries(c.arquiteturas || {})) { const o = el('option', '', NOME_ARQ[v] || v); o.value = v; o.title = t; $('#cArq').append(o); }
   // ?vitrine=pensando,trabalhando,concluido,aguardando,disponivel mostra os estados sem rodar nada
   const vitrine = new URLSearchParams(location.search).get('vitrine');
-  if (vitrine) { vitrine.split(',').forEach((e, i) => agentes[i] && estado(agentes[i].id, e)); return; }
+  if (vitrine) { vitrine.split(',').forEach((e, i) => compartilhado.agentes[i] && estado(compartilhado.agentes[i].id, e)); return; }
   boasVindas(new URLSearchParams(location.search).has('boasvindas')).catch(() => {});
   const fonte = new EventSource('/api/eventos'); const luz = $('#conexao');
   fonte.onopen = () => { luz.classList.add('viva'); luz.title = 'conectado ao servidor'; };
@@ -62,7 +69,7 @@ if (new URLSearchParams(location.search).has('t')) { const q = new URLSearchPara
   fonte.onmessage = (m) => {
     const e = JSON.parse(m.data);
     if (e.tipo === 'ola') {
-      if (boot && boot !== e.boot) { ultimo = 0; tarefas.clear(); desenharQuadro(); pendencia(false); ocupado(false); vazio(); carregarConfig(); }
+      if (boot && boot !== e.boot) { ultimo = 0; compartilhado.tarefas.clear(); desenharQuadro(); pendencia(false); ocupado(false); vazio(); carregarConfig(); }
       boot = e.boot; return;
     }
     if (e.n && e.n <= ultimo) return;
@@ -70,3 +77,7 @@ if (new URLSearchParams(location.search).has('t')) { const q = new URLSearchPara
     (trata[e.tipo] || (() => {}))(e);
   };
 })();
+
+// O modo de captura do aplicativo de mesa (electron/main.cjs) abre as boas-vindas para fotografar. Como os módulos
+// não deixam nada no escopo global, esta é a única porta, e só faz isso.
+window.muvucaAbrirBoasVindas = () => boasVindas(true);

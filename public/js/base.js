@@ -1,9 +1,10 @@
 // Utilitários e estado compartilhado por todos os arquivos da tela.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 const ESTADOS = { disponivel:'Disponível', pensando:'Pensando', trabalhando:'Trabalhando', concluido:'Concluído', aguardando:'Aguarda você' };
-let agentes = [], destino = 'time', rodando = false, baloes = {};
+compartilhado.agentes = []; compartilhado.destino = 'time'; compartilhado.rodando = false; compartilhado.baloes = {};
 
 // Lê JSON do servidor conferindo a resposta. Antes, uma resposta de erro era lida como se fosse o dado, e a tela
 // quebrava mais adiante sem dizer nada.
@@ -29,3 +30,5 @@ const textoDoUso = (e) => {
   const milhares = (n) => (n >= 1000 ? `${Math.round(n / 1000)} mil` : String(n));
   return `Tempo total: ${tempo} · ${e.chamadas} chamada(s) ao provedor` + (e.custo !== undefined ? ` · ${milhares(e.entrada)} tokens lidos e ${milhares(e.saida)} escritos · US$ ${e.custo.toFixed(2)} pela tabela da API` : '');
 };
+
+export { $, ESTADOS, avisar, el, lerDoServidor, textoDoUso };

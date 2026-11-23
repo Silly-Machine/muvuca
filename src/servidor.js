@@ -412,7 +412,10 @@ const servidor = http.createServer(async (req, res) => {
           const readme = await fs.readFile(path.join(RAIZ, 'docs', 'guia.md'), 'utf8').catch(() => fs.readFile(path.join(RAIZ, 'README.md'), 'utf8')).catch(() => '');
           const r = await chamar(prov, { sistema: sistemaBuzina(readme), mensagens: [...historico, { role: 'user', content: pergunta }], ferramentas: [], sinal: AbortSignal.timeout(90000), cwd: pasta, agente: { id: 'buzina', nome: 'Buzina', ferramentas: [] } });
           const texto = String(r.texto || '').trim();
-          if (texto) return json(res, 200, { texto: texto.slice(0, 4000), fonte: prov.modelo || prov.nome });
+          // aplicativo que saiu com erro (login vencido, por exemplo) devolve a mensagem de erro como texto: isso não é resposta
+          const falhou = /\[aviso: .+ saiu com código \d+\]/.test(texto);
+          if (texto && !falhou) return json(res, 200, { texto: texto.slice(0, 4000), fonte: prov.modelo || prov.nome });
+          if (falhou) return json(res, 200, { texto: responderOffline(pergunta).texto, fonte: 'guia embutido', aviso: `O modelo não respondeu (${texto.split('\n')[0].slice(0, 120)}). Usei o guia embutido.` });
         } catch (e) {
           const off = responderOffline(pergunta);
           return json(res, 200, { texto: off.texto, fonte: 'guia embutido', aviso: `O modelo não respondeu (${String(e.message).slice(0, 120)}). Usei o guia embutido.` });

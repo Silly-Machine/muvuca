@@ -61,8 +61,14 @@ secao('Página e imagens');
   ok('as 85 imagens dos bonecos existem', !faltam.length, faltam.join(', ')); }
 { const html = (await get('/')).t; const pedidos = [...html.matchAll(/(?:src|href)="(\/(?:js|css)\/[^"]+)"/g)].map((m) => m[1]); const ruins = [];
   for (const p of pedidos) { const r = await fetch(BASE + p); const t = r.headers.get('content-type') || ''; if (r.status !== 200 || !(p.endsWith('.css') ? t.startsWith('text/css') : t.startsWith('text/javascript'))) ruins.push(p + ' ' + r.status + ' ' + t); await r.arrayBuffer(); }
-  ok('estilos e scripts da tela são servidos com o tipo certo', pedidos.length >= 10 && !ruins.length, ruins.join(', ') || 'só ' + pedidos.length + ' arquivos');
-  ok('módulos de regras são servidos', (await get('/js/regras/setas.js')).s === 200 && (await get('/js/regras/historico.js')).s === 200);
+  ok('estilos e a entrada da tela são servidos com o tipo certo', pedidos.includes('/js/principal.js') && pedidos.length >= 4 && !ruins.length, ruins.join(', ') || pedidos.join(' '));
+  // a tela é feita de módulos: a partir da entrada, todo arquivo importado tem de ser servido como JavaScript
+  { const vistos = new Set(), fila = ['/js/principal.js'], quebrados = [];
+    while (fila.length) { const u = fila.pop(); if (vistos.has(u)) continue; vistos.add(u);
+      const r = await fetch(BASE + u); const txt = await r.text();
+      if (r.status !== 200 || !(r.headers.get('content-type') || '').startsWith('text/javascript')) { quebrados.push(u + ' ' + r.status); continue; }
+      for (const m of txt.matchAll(/^import\s+(?:[^'"]*?from\s+)?['"]([^'"]+)['"]/gm)) fila.push(new URL(m[1], 'http://x' + u).pathname); }
+    ok('todos os módulos da tela são servidos', vistos.size >= 14 && !quebrados.length, quebrados.join(', ') || 'só ' + vistos.size + ' módulos'); }
   const e1 = await fetch(BASE + '/js/base.js'); const etag = e1.headers.get('etag'); await e1.arrayBuffer();
   ok('arquivo que não mudou responde 304', !!etag && (await fetch(BASE + '/js/base.js', { headers: { 'if-none-match': etag } })).status === 304); }
 ok('pasta de scripts não deixa subir de nível nem servir outro tipo', (await get('/js/..%2F..%2Fsrc%2Fservidor.js')).s === 404 && (await get('/js/../../package.json')).s === 404 && (await get('/js/regras/../../index.html')).s === 404 && (await get('/css/estilo.css.map')).s === 404 && (await get('/js/a/b/c.js')).s === 404 && (await get('/js/')).s === 404);

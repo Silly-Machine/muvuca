@@ -1,12 +1,17 @@
 // Quadro de tarefas.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+import { depois } from './tardias.js';
+import { $, el } from './base.js';
+import { PERSONAGENS } from './personagens.js';
+import { NOME_CX, ag } from './palco.js';
+
 /* ---------- quadro de tarefas ---------- */
 // O servidor manda um evento "tarefa" com o cartão inteiro a cada mudança; aqui é só desenhar.
-const tarefas = new Map();
+compartilhado.tarefas = new Map();
 const COLUNAS = [['afazer', 'A fazer'], ['trabalhando', 'Trabalhando'], ['bloqueado', 'Bloqueado'], ['revisao', 'Em revisão'], ['fim', 'Encerrado']];
 const SELO_FIM = { pronto: ['bom', 'pronto'], falhou: ['mau', 'não aprovado'], parado: ['neutro', 'parado'] };
 function desenharQuadro() {
-  const lista = [...tarefas.values()];
+  const lista = [...compartilhado.tarefas.values()];
   const bloq = lista.filter((t) => t.estado === 'bloqueado').length;
   $('#qSinal').hidden = !bloq; $('#qSinal').textContent = bloq;
   if (!document.body.classList.contains('ver-quadro')) return;
@@ -33,3 +38,8 @@ function desenharQuadro() {
     return c;
   }));
 }
+
+// chamadas por arquivos carregados antes deste, em resposta a eventos (ver tardias.js)
+Object.assign(depois, { desenharQuadro });
+
+export { desenharQuadro };

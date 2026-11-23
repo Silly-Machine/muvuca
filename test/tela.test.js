@@ -104,18 +104,67 @@ test('histórico: guarda no máximo o limite de passos, descartando os mais anti
   assert.deepEqual([h.desfazer('5'), h.desfazer('4'), h.desfazer('3'), h.desfazer('2')], ['4', '3', '2', null]);
 });
 
-test('tela dividida: todo arquivo que o index.html pede existe, e nenhum script fica de fora', () => {
+// A tela é feita de módulos: cada arquivo tem o próprio escopo e declara o que importa. Estes testes conferem a
+// estrutura sem navegador: quem importa quem, em que ordem, e que nada escapa para o escopo global.
+const JS = path.join(PUBLIC, 'js');
+const modulos = () => fs.readdirSync(JS).filter((n) => n.endsWith('.js'));
+const importacoes = (arq) => [...fs.readFileSync(path.join(JS, arq), 'utf8').matchAll(/^(?:import|export)\s+(?:[^'"]*?from\s+)?['"]([^'"]+)['"];?\s*$/gm)].map((m) => m[1]);
+const ordemDeCarga = () => importacoes('principal.js').map((c) => c.replace('./', ''));
+
+test('tela em módulos: o index.html carrega uma entrada só, sem script nem estilo embutido', () => {
   const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
-  const pedidos = [...html.matchAll(/(?:src|href)="\/((?:js|css)\/[^"]+)"/g)].map((m) => m[1]);
-  assert.ok(pedidos.length >= 10, 'o index.html carrega os estilos e os scripts');
-  for (const p of pedidos) {
-    assert.ok(fs.existsSync(path.join(PUBLIC, p)), `falta public/${p}`);
-    assert.match('/' + p, /^\/(css\/[a-z0-9-]+\.css|js\/(?:[a-z0-9-]+\/)?[a-z0-9-]+\.js)$/, `o servidor não serviria ${p}`);
+  const scripts = [...html.matchAll(/<script\b([^>]*)>/g)].map((m) => m[1].trim());
+  assert.deepEqual(scripts, ['type="module" src="/js/principal.js"']);
+  assert.equal(/<script\b[^>]*>\s*[^<\s]/.test(html), false, 'sem script embutido');
+  assert.equal(/<style>/.test(html), false, 'sem estilo embutido');
+  for (const m of html.matchAll(/(?:src|href)="\/((?:js|css|fontes)\/[^"]+)"/g)) assert.ok(fs.existsSync(path.join(PUBLIC, m[1])), `falta public/${m[1]}`);
+});
+
+test('tela em módulos: a entrada carrega todas as partes, com inicio.js por último', () => {
+  const ordem = ordemDeCarga();
+  const apoio = ['principal.js', 'estado.js', 'tardias.js'];   // a entrada e os dois módulos que só guardam objetos
+  assert.deepEqual(modulos().filter((n) => !apoio.includes(n) && !ordem.includes(n)), [], 'parte da tela que a entrada não carrega');
+  assert.deepEqual(ordem.filter((n) => !fs.existsSync(path.join(JS, n))), [], 'a entrada pede arquivo que não existe');
+  assert.equal(ordem.at(-1), 'inicio.js'); assert.equal(ordem[0], 'base.js');
+  assert.equal(new Set(ordem).size, ordem.length, 'nenhuma parte carregada duas vezes');
+});
+
+test('tela em módulos: cada parte só importa das anteriores (sem ciclos), e todo arquivo importado existe e é servido', () => {
+  const ordem = ordemDeCarga();
+  const livres = ['./estado.js', './tardias.js', './regras/indice.js'];
+  for (const [k, arq] of ordem.entries()) {
+    for (const de of importacoes(arq)) {
+      assert.ok(fs.existsSync(path.join(JS, de)), `${arq} importa ${de}, que não existe`);
+      assert.match('/js/' + de.replace('./', ''), /^\/js\/(?:[a-z0-9-]+\/)?[a-z0-9-]+\.js$/, `o servidor não serviria ${de}`);
+      if (livres.includes(de)) continue;
+      const j = ordem.indexOf(de.replace('./', ''));
+      assert.ok(j >= 0 && j < k, `${arq} importa ${de}, que é carregado depois dele: isso criaria um ciclo`);
+    }
   }
-  const noDisco = fs.readdirSync(path.join(PUBLIC, 'js')).filter((n) => n.endsWith('.js')).map((n) => 'js/' + n);
-  assert.deepEqual(noDisco.filter((n) => !pedidos.includes(n)), [], 'script em public/js/ que o index.html não carrega');
-  assert.equal(/<script>(?!\s*<\/script>)/.test(html), false, 'sem script embutido no index.html');
-  assert.equal(/<style>/.test(html), false, 'sem estilo embutido no index.html');
-  assert.equal(pedidos.findIndex((p) => p === 'js/regras/ponte.js') < pedidos.findIndex((p) => p === 'js/base.js'), true, 'as regras entram antes da tela');
-  assert.equal(pedidos.filter((p) => p.startsWith('js/')).at(-1), 'js/inicio.js', 'inicio.js é o último');
+  for (const arq of ['estado.js', 'tardias.js']) assert.deepEqual(importacoes(arq), [], `${arq} não depende de ninguém`);
+  assert.deepEqual(importacoes('regras/indice.js').sort(), ['./historico.js', './setas.js']);
+});
+
+test('tela em módulos: nada vai para o escopo global, e o que um módulo usa de outro vem por importação', () => {
+  const globais = [];
+  for (const arq of modulos()) {
+    const s = fs.readFileSync(path.join(JS, arq), 'utf8');
+    for (const m of s.matchAll(/\b(?:window|globalThis)\.([A-Za-z_$][\w$]*)\s*=[^=]/g)) globais.push(`${arq}: ${m[1]}`);
+  }
+  assert.deepEqual(globais, ['inicio.js: muvucaAbrirBoasVindas'], 'a única porta para fora é a do modo de captura');
+  // o que é exportado por um módulo é importado por alguém: exportação sem uso é sinal de dependência esquecida
+  const usados = new Set(modulos().flatMap((a) => [...fs.readFileSync(path.join(JS, a), 'utf8').matchAll(/^import\s+\{([^}]+)\}\s+from/gm)].flatMap((m) => m[1].split(',').map((x) => x.trim()))));
+  for (const arq of ordemDeCarga()) {
+    const exp = /^export \{([^}]+)\};?\s*$/m.exec(fs.readFileSync(path.join(JS, arq), 'utf8'));
+    for (const n of (exp ? exp[1].split(',').map((x) => x.trim()) : [])) assert.ok(usados.has(n), `${arq} exporta ${n}, que ninguém importa`);
+  }
+  // funções "de depois": toda chamada por depois.x tem um módulo que registra x
+  const registradas = new Set(modulos().flatMap((a) => [...fs.readFileSync(path.join(JS, a), 'utf8').matchAll(/Object\.assign\(depois, \{([^}]+)\}\)/g)].flatMap((m) => m[1].split(',').map((x) => x.trim()))));
+  for (const arq of modulos()) for (const m of fs.readFileSync(path.join(JS, arq), 'utf8').matchAll(/\bdepois\.([A-Za-z_$][\w$]*)/g)) assert.ok(registradas.has(m[1]), `${arq} chama depois.${m[1]}, que nenhum módulo registra`);
+  // e quem registra uma função "de depois" vem, na ordem de carga, depois de quem a chama
+  const ordem = ordemDeCarga();
+  for (const arq of ordem) for (const m of fs.readFileSync(path.join(JS, arq), 'utf8').matchAll(/\bdepois\.([A-Za-z_$][\w$]*)\s*\(/g)) {
+    const dona = ordem.find((a) => new RegExp(`Object\\.assign\\(depois, \\{[^}]*\\b${m[1]}\\b`).test(fs.readFileSync(path.join(JS, a), 'utf8')));
+    assert.ok(ordem.indexOf(dona) > ordem.indexOf(arq), `${arq} chama depois.${m[1]}, mas ${dona} é carregado antes: devia ser importação direta`);
+  }
 });

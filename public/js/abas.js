@@ -1,5 +1,13 @@
 // Abas Rotinas, Agentes, Projetos e Configurações.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+import { depois } from './tardias.js';
+import { $, el, lerDoServidor } from './base.js';
+import { PERSONAGENS, mascote } from './personagens.js';
+import { NOME_CX, NOME_FUNCAO, ROTULO_NIVEL, desenharArestas, modeloDoNivel, montarTime } from './palco.js';
+import { abrirConstrutor, adicionarDoCatalogo, aplicarTime, limparHistorico, montarEditor, novoAgente } from './construtor.js';
+import { enviar, secao } from './conversa.js';
+import { buzinaSolta } from './buzina.js';
+
 /* ---------- rotinas ---------- */
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 let rotinas = [];
@@ -20,7 +28,7 @@ async function montarRotinas() {
     c.append(h, el('div', 'situacao', quandoRotina(r)), el('div', 'pedido-rotina', r.texto), el('code', '', r.projeto || `pasta padrão (${j.padrao})`),
       el('div', 'situacao' + (/^(não aprovada|erro|recusada|interrompida)/.test(r.resultado) ? ' ruim' : ''), r.ultima ? `Última vez: ${new Date(r.ultima).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` + (r.resultado ? ` · ${r.resultado}` : '') : 'Ainda não rodou'));
     const bs = el('div', 'botoes');
-    const agora = el('button', 'primario', 'Rodar agora'); agora.disabled = rodando;
+    const agora = el('button', 'primario', 'Rodar agora'); agora.disabled = compartilhado.rodando;
     agora.onclick = async () => { const x = await fetch('/api/rotinas/rodar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }) }); if (x.ok) secao('time'); else $('#rErro').textContent = 'Não deu: ' + ((await x.json().catch(() => ({}))).erro || x.status); };
     const pausa = el('button', '', r.ativa ? 'Pausar' : 'Ativar');
     pausa.onclick = async () => { try { await gravarRotinas(rotinas.map((x) => (x === r ? { ...x, ativa: !x.ativa } : x))); } catch (e) { $('#rErro').textContent = 'Não deu: ' + e.message; } montarRotinas(); };
@@ -38,9 +46,9 @@ $('#rForm').onsubmit = async (e) => {
 
 /* ---------- agentes básicos na aba Agentes ---------- */
 async function montarBasicos(buscar = false) {
-  if (buscar && !catalogo.length) { try { const j = await lerDoServidor('/api/times'); galeria = j.times || []; catalogo = j.catalogo || []; } catch { /* sem servidor: fica sem a lista */ } }
+  if (buscar && !compartilhado.catalogo.length) { try { const j = await lerDoServidor('/api/times'); compartilhado.galeria = j.times || []; compartilhado.catalogo = j.catalogo || []; } catch { /* sem servidor: fica sem a lista */ } }
   const raiz = $('#fichas'); raiz.querySelectorAll('.basico, .sec.segunda, .sec.segunda + .nota').forEach((x) => x.remove());
-  const lista = catalogo.filter((a) => !a.secreto || buzinaSolta());
+  const lista = compartilhado.catalogo.filter((a) => !a.secreto || buzinaSolta());
   if (!lista.length) return;
   const h = el('h2', 'sec segunda', 'Agentes básicos'); h.append(el('small', '', `${lista.length} modelos prontos, os mesmos da biblioteca do construtor`));
   raiz.append(h, el('p', 'nota', 'Eles ainda não estão no time. Use "Pôr num time" para abrir o construtor já com o agente incluído.'));
@@ -63,7 +71,7 @@ async function montarMemoria() {
   const projeto = $('#projeto').value.trim();
   let j; try { j = await lerDoServidor('/api/memoria?projeto=' + encodeURIComponent(projeto)); } catch { return; }
   document.querySelectorAll('#fichas .ficha:not(.basico)').forEach((f, i) => {
-    const a = agentes[i]; if (!a) return; f.querySelector('.memo')?.remove();
+    const a = compartilhado.agentes[i]; if (!a) return; f.querySelector('.memo')?.remove();
     if (a.funcao === 'lider' || a.funcao === 'sublider') return;   // quem só planeja não guarda notas
     const notas = j.notas?.[a.id] || []; const m = el('div', 'memo');
     m.append(el('h4', '', notas.length ? `Memória neste projeto (${notas.length})` : 'Memória neste projeto: nenhuma nota ainda'));
@@ -152,7 +160,7 @@ function preencherModelos() {
   for (const i of ['#cfMBaixa', '#cfMMedia', '#cfMAlta']) { $(i).placeholder = p.modelo || 'padrão do provedor'; $(i).disabled = p.tipo === 'demo'; }
   $('#cfModelosLista').replaceChildren(...[...new Set([p.modelo, ...Object.values(p.modelos || {})].filter(Boolean))].map((m) => { const o = el('option'); o.value = m; return o; }));
   $('#cfProvMotivo').textContent = (p.pronto ? 'Pronto: ' : 'Ainda não dá para usar: ') + p.motivo + '.'; $('#cfProvMotivo').className = 'nota' + (p.pronto ? '' : ' ruim');
-  $('#cfProvUsar').disabled = !p.pronto || rodando;
+  $('#cfProvUsar').disabled = !p.pronto || compartilhado.rodando;
 }
 async function montarProvedores(manter) {
   let j; try { j = await lerDoServidor('/api/provedores'); } catch { return; }
@@ -167,7 +175,7 @@ async function montarProvedores(manter) {
 }
 function montarNiveis() {
   const raiz = $('#cfAgentes'); raiz.replaceChildren();
-  for (const a of agentes) {
+  for (const a of compartilhado.agentes) {
     const l = el('div', 'linha-nivel'); l.style.setProperty('--cor', a.cor);
     const img = el('img'); img.alt = ''; img.src = `/bonecos/${PERSONAGENS[a.forma] ? a.forma : 'regente'}-disponivel.webp`;
     const nome = el('b', '', a.nome); nome.append(el('small', '', a.funcao ? NOME_FUNCAO[a.funcao] : (a.ferramentas || []).includes('escrever') ? 'executor' : 'só consulta'));
@@ -179,7 +187,7 @@ function montarNiveis() {
     for (const [v, t] of opcoesNivel) { if (v === 'auto' && !a.nivelPadrao) continue; const o = el('option', '', t); o.value = v; sel.append(o); }
     sel.value = a.complexidade === 'auto' && !a.nivelPadrao ? '' : (a.complexidade || '');
     if (a.modeloFixo) { sel.replaceChildren(el('option', '', `Fixo: ${a.modeloFixo} (definido no construtor)`)); sel.disabled = true; }
-    sel.disabled = sel.disabled || rodando;
+    sel.disabled = sel.disabled || compartilhado.rodando;
     sel.onchange = async () => {
       const m = $('#cfNivelMsg'); m.textContent = ''; m.className = '';
       const r = await fetch('/api/agentes/nivel', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: a.id, nivel: sel.value }) });
@@ -226,19 +234,24 @@ $('#cfSalvar').onclick = async () => {
     await montarConfig(); $('#cfMsg').className = 'ok'; $('#cfMsg').textContent = 'Configurações salvas em preferencias.json.';
   } catch (e) { $('#cfMsg').className = 'ruim'; $('#cfMsg').textContent = 'Não deu: ' + e.message; }
 };
-$('#cNome').oninput = (e) => { rascunho.nome = e.target.value; };
-$('#cArq').onchange = (e) => { rascunho.arquitetura = e.target.value; montarEditor(); };
+$('#cNome').oninput = (e) => { compartilhado.rascunho.nome = e.target.value; };
+$('#cArq').onchange = (e) => { compartilhado.rascunho.arquitetura = e.target.value; montarEditor(); };
 $('#cNovo').onclick = novoAgente; $('#cAplicar').onclick = () => aplicarTime(false); $('#cSalvar').onclick = () => aplicarTime(true);
-$('#cDescartar').onclick = () => { rascunho = null; limparHistorico(); secao('time'); };
-new ResizeObserver(() => rascunho && desenharArestas($('#previa'))).observe($('#previa'));
+$('#cDescartar').onclick = () => { compartilhado.rascunho = null; limparHistorico(); secao('time'); };
+new ResizeObserver(() => compartilhado.rascunho && desenharArestas($('#previa'))).observe($('#previa'));
 
 async function carregarConfig() {
   const c = await lerDoServidor('/api/config');
-  agentes = c.agentes; arquitetura = c.arquitetura || 'centralizada'; nomeTime = c.nomeTime || ''; arquiteturas = c.arquiteturas || {}; provedores = c.provedores || [];
-  if (destino !== 'time' && !agentes.some((a) => a.id === destino)) destino = 'time';
+  compartilhado.agentes = c.agentes; compartilhado.arquitetura = c.arquitetura || 'centralizada'; compartilhado.nomeTime = c.nomeTime || ''; compartilhado.arquiteturas = c.arquiteturas || {}; compartilhado.provedores = c.provedores || [];
+  if (compartilhado.destino !== 'time' && !compartilhado.agentes.some((a) => a.id === compartilhado.destino)) compartilhado.destino = 'time';
   montarTime();
   if (c.versao) $('#versao').textContent = 'v' + c.versao;
   return c;
 }
 $('#texto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
 document.addEventListener('keydown', (e) => { if (e.ctrlKey && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#texto').focus(); } });
+
+// chamadas por arquivos carregados antes deste, em resposta a eventos (ver tardias.js)
+Object.assign(depois, { carregarConfig, montarBasicos, montarConfig, montarMemoria, montarProjetos, montarRotinas });
+
+export { carregarConfig, lerProjetos };

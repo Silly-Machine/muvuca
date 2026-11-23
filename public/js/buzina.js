@@ -1,18 +1,24 @@
 // Buzina, a mascote: easter egg e conversa sobre a própria Muvuca.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
+import { compartilhado } from './estado.js';
+import { depois } from './tardias.js';
+import { $, el, lerDoServidor } from './base.js';
+import { noPalco } from './palco.js';
+import { montarBiblioteca } from './construtor.js';
+import { secao } from './conversa.js';
+
 /* ---------- easter egg: Buzina ---------- */
 // Cinco cliques seguidos no logo, ou digitar "buzina" em qualquer lugar, soltam a mascote no palco.
 // Ela espelha o humor do time (pensando, trabalhando, pronto, esperando você) e entra na biblioteca do construtor.
 // A escolha fica na pasta de dados (vale para o navegador e para o aplicativo de mesa); o navegador guarda uma cópia.
-let buzinaGuardada = null;   // o que o servidor tem; null até a configuração chegar
-const buzinaSolta = () => { if (buzinaGuardada !== null) return buzinaGuardada; try { return localStorage.getItem('muvuca.buzina') === '1'; } catch { return false; } };
+compartilhado.buzinaGuardada = null;   // o que o servidor tem; null até a configuração chegar
+const buzinaSolta = () => { if (compartilhado.buzinaGuardada !== null) return compartilhado.buzinaGuardada; try { return localStorage.getItem('muvuca.buzina') === '1'; } catch { return false; } };
 function guardarBuzina(liga) {
   try { localStorage.setItem('muvuca.buzina', liga ? '1' : '0'); } catch {}
-  if (buzinaGuardada === liga) return;
-  buzinaGuardada = liga;
+  if (compartilhado.buzinaGuardada === liga) return;
+  compartilhado.buzinaGuardada = liga;
   fetch('/api/buzina/solta', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ solta: liga }) }).catch(() => {});
 }
-let buzinaFesta = 0;
+compartilhado.buzinaFesta = 0;
 // Meta-chat: a Buzina responde dúvidas sobre a própria Muvuca. Só abre quando clicam nela.
 const conversaBuzina = [];   // [{ de: 'voce' | 'buzina', texto }] — vale enquanto a página está aberta
 function linhaBuzina(de, texto, extra) {
@@ -45,18 +51,18 @@ async function perguntarBuzina(pergunta) {
 }
 function atualizarBuzina() {
   const b = $('#buzina'); if (b.hidden) return;
-  const estados = agentes.map((a) => noPalco(a.id)?.dataset.estado);
-  const e = estados.includes('aguardando') || !$('#pendencia').hidden ? 'aguardando' : estados.includes('trabalhando') ? 'trabalhando' : estados.includes('pensando') ? 'pensando' : Date.now() < buzinaFesta ? 'concluido' : 'disponivel';
+  const estados = compartilhado.agentes.map((a) => noPalco(a.id)?.dataset.estado);
+  const e = estados.includes('aguardando') || !$('#pendencia').hidden ? 'aguardando' : estados.includes('trabalhando') ? 'trabalhando' : estados.includes('pensando') ? 'pensando' : Date.now() < compartilhado.buzinaFesta ? 'concluido' : 'disponivel';
   if (b.dataset.estado === e) return;
   b.dataset.estado = e; b.querySelector('img').src = `/bonecos/salsicha-${e}.webp`;
 }
 function soltarBuzina(liga, comFala = true) {
   guardarBuzina(liga);
   const b = $('#buzina');
-  if (!liga) { b.hidden = true; abrirBuzinaChat(false); montarBasicos(); return; }
+  if (!liga) { b.hidden = true; abrirBuzinaChat(false); depois.montarBasicos(); return; }
   b.hidden = false; delete b.dataset.estado; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; atualizarBuzina();
   if (document.body.classList.contains('ver-construtor')) montarBiblioteca();
-  montarBasicos();
+  depois.montarBasicos();
 }
 $('#buzina').onclick = () => { const b = $('#buzina'); b.classList.remove('pulo'); void b.offsetWidth; b.classList.add('pulo'); abrirBuzinaChat($('#buzinaChat').hidden); };
 $('#bcFechar').onclick = () => { abrirBuzinaChat(false); $('#buzina').focus(); };
@@ -76,5 +82,10 @@ $('#buzinaChat').addEventListener('keydown', (e) => { if (e.key === 'Escape') { 
   setInterval(atualizarBuzina, 1500);   // para a festa do "concluído" acabar sozinha
 }
 
-$('#navQuadro').onclick = () => { secao('quadro'); desenharQuadro(); };
-$('#navRotinas').onclick = () => { secao('rotinas'); montarRotinas(); };
+$('#navQuadro').onclick = () => { secao('quadro'); depois.desenharQuadro(); };
+$('#navRotinas').onclick = () => { secao('rotinas'); depois.montarRotinas(); };
+
+// chamadas por arquivos carregados antes deste, em resposta a eventos (ver tardias.js)
+Object.assign(depois, { atualizarBuzina, buzinaSolta });
+
+export { buzinaSolta, soltarBuzina };

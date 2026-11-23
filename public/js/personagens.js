@@ -1,5 +1,4 @@
 // Os personagens: imagens por estado e o desenho vetorial de reserva.
-// Parte da tela da Muvuca. Os arquivos de public/js/ dividem o mesmo escopo e são carregados na ordem do index.html.
 /* ---------- personagens ---------- */
 function mistura(hex, alvo, t) {
   const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -198,3 +197,5 @@ function mascoteVetor(a, i, sufixo = '') {
     <g class="estrelas"><circle cx="30" cy="40" r="4" fill="#ffd27a"/><circle cx="134" cy="36" r="5" fill="#63e6a3"/><circle cx="20" cy="84" r="3" fill="#ff7b96"/><circle cx="142" cy="80" r="3.5" fill="${c.cla}"/></g>
   </svg>`;
 }
+
+export { PERSONAGENS, mascote };
