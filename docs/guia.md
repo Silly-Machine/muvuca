@@ -19,6 +19,7 @@ Tudo o que é seu fica na **pasta de dados**, fora da pasta do aplicativo: `~/.m
 | `preferencias.json` | pasta padrão, comando de teste, limites, provedor e modelos escolhidos |
 | `projetos.json` | a lista de pastas de projeto |
 | `rotinas.json` | os pedidos agendados |
+| `conexoes.json`, `.mcp/` | as conexões (servidores MCP), quem pode usar cada uma e a configuração entregue a cada agente |
 | `memoria/` | as notas de cada agente, por projeto |
 | `times/` | os times salvos pelo construtor |
 | `agentes.local.json` | provedores extras seus (opcional) |
@@ -106,10 +107,11 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `src/provedores.js` | ~90 | os três tipos de provedor atrás de uma função só |
 | `src/times.js` | ~110 | o validador do construtor: regras de cada arquitetura |
 | `src/demo.js` | ~190 | o roteiro da demonstração, mais líder e executor genéricos para times do construtor |
+| `src/conexoes.js` | ~190 | conexões (servidores MCP): validação, configuração sem segredos e teste de conexão |
 | `src/ajustes.js`, `memoria.js`, `rotinas.js`, `buzina.js` | ~240 | preferências e anexos, notas dos agentes, agendamento, guia da mascote |
 | `public/index.html` | ~230 | a estrutura da página, sem framework |
 | `public/css/` | ~500 | `estilo.css` (estrutura) e `tema.css` (tema pelúcia) |
-| `public/js/` | ~1600 | um arquivo por parte da tela: base, personagens, palco, construtor, conversa, buzina, quadro, abas, inicio |
+| `public/js/` | ~1600 | um arquivo por parte da tela: base, personagens, palco, construtor, conversa, buzina, quadro, abas, conexoes, inicio |
 | `public/js/regras/` | ~110 | lógica sem tela, com testes: regras das setas e histórico do desfazer |
 | `public/bonecos/` | 85 imagens | os personagens, 17 formas em 5 estados |
 | `config/agentes.json` | | o time de fábrica e os provedores (demonstração e `claude-cli`) |
@@ -117,7 +119,7 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `config/arquiteturas/` | 7 arquivos | os modelos prontos de time |
 | `bin/muvuca.js` | ~50 | o comando `muvuca`: sobe o servidor e abre o navegador |
 | `electron/` | ~110 | o aplicativo de mesa: janela, seletor de pasta, ícone |
-| `test/` | 8 arquivos | 57 testes automáticos; `test/apoio/` tem os aplicativos falsos |
+| `test/` | 9 arquivos | 65 testes automáticos; `test/apoio/` tem os aplicativos e o servidor MCP falsos |
 | `scripts/` | | `versao.mjs` (lançar versões), `bateria.mjs` e `arquiteturas-reais.mjs` (testes ao vivo) |
 | `assets/personagens/` | | fontes dos personagens e os scripts que geram `public/bonecos/` |
 
@@ -258,6 +260,25 @@ Três ideias adaptadas do Grok Bot (xAI) para um app local:
 - **Quadro de tarefas** (ícone de colunas): cada etapa do pedido vira um cartão em A fazer, Trabalhando, Bloqueado, Em revisão ou Encerrado (pronto, não aprovado ou parado). "Bloqueado" é o agente esperando você aprovar um comando; o ícone da aba mostra quantos estão assim. Correções pedidas pelo portão ou pelo revisor viram cartões próprios.
 - **Memória por agente** (aba Agentes): notas curtas por projeto, em `memoria/`, fora da pasta do projeto. O agente as recebe no começo de cada trabalho. Uma nota nasce de duas formas: o agente termina a resposta com `LEMBRAR: ...`, ou o revisor reprova algo dele. No máximo 20 notas por agente e projeto; dá para apagar cada uma na ficha do agente. Líder e sub-líder não guardam notas.
 
+## Conexões (servidores MCP)
+
+A aba **Conexões** (ícone de tomada) dá aos agentes acesso a coisas fora da pasta do projeto: documentação atualizada, issues, um banco de dados. Cada conexão é um servidor MCP.
+
+- **Dois tipos.** "Comando neste computador" sobe o servidor por uma linha de comando (por exemplo `npx -y nome-do-servidor`). "Endereço na rede" fala com um servidor HTTP.
+- **Testar.** O botão sobe o servidor, pede a lista de ferramentas e encerra. Dá para testar antes de criar.
+- **Quem pode usar.** Cada agente só recebe as conexões marcadas para ele. De fábrica, nenhuma.
+- **Só agentes que não escrevem arquivos** (líder, pesquisa, revisor). O que um agente faz por uma conexão acontece fora da pasta e **não é desfeito pelo "Descartar"**; por isso quem escreve código fica sem. Na tela, esses agentes aparecem bloqueados, com o motivo.
+- **Só com o Claude Code.** O provedor precisa declarar como recebe conexões (campo `argsMcp` em `config/agentes.json`; o `claude-cli` já traz). Em demonstração e nos provedores por API, as conexões não são usadas.
+- **Nenhum token é gravado.** Servidor que precisa de chave recebe só o **nome** de uma variável de ambiente; o valor você define no sistema antes de abrir a Muvuca. A tela recusa o que parece ser um valor. Conexão com variável faltando fica de fora do pedido, e a lista avisa qual falta.
+- **Na conversa**, cada uso aparece como "Scout usou a conexão cofre: senha_do_dia".
+- As conexões ficam em `conexoes.json`, na pasta de dados. A configuração que cada agente recebe é gravada em `.mcp/`, na mesma pasta, só com referências às variáveis.
+
+Um comando de conexão roda neste computador com as suas permissões. Crie conexões só com servidores em que você confia.
+
+Como funciona por baixo: a Muvuca chama o `claude` com `--strict-mcp-config` (ele ignora qualquer servidor configurado na sua máquina), entrega só as conexões do agente (`--mcp-config`) e libera só as ferramentas delas (`--allowedTools`). Conferido com o `claude` 2.1.284: com a permissão, o agente consultou a conexão; sem ela, a chamada foi negada.
+
+Ficou de fora desta primeira versão: aprovação ação por ação, conexões para quem escreve código, e suporte nos provedores por API.
+
 ## Buzina, a mascote (easter egg)
 
 A Muvuca tem uma mascote escondida: a Buzina, uma salsicha astronauta. Para soltá-la, clique cinco vezes seguidas no logo, ou digite `buzina` em qualquer lugar da página. Repetir os cinco cliques a guarda de novo.
@@ -293,8 +314,8 @@ Em **Configurações > Modelo de cada agente** dá para trocar o de qualquer age
 
 Dois níveis, os dois sem gastar modelo de verdade:
 
-- `npm test`: 57 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões e as regras da tela). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
-- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 181 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
+- `npm test`: 65 testes (orquestração, arquiteturas, memória, rotinas, quadro, modelos, Buzina, anexos, instalação, versões, regras da tela e conexões). Os de instalação sobem um servidor de verdade numa porta livre, com pasta de dados temporária.
+- `npm run bateria` (`scripts/bateria.mjs`), com a Muvuca rodando em demonstração: 200 verificações ao vivo, rota por rota. Só trabalha na pasta padrão `teste-estudio`, que precisa estar vazia, e devolve tudo ao estado inicial. O resultado fica em `apoio/bateria-resultado.json`.
 
 ### Arquiteturas com casos reais
 

@@ -12,6 +12,7 @@ import { responderOffline, sistemaBuzina, SUGESTOES } from './buzina.js';
 import { criarMemoria } from './memoria.js';
 import { normalizarRotinas, devidas } from './rotinas.js';
 import { caminhoAnexo, LIMITES_ANEXO } from './ajustes.js';
+import { normalizarConexoes, conexoesDoAgente, prepararMcp, testarConexao, variaveisQueFaltam } from './conexoes.js';
 import { lerJson, gravarJson, normalizarPreferencias, normalizarProjetos, infoProjeto, pastaPadrao } from './ajustes.js';
 
 // Raiz do aplicativo: a pasta acima de src/, onde estão public/, config/ e docs/.
@@ -88,7 +89,7 @@ async function opcoesQueFaltam(p) {
   }
   const ajuda = ajudaDe.get(p.comando);
   if (!ajuda) return [];   // sem ajuda legível não dá para conferir: segue como antes
-  const usadas = [...new Set([...(p.args || []), ...(p.argsLeitura || []), p.argModelo].filter((a) => /^--[a-z]/.test(String(a))))];
+  const usadas = [...new Set([...(p.args || []), ...(p.argsLeitura || []), ...(p.argsMcp || []), p.argModelo].filter((a) => /^--[a-z]/.test(String(a))))];
   return usadas.filter((o) => !new RegExp(`(^|[\\s,])${o}([\\s,=<\\[]|$)`, 'm').test(ajuda));
 }
 async function versaoDe(comando) {
@@ -112,6 +113,28 @@ aplicarPrefs();
 // Memória por agente (notas por projeto) e rotinas (pedidos agendados).
 const memoria = criarMemoria(path.join(DADOS, 'memoria'));
 muvuca.memoria = memoria;
+// Conexões (servidores MCP) e quem pode usar cada uma. Só agentes que não escrevem arquivos recebem conexões,
+// e só quando o provedor deles sabe recebê-las (campo argsMcp). O que uma conexão faz fora da pasta do projeto
+// não é desfeito pelo "Descartar": por isso quem escreve código fica sem.
+const ARQ_CONEXOES = path.join(DADOS, 'conexoes.json');
+let conexoes = { conexoes: [], agentes: {} };
+try { conexoes = normalizarConexoes(await lerJson(ARQ_CONEXOES, {})); } catch { /* arquivo estragado: começa vazio */ }
+function situacaoConexoes(a) {
+  if ((a.ferramentas || []).includes('escrever')) return { pode: false, motivo: 'escreve arquivos: fica sem conexões, porque o que elas fazem fora da pasta não é desfeito pelo "Descartar"' };
+  const p = cfg.provedores[a.provedor];
+  if (!Array.isArray(p?.argsMcp)) return { pode: false, motivo: p?.tipo === 'demo' ? 'em demonstração as conexões não são usadas' : `o provedor ${a.provedor} não recebe conexões` };
+  return { pode: true, motivo: '' };
+}
+muvuca.conexoesDe = async (ag) => {
+  if (!situacaoConexoes(ag).pode) return null;
+  // conexão com variável de ambiente faltando fica de fora, em vez de derrubar a chamada inteira
+  return prepararMcp(path.join(DADOS, '.mcp'), ag.id, conexoesDoAgente(conexoes, ag.id).filter((c) => !variaveisQueFaltam(c).length));
+};
+const verConexoes = () => ({
+  conexoes: conexoes.conexoes.map((c) => ({ ...c, faltam: variaveisQueFaltam(c) })),
+  agentes: conexoes.agentes,
+  time: muvuca.cfg.agentes.map((a) => ({ id: a.id, nome: a.nome, papel: a.papel || '', ...situacaoConexoes(a) })),
+});
 const ARQ_ROTINAS = path.join(DADOS, 'rotinas.json');
 let rotinas = [];
 try {
@@ -338,6 +361,21 @@ const servidor = http.createServer(async (req, res) => {
         }
       }
       return json(res, 200, { texto: responderOffline(pergunta).texto, fonte: 'guia embutido' });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/conexoes') return json(res, 200, verConexoes());
+    if (req.method === 'POST' && url.pathname === '/api/conexoes') {
+      const b = await corpo(req);
+      if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
+      conexoes = normalizarConexoes({ conexoes: b.conexoes ?? conexoes.conexoes, agentes: b.agentes ?? conexoes.agentes });
+      await gravarJson(ARQ_CONEXOES, conexoes);
+      return json(res, 200, { ok: true, ...verConexoes() });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/conexoes/testar') {
+      // Sobe o servidor da conexão, pede a lista de ferramentas e encerra. Aceita uma conexão já salva (id) ou uma ainda no formulário.
+      const b = await corpo(req);
+      const c = b.id ? conexoes.conexoes.find((x) => x.id === b.id) : normalizarConexoes({ conexoes: [b.conexao] }).conexoes[0];
+      if (!c) return json(res, 404, { erro: 'conexão não encontrada' });
+      return json(res, 200, await testarConexao(c, { limiteMs: 30000 }));
     }
     if (req.method === 'POST' && url.pathname === '/api/buzina/solta') {
       // Guarda na pasta de dados se a mascote está solta. No navegador isso ficava só no próprio navegador,

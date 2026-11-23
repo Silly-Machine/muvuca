@@ -247,6 +247,37 @@ secao('Anexos');
   ok('anexos não são servidos pela web', (await get('/anexos/nota.txt')).s === 404);
   await fs.rm(path.join(PROJETO, 'anexos'), { recursive: true, force: true }); }
 
+// ---------- conexões (servidores MCP)
+secao('Conexões');
+{ const c0x = (await get('/api/conexoes')).j;
+  const guardadas = { conexoes: c0x.conexoes.map(({ faltam, ...c }) => c), agentes: c0x.agentes };
+  const falso = path.join(AQUI, 'test', 'apoio', 'mcp-falso.js');
+  const cofre = { nome: 'Cofre da bateria', descricao: 'guarda a senha do dia', comando: `"${process.execPath}" "${falso}"` };
+  ok('lista traz conexões, ligações e o time', Array.isArray(c0x.conexoes) && typeof c0x.agentes === 'object' && c0x.time.length === c0.agentes.length);
+  ok('em demonstração ninguém usa conexão, e a tela diz por quê', c0x.time.every((a) => a.pode === false && a.motivo.length > 10), JSON.stringify(c0x.time.map((a) => a.motivo)));
+  const t = await post('/api/conexoes/testar', { conexao: cofre });
+  ok('testar antes de criar lista as ferramentas do servidor', t.s === 200 && t.j.ok === true && t.j.ferramentas.map((f) => f.nome).join() === 'senha_do_dia,eco', JSON.stringify(t.j));
+  ok('nada é gravado por um teste', (await get('/api/conexoes')).j.conexoes.length === c0x.conexoes.length);
+  const ruim = await post('/api/conexoes/testar', { conexao: { nome: 'Nada', comando: 'comando-que-nao-existe-xyz' } });
+  ok('comando que não existe: o teste explica', ruim.s === 200 && ruim.j.ok === false && /não encontrado/.test(ruim.j.erro), JSON.stringify(ruim.j));
+  ok('testar conexão que não existe dá 404', (await post('/api/conexoes/testar', { id: 'nao_existe_xyz' })).s === 404);
+  for (const [nome, c, re] of [['sem nome', { comando: 'node x' }, /nome/], ['sem comando', { nome: 'A' }, /comando/], ['endereço que não é http', { nome: 'A', tipo: 'http', url: 'ftp://x.com' }, /http/],
+    ['senha no endereço', { nome: 'A', tipo: 'http', url: 'https://u:senha@x.com/mcp' }, /usuário e senha/], ['valor de token no lugar do nome', { nome: 'A', comando: 'node x', variaveis: 'TOKEN=abc' }, /só o nome/]]) {
+    const r = await post('/api/conexoes', { conexoes: [...guardadas.conexoes, c] }); ok(`recusa conexão: ${nome}`, r.s === 400 && re.test(r.j?.erro || ''), JSON.stringify(r.j)); }
+  ok('recusa não grava nada', (await get('/api/conexoes')).j.conexoes.length === c0x.conexoes.length);
+  const criada = await post('/api/conexoes', { conexoes: [...guardadas.conexoes, cofre], agentes: { ...guardadas.agentes, [c0.agentes.find((a) => !a.ferramentas?.includes('escrever'))?.id || 'scout']: ['cofre_da_bateria', 'nao_existe'] } });
+  const nova = criada.j?.conexoes?.find((c) => c.id === 'cofre_da_bateria');
+  ok('cria a conexão com identificador tirado do nome', criada.s === 200 && !!nova && nova.args.length === 1 && nova.faltam.length === 0, JSON.stringify(criada.j).slice(0, 300));
+  ok('ligação só guarda conexões que existem', Object.values(criada.j?.agentes || {}).flat().includes('cofre_da_bateria') && !Object.values(criada.j?.agentes || {}).flat().includes('nao_existe'));
+  ok('testar pelo identificador', (await post('/api/conexoes/testar', { id: 'cofre_da_bateria' })).j?.ok === true);
+  ok('conexões ficam na pasta de dados', await fs.stat(path.join(DADOS, 'conexoes.json')).then(() => true, () => false));
+  const comVar = await post('/api/conexoes', { conexoes: [...guardadas.conexoes, { nome: 'Com chave', comando: 'node x', variaveis: 'VARIAVEL_QUE_NAO_EXISTE_NA_BATERIA' }] });
+  ok('variável de ambiente que falta aparece na lista', comVar.j?.conexoes?.find((c) => c.id === 'com_chave')?.faltam.join() === 'VARIAVEL_QUE_NAO_EXISTE_NA_BATERIA', JSON.stringify(comVar.j).slice(0, 300));
+  ok('teste com variável faltando explica', /falta definir a variável/.test((await post('/api/conexoes/testar', { id: 'com_chave' })).j?.erro || ''));
+  ok('arquivo de conexões não é servido pela web', (await get('/conexoes.json')).s === 404 && (await get('/.mcp/scout.json')).s === 404);
+  const volta = await post('/api/conexoes', guardadas);
+  ok('conexões voltam ao estado do começo', volta.s === 200 && JSON.stringify(volta.j.conexoes.map(({ faltam, ...c }) => c)) === JSON.stringify(guardadas.conexoes) && JSON.stringify(volta.j.agentes) === JSON.stringify(guardadas.agentes)); }
+
 // ---------- fim: estado igual ao do começo
 secao('Estado final');
 await post('/api/nova');

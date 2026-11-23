@@ -22,6 +22,7 @@
   <button id="navConstrutor" aria-pressed="false" title="Construtor de times" aria-label="Construtor de times"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.6"/><circle cx="5.5" cy="18.5" r="2.6"/><circle cx="18.5" cy="18.5" r="2.6"/><path d="M12 7.6v4.4M12 12H5.5v3.9M12 12h6.5v3.9"/></svg></button>
   <button id="navProjetos" aria-pressed="false" title="Projetos" aria-label="Projetos"><svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2v7.8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M3.5 10.5h17"/></svg></button>
   <button id="navRotinas" aria-pressed="false" title="Rotinas" aria-label="Rotinas"><svg viewBox="0 0 24 24"><circle cx="12" cy="12.5" r="7.5"/><path d="M12 8.3v4.4l2.8 1.8M9 2.8h6"/></svg></button>
+  <button id="navConexoes" aria-pressed="false" title="Conexões" aria-label="Conexões"><svg viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6.5 8h11v3.5a5.5 5.5 0 0 1-11 0zM12 17v4"/></svg></button>
   <button id="navConfig" aria-pressed="false" title="Configurações" aria-label="Configurações"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   <span id="conexao" title="sem conexão com o servidor"></span>
 </nav>
@@ -87,6 +88,29 @@
   <div id="quadro" class="aba">
     <h2 class="sec">Quadro de tarefas <small id="qResumo"></small></h2>
     <div id="qColunas" class="colunas"></div>
+  </div>
+  <div id="conexoes" class="aba">
+    <h2 class="sec">Conexões <small>o que os agentes alcançam fora da pasta do projeto</small></h2>
+    <p class="nota aviso-conexoes">Uma conexão é um servidor MCP: documentação, issues, um banco de dados. <b>O que um agente faz por uma conexão acontece fora da pasta do projeto e não é desfeito pelo "Descartar".</b> Por isso só agentes que não escrevem arquivos podem usar, e só as conexões que você marcar para cada um.</p>
+    <div id="xLista" class="lista-projetos"></div>
+    <h3 class="sub">Quem pode usar</h3>
+    <div id="xQuem"></div>
+    <form id="xForm" class="cartao-form" autocomplete="off">
+      <h3>Nova conexão</h3>
+      <div class="cab">
+        <label class="campo largo"><span>Nome</span><input id="xNome" maxlength="60" required placeholder="Documentação"></label>
+        <label class="campo"><span>Tipo</span><select id="xTipo"><option value="comando">Comando neste computador</option><option value="http">Endereço na rede (HTTP)</option></select></label>
+      </div>
+      <label class="campo"><span>Para que serve (o agente lê isto)</span><input id="xDescricao" maxlength="200" placeholder="consulta a documentação atual de bibliotecas"></label>
+      <label class="campo" id="xCampoComando"><span>Comando que sobe o servidor</span><input id="xComando" spellcheck="false" placeholder="npx -y nome-do-servidor-mcp"></label>
+      <label class="campo" id="xCampoVariaveis"><span>Variáveis de ambiente que ele precisa (só os nomes)</span><input id="xVariaveis" spellcheck="false" placeholder="MEU_TOKEN, OUTRA_CHAVE"></label>
+      <label class="campo" id="xCampoUrl" hidden><span>Endereço do servidor</span><input id="xUrl" spellcheck="false" placeholder="https://exemplo.com/mcp"></label>
+      <label class="campo" id="xCampoToken" hidden><span>Variável de ambiente com o token de acesso (só o nome)</span><input id="xToken" spellcheck="false" placeholder="MEU_TOKEN"></label>
+      <div class="botoes"><button class="primario" type="submit">Criar conexão</button><button type="button" id="xTestarNova">Testar antes de criar</button></div>
+      <div id="xTesteNova" class="situacao" aria-live="polite"></div>
+      <p class="nota">Nenhum token é gravado: escreva só o nome da variável de ambiente, e defina o valor no sistema antes de abrir a Muvuca. Um comando roda neste computador com as suas permissões; crie conexões só com servidores em que você confia.</p>
+      <p id="xErro" class="erro" role="alert"></p>
+    </form>
   </div>
   <div id="rotinas" class="aba">
     <h2 class="sec">Rotinas <small>pedidos que o time recebe sozinho, em dia e hora marcados</small></h2>
@@ -224,6 +248,7 @@
 <script defer src="/js/buzina.js"></script>
 <script defer src="/js/quadro.js"></script>
 <script defer src="/js/abas.js"></script>
+<script defer src="/js/conexoes.js"></script>
 <script defer src="/js/inicio.js"></script>
 </body>
 </html>

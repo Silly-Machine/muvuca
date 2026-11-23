@@ -241,8 +241,18 @@ body.sem-conversa #alternarConversa { right:14px; } body.sem-conversa #alternarC
 
 /* abas Projetos e Configurações */
 .aba { flex:1; display:none; min-height:0; overflow:auto; padding:14px 2px 10px; scrollbar-width:thin; scrollbar-color:var(--borda) transparent; }
-body.ver-projetos #projetos, body.ver-config #configuracoes, body.ver-quadro #quadro, body.ver-rotinas #rotinas { display:block; }
-body:is(.ver-projetos, .ver-config, .ver-quadro, .ver-rotinas) :is(#time, #entrada) { display:none; }
+body.ver-projetos #projetos, body.ver-config #configuracoes, body.ver-quadro #quadro, body.ver-rotinas #rotinas, body.ver-conexoes #conexoes { display:block; }
+body:is(.ver-projetos, .ver-config, .ver-quadro, .ver-rotinas, .ver-conexoes) :is(#time, #entrada) { display:none; }
+/* conexões */
+.aviso-conexoes { max-width:860px; margin:0 0 14px; padding:10px 14px; border-radius:16px; background:#f28a2e14; box-shadow:inset 0 0 0 1.5px #f28a2e40; color:inherit; }
+#conexoes h3.sub { font:600 15px var(--titulo); margin:18px 0 8px; }
+#xQuem { display:flex; flex-direction:column; gap:6px; max-width:860px; margin-bottom:18px; }
+.quem { display:flex; gap:14px; align-items:center; padding:9px 14px; border-radius:16px; background:#00000026; box-shadow:inset 0 0 0 1.5px #ffffff10; }
+.quem.sem { opacity:.62; }
+.quem-nome { flex:0 0 250px; min-width:0; } .quem-nome b { display:block; font:600 14px var(--titulo); } .quem-nome small { display:block; color:var(--apagado); font-size:12px; line-height:1.35; }
+.quem-caixas { display:flex; flex-wrap:wrap; gap:6px 16px; font-size:13.5px; } .quem-caixas label { display:inline-flex; align-items:center; gap:6px; cursor:pointer; } .quem-caixas input { accent-color:#f28a2e; }
+.quem.sem .quem-caixas label { cursor:not-allowed; }
+@media (max-width:760px) { .quem { flex-direction:column; align-items:flex-start; } .quem-nome { flex:none; } }
 #navConfig { margin-top:auto; } #conexao { margin-top:6px; }
 .lista-projetos { display:grid; grid-template-columns:repeat(auto-fill, minmax(290px, 1fr)); gap:12px; margin-bottom:16px; }
 .projeto, .cartao-form { background:var(--feltro), linear-gradient(180deg, #2f262d, var(--painel)); border-radius:22px; box-shadow:var(--fofo); padding:14px 16px; }

@@ -68,15 +68,20 @@ export function lerSaidaCli(saida) {
   return { texto: texto || saida.trim().slice(-4000), passos };
 }
 
-async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso }) {
+async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso, mcp }) {
   const podeEscrever = ferramentas?.includes('escrever');
   const args = [...(podeEscrever ? prov.args : (prov.argsLeitura || prov.args))];
+  // Conexões (MCP): só para quem não escreve, e só se o provedor declarou como recebê-las (argsMcp).
+  if (mcp?.arquivo && !podeEscrever && Array.isArray(prov.argsMcp)) args.push(...prov.argsMcp.map((a) => String(a).replace('{arquivo}', mcp.arquivo).replace('{permissoes}', mcp.permissoes)));
   if (prov.modelo && prov.argModelo) args.push(prov.argModelo, prov.modelo);
   const conversa = mensagens.filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content)).map((m) => (m.role === 'user' ? m.content : `[sua resposta anterior]\n${m.content}`)).join('\n\n');
   let vistos = 0;
   const r = await rodar(prov.comando, {
     args, cwd, sinal, limiteMs: (prov.limiteSegundos || 600) * 1000, entrada: `${sistema}\n\n${conversa}`,
-    aoSair: (pedaco) => { const n = (pedaco.match(/"type"\s*:\s*"(tool_use|command_execution|function_call|file_change)"/g) || []).length; for (let i = 0; i < n; i++) aoPasso?.({ ferramenta: 'cli', alvo: `passo ${++vistos}` }); },
+    aoSair: (pedaco) => {
+      for (const m of pedaco.matchAll(/"name"\s*:\s*"mcp__([a-z0-9_]+?)__([A-Za-z0-9_.-]+)"/g)) aoPasso?.({ ferramenta: 'conexao', servidor: m[1], alvo: m[2] });
+      const n = (pedaco.match(/"type"\s*:\s*"(tool_use|command_execution|function_call|file_change)"/g) || []).length; for (let i = 0; i < n; i++) aoPasso?.({ ferramenta: 'cli', alvo: `passo ${++vistos}` });
+    },
   });
   if (r.codigo === -2) throw new Error('interrompido');
   const lido = lerSaidaCli(r.saida);

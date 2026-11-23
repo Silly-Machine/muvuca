@@ -34,6 +34,7 @@ Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude
 - **Modelo certo para cada tarefa.** Tarefa simples vai para o modelo leve, revisão vai para o mais forte. Cada agente pode ter o seu.
 - **Rotinas, quadro de tarefas e memória.** Pedidos agendados, um quadro com o andamento de cada tarefa e notas que cada agente guarda por projeto.
 - **Anexos.** Arraste arquivos ou pastas para a caixa do pedido.
+- **Conexões (MCP).** Dê aos agentes de leitura acesso a documentação, issues ou um banco de dados, uma conexão por agente, sem gravar nenhum token.
 - **Modo demonstração.** Um roteiro simulado, sem conta e sem custo, para conhecer a tela.
 
 <div align="center">
@@ -140,8 +141,8 @@ Seus dados (preferências, projetos, rotinas, memória, times salvos) ficam em `
 ## Testes
 
 ```sh
-npm test                    # 57 testes automáticos, cerca de 1 minuto
-npm run bateria             # 181 verificações ao vivo, com o servidor em demonstração
+npm test                    # 65 testes automáticos, cerca de 1 minuto
+npm run bateria             # 200 verificações ao vivo, com o servidor em demonstração
 ```
 
 Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada envio. Detalhes em [Bateria de testes](docs/guia.md#bateria-de-testes).
@@ -151,7 +152,8 @@ Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada 
 - O servidor atende só em `127.0.0.1`; outra máquina da rede não alcança.
 - Os agentes leem e escrevem só dentro da pasta do projeto. Arquivos `.env` ficam protegidos.
 - Com o Claude Code, quem escreve só consegue rodar `node --test` e `npm test`; qualquer outro comando é negado.
-- Nenhuma chave de API fica em arquivo: provedores por API leem a chave de uma variável de ambiente.
+- Nenhuma chave de API fica em arquivo: provedores por API e conexões leem a chave de uma variável de ambiente.
+- Conexões (MCP) vêm desligadas, só chegam aos agentes que você marcar, e nunca a quem escreve arquivos. O que elas fazem fora da pasta não é desfeito pelo "Descartar".
 
 ## Roteiro
 

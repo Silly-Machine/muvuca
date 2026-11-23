@@ -66,6 +66,7 @@ const trata = {
     const aviso = el('p', 'ok', avisoTime || `Time "${e.nome}" no palco (${NOME_ARQ[e.arquitetura] || e.arquitetura}).`); avisoTime = '';
     $('.vazio')?.prepend(aviso);
   },
+  conexao(e) { por(el('div', 'linha', `${ag(e.agente).nome} usou a conexão ${e.servidor}: ${e.ferramenta}`)); },
   passo(e) {
     let c = document.getElementById('ativ-' + e.agente);
     if (!c) { c = el('details', 'cartao'); c.id = 'ativ-' + e.agente; c.append(el('summary', '', ''), el('pre', '', '')); c.dataset.n = 0; por(c); }
@@ -240,8 +241,8 @@ $('#pendManter').onclick = () => post('/api/decidir', { acao: 'aceitar' });
 $('#pendDescartar').onclick = () => post('/api/decidir', { acao: 'descartar' });
 $('#pendVer').onclick = () => { secao('time'); const d = document.getElementById('diff'); if (d) { d.scrollIntoView({ block: 'center', behavior: 'smooth' }); d.classList.add('destaque'); setTimeout(() => d.classList.remove('destaque'), 1800); } };
 function secao(nome) {
-  for (const n of ['fichas', 'construtor', 'projetos', 'config', 'quadro', 'rotinas']) document.body.classList.toggle('ver-' + n, nome === n);
-  for (const [b, n] of [['#navTime', 'time'], ['#navFichas', 'fichas'], ['#navConstrutor', 'construtor'], ['#navProjetos', 'projetos'], ['#navConfig', 'config'], ['#navQuadro', 'quadro'], ['#navRotinas', 'rotinas']]) $(b).setAttribute('aria-pressed', nome === n);
+  for (const n of ['fichas', 'construtor', 'projetos', 'config', 'quadro', 'rotinas', 'conexoes']) document.body.classList.toggle('ver-' + n, nome === n);
+  for (const [b, n] of [['#navTime', 'time'], ['#navFichas', 'fichas'], ['#navConstrutor', 'construtor'], ['#navProjetos', 'projetos'], ['#navConfig', 'config'], ['#navQuadro', 'quadro'], ['#navRotinas', 'rotinas'], ['#navConexoes', 'conexoes']]) $(b).setAttribute('aria-pressed', nome === n);
   if (nome === 'fichas') { montarMemoria(); montarBasicos(true); }
   if (nome === 'time') requestAnimationFrame(() => { ajustarEscala(); desenharArestas(); });
 }

@@ -2,6 +2,16 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: conexões (MCP)
+
+- **Aba Conexões.** Os agentes passam a alcançar o que está fora da pasta do projeto por servidores MCP: documentação, issues, um banco de dados. Uma conexão pode ser um comando neste computador ou um endereço na rede, e o botão "Testar" mostra as ferramentas que ela oferece.
+- **Uma conexão por agente.** Você marca quem pode usar cada uma; de fábrica, ninguém usa nenhuma.
+- **Só agentes que não escrevem arquivos.** O que uma conexão faz fora da pasta não é desfeito pelo "Descartar", então líder, pesquisa e revisor podem usar, e quem escreve código não.
+- **Nenhum token é gravado.** A conexão guarda só o nome da variável de ambiente; a tela recusa o que parece ser o valor.
+- **Cada uso aparece na conversa**, com o agente, a conexão e a ferramenta.
+- Funciona com o Claude Code. Em demonstração e nos provedores por API, as conexões não são usadas.
+- Fica para depois: aprovação ação por ação e conexões para quem escreve código.
+
 ## 0.3.2 (22/11/2026): pronta para o npm
 
 - **Pacote preparado para publicação no npm.** Saiu a trava que impedia publicar, e antes de cada publicação o pacote confere a versão e roda os testes. Depois de publicado, quem tem Node 22 roda com `npx muvuca`.

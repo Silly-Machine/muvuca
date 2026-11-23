@@ -159,16 +159,24 @@ export class Muvuca {
       // Ninguém roda npm install aqui: dependência externa quebra o portão (visto com Express + Jest no teste real).
       (ferramentas.includes('rodar') ? '\nAntes de entregar, rode os testes do projeto e só diga que passam se você viu passar. Use exatamente "node --test" ou "npm test", na raiz do projeto, sem cd, sem pipe, sem redirecionamento e sem juntar com outro comando: outras formas podem ser negadas. Se for negado, tente a forma exata antes de desistir.' : '') +
       (ferramentas.includes('escrever') ? '\nNão há como instalar dependências (npm install não roda). Use só a biblioteca padrão; em Node, servidor com node:http e testes com node:test.' : '');
+    // Conexões (MCP) ligadas a este agente: quem decide é o servidor (só agentes que não escrevem recebem).
+    const mcp = this.conexoesDe ? await this.conexoesDe(ag).catch(() => null) : null;
     const notas = !somenteTexto && this.memoria ? await this.memoria.ler(this.pastaMemoria(ag.id), ag.id).catch(() => []) : [];
     const comMemoria = sistema +
+      (mcp ? `\nVocê tem conexões externas, além da pasta do projeto: ${mcp.servidores.map((s) => `${s.nome} (ferramentas mcp__${s.id}__*${s.descricao ? '; ' + s.descricao : ''})`).join('; ')}. Use quando ajudar na tarefa, e diga na resposta o que consultou.` : '') +
       (notas.length ? `\nSuas notas de trabalhos anteriores neste projeto (leve em conta):\n${notas.map((n) => `- ${n}`).join('\n')}` : '') +
       (this.memoria && ferramentas.length ? '\nSe aprender algo que valha para os próximos pedidos neste projeto (convenção, armadilha, comando que funciona), termine com uma linha "LEMBRAR: nota curta". Só quando for útil de verdade.' : '');
     const mensagens = [{ role: 'user', content: (contexto ? `${contexto}\n\n` : '') + tarefa }];
     let passos = 0; const inicio = Date.now();
-    const base = { sistema: comMemoria, ferramentas, sinal: this.abort.signal, cwd: this.projeto, agente: ag };
+    const base = { sistema: comMemoria, ferramentas, sinal: this.abort.signal, cwd: this.projeto, agente: ag, mcp };
     for (let volta = 0; volta < this.maxPassos; volta++) {
       this.status(ag.id, volta === 0 ? 'pensando' : 'trabalhando');   // depois da primeira ferramenta ele está no meio do trabalho
-      const r = await chamar(prov, { ...base, mensagens, aoPasso: (p) => { passos++; this.status(ag.id, 'trabalhando'); this.emitir({ tipo: 'passo', agente: ag.id, ...p }); } });
+      const r = await chamar(prov, { ...base, mensagens, aoPasso: (p) => {
+        this.status(ag.id, 'trabalhando');
+        // uso de uma conexão aparece na conversa com nome próprio; não conta como passo de trabalho
+        if (p.ferramenta === 'conexao') return this.emitir({ tipo: 'conexao', agente: ag.id, servidor: p.servidor, ferramenta: p.alvo });
+        passos++; this.emitir({ tipo: 'passo', agente: ag.id, ...p });
+      } });
       mensagens.push(r.msg);
       if (r.passos) passos = Math.max(passos, r.passos);
       if (!r.chamadas.length) return { texto: r.texto.trim(), passos, segundos: (Date.now() - inicio) / 1000, modelo: prov.modelo || prov.nome };
@@ -231,7 +239,7 @@ export class Muvuca {
       const prov = this.provedor(lider, nivelFixo(lider));
       this.status(lider.id, 'pensando', { modelo: prov.modelo || prov.nome });
       for (let tentativa = 0; tentativa < 2; tentativa++) {
-        const r = await chamar(prov, { sistema: `${lider.sistema}\n${instrucao}`, mensagens: sessao, ferramentas: [], sinal: this.abort.signal, cwd: this.projeto, agente: lider });
+        const r = await chamar(prov, { sistema: `${lider.sistema}\n${instrucao}`, mensagens: sessao, ferramentas: [], sinal: this.abort.signal, cwd: this.projeto, agente: lider, mcp: this.conexoesDe ? await this.conexoesDe(lider).catch(() => null) : null });
         const j = extrairJson(r.texto);
         if (j) { sessao.push(r.msg); return j; }
         this.emitir({ tipo: 'aviso', texto: `${lider.nome} não devolveu JSON válido (tentativa ${tentativa + 1}).` });
