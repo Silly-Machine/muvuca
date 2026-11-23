@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: ajustes do isolamento e das conversas
+## 0.6.3 (23/11/2026): ajustes do isolamento e das conversas
 
 - O isolamento dos testes reconhece mais uma forma do caminho do projeto no Windows (pasta que é um link, dentro de um caminho com nome abreviado).
 - A faixa de conversas mostra o pedido de uma conversa assim que ela começa a trabalhar; antes havia um instante em que aparecia sem texto.
