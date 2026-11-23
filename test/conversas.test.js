@@ -46,14 +46,16 @@ test('abrir e fechar conversas: começa com a principal, abre até quatro, e a p
 });
 
 test('dois pedidos ao mesmo tempo, em pastas diferentes: os dois andam juntos e não se misturam', async () => {
-  const s = await subir(await pasta('muvuca-dados-'), { DEMO_ATRASO: '120' });   // devagar o bastante para os dois se cruzarem
+  const s = await subir(await pasta('muvuca-dados-'), { DEMO_ATRASO: '250' });   // devagar o bastante para os dois se cruzarem
   const projA = await pasta('muvuca-a-'), projB = await pasta('muvuca-b-');
   try {
     await s.post('/api/sessoes', { acao: 'abrir' });
     const c1 = s.de('1'), c2 = s.de('2');
     assert.equal((await c1.post('/api/pedido', { texto: PEDIDO + ' (A)', projeto: projA })).s, 202);
     assert.equal((await c2.post('/api/pedido', { texto: PEDIDO + ' (B)', projeto: projB })).s, 202);
-    const juntos = (await s.get('/api/sessoes')).conversas;
+    // espera o momento em que as duas trabalham juntas (com a máquina carregada, a segunda pode demorar um instante para começar)
+    let juntos = [];
+    for (let i = 0; i < 80; i++) { juntos = (await s.get('/api/sessoes')).conversas; if (juntos.every((c) => c.rodando) || juntos.every((c) => !c.rodando && c.titulo)) break; await dormir(50); }
     assert.deepEqual(juntos.map((c) => [c.id, c.rodando]), [['1', true], ['2', true]], 'as duas conversas trabalham ao mesmo tempo');
     assert.deepEqual(juntos.map((c) => c.titulo), [PEDIDO + ' (A)', PEDIDO + ' (B)']);
     // a mesma conversa não aceita um segundo pedido enquanto trabalha
