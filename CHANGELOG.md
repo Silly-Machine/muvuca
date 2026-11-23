@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: exportar o time para outra IA
+## 0.8.0 (23/11/2026): exportar o time para outra IA
 
 - **Botão "Exportar…" no construtor.** A arquitetura montada sai em arquivos que outra IA consegue usar: `AGENTS.md` (o time em texto, com diagrama, regras de trabalho e as instruções de cada agente), `muvuca-time.json` (o time em JSON) e um subagente do Claude Code por agente em `.claude/agents/`.
 - **Dois jeitos de salvar:** baixar um `.zip` ou gravar direto na pasta do projeto. Arquivo que já existe com outro conteúdo só é trocado com confirmação.
