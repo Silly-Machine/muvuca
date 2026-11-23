@@ -91,6 +91,20 @@ export class Muvuca {
   }
   // Memória: nota curta que o agente relê nos próximos pedidos deste projeto. Quem guarda é o servidor (this.memoria).
   pastaMemoria(id) { return chaveMemoria(this.projeto, this.cfg.provedores[this.agente(id)?.provedor]?.tipo === 'demo'); }
+  // Lições do time: regras deste projeto ensinadas por quem usa (escritas na tela, ou tiradas do motivo de um descarte).
+  // Diferem das notas de cada agente: valem para todos, inclusive para quem planeja, e entram como regra.
+  pastaLicoes() { return this.pastaMemoria(this.idLider); }
+  async textoDasLicoes() {
+    if (!this.memoria || !this.projeto) return '';
+    const l = await this.memoria.ler(this.pastaLicoes(), 'time').catch(() => []);
+    return l.length ? `\nLições deste projeto, ensinadas por quem usa o time. Valem como regra: siga sempre.\n${l.map((n) => `- ${n}`).join('\n')}` : '';
+  }
+  async aprender(nota) {
+    if (!this.memoria || !this.projeto) return false;
+    try { if (await this.memoria.anotar(this.pastaLicoes(), 'time', nota)) { this.emitir({ tipo: 'licao', nota: String(nota).replace(/\s+/g, ' ').trim().slice(0, 240) }); return true; } }
+    catch { /* a lição é um extra: não derruba a decisão */ }
+    return false;
+  }
   async lembrar(id, nota) {
     if (!this.memoria) return;
     try { if (await this.memoria.anotar(this.pastaMemoria(id), id, nota)) this.emitir({ tipo: 'memoria', agente: id, nota: String(nota).trim().slice(0, 240) }); }
@@ -149,10 +163,13 @@ export class Muvuca {
     return new Promise((ok) => this.pendentes.set(id, (v) => { this.status(agente, 'trabalhando'); if (idT) this.tarefa(idT, { estado: 'trabalhando', motivo: '' }); ok(v); }));
   }
 
-  async decidir(acao) {
+  async decidir(acao, motivo = '') {
     if (this.rodando) throw new Error('há um pedido em andamento');
     if (!this.foto) throw new Error('nada para decidir');
     if (acao !== 'aceitar' && acao !== 'descartar') throw new Error('decisão desconhecida: use "aceitar" ou "descartar"');
+    // quem descarta dizendo o motivo ensina o time: o motivo vira lição deste projeto
+    const porque = String(motivo || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (acao === 'descartar' && porque) await this.aprender(`Uma entrega foi descartada por este motivo: ${porque}`);
     if (acao === 'descartar') await restaurar(this.projeto, this.foto);
     await this.definirFoto(null);
     this.emitir({ tipo: 'decisao_humana', acao });
@@ -181,7 +198,7 @@ export class Muvuca {
       if (!(this.avisouIsolamento ||= new Set()).has(prov.comando)) { this.avisouIsolamento.add(prov.comando); this.emitir({ tipo: 'aviso', texto: `O aplicativo "${prov.comando}" não funciona com o isolamento dos testes: os testes que os agentes rodarem por ele não ficam isolados. Os do portão continuam.` }); }
     }
     const notas = !somenteTexto && this.memoria ? await this.memoria.ler(this.pastaMemoria(ag.id), ag.id).catch(() => []) : [];
-    const comMemoria = sistema +
+    const comMemoria = sistema + await this.textoDasLicoes() +
       (mcp ? `\nVocê tem conexões externas, além da pasta do projeto: ${mcp.servidores.map((s) => `${s.nome} (ferramentas mcp__${s.id}__*${s.descricao ? '; ' + s.descricao : ''})`).join('; ')}. Use quando ajudar na tarefa, e diga na resposta o que consultou.` : '') +
       (notas.length ? `\nSuas notas de trabalhos anteriores neste projeto (leve em conta):\n${notas.map((n) => `- ${n}`).join('\n')}` : '') +
       (this.memoria && ferramentas.length ? '\nSe aprender algo que valha para os próximos pedidos neste projeto (convenção, armadilha, comando que funciona), termine com uma linha "LEMBRAR: nota curta". Só quando for útil de verdade.' : '');
@@ -256,12 +273,13 @@ export class Muvuca {
     };
     const equipe = time.map(linha).join('\n');
     const instrucao = `Você lidera um time. Não executa: decide quem faz.\nEquipe:\n${equipe}\nResponda SOMENTE com JSON neste formato:\n{"fala":"uma frase para o usuário","consultas":[{"agente":"id","pergunta":"...","complexidade":"baixa"}],"etapas":[{"agente":"id","tarefa":"instrução completa e autocontida","complexidade":"baixa|media|alta"}]}\nRegras: use "consultas" só quando a resposta puder mudar o plano; "etapas" roda em sequência; cada etapa precisa dizer os arquivos e o critério de pronto; peça testes automatizados a quem escreve código; a revisão final é automática, não a inclua.\nComplexidade decide o modelo usado (quanto mais alta, mais caro e lento): "baixa" = mecânico e curto (texto, renomear, ajuste de estilo, consulta factual); "media" = funcionalidade comum com teste; "alta" = arquitetura, algoritmo, concorrência, segurança ou bug difícil. Na dúvida, "media".`;
+    const licoesDoTime = await this.textoDasLicoes();
     const pedir = async (conteudo) => {
       sessao.push({ role: 'user', content: conteudo });
       const prov = this.provedor(lider, nivelFixo(lider));
       this.status(lider.id, 'pensando', { modelo: prov.modelo || prov.nome });
       for (let tentativa = 0; tentativa < 2; tentativa++) {
-        const r = await chamar(prov, { sistema: `${lider.sistema}\n${instrucao}`, mensagens: sessao, ferramentas: [], sinal: this.abort.signal, cwd: this.projeto, agente: lider, mcp: this.conexoesDe ? await this.conexoesDe(lider).catch(() => null) : null });
+        const r = await chamar(prov, { sistema: `${lider.sistema}\n${instrucao}${licoesDoTime}`, mensagens: sessao, ferramentas: [], sinal: this.abort.signal, cwd: this.projeto, agente: lider, mcp: this.conexoesDe ? await this.conexoesDe(lider).catch(() => null) : null });
         this.somarUso(r);
         const j = extrairJson(r.texto);
         if (j) { sessao.push(r.msg); return j; }

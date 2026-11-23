@@ -124,6 +124,13 @@ export function demo({ agente, mensagens, sistema = '' }) {
   const feitas = mensagens.filter((m) => m.role === 'tool').length;
   const ultimaFerramenta = [...mensagens].reverse().find((m) => m.role === 'tool')?.content || '';
 
+  // Planejador de especificação: na demonstração, cada item de lista da especificação vira uma etapa (ou duas etapas fixas).
+  if (String(sistema).startsWith('PLANEJADOR DE ESPECIFICAÇÃO')) {
+    const itens = [...ultimoUsuario.matchAll(/^\s*(?:[-*]|\d+[.)])\s+(.+)$/gm)].map((m) => m[1].trim()).filter(Boolean).slice(0, 6);
+    const etapas = (itens.length >= 2 ? itens : ['Crie a base: a rota /health com teste', 'Crie a página de status que consulta a rota']).map((t) => ({ titulo: t.slice(0, 80), tarefa: `Faça: ${t}`, aceite: 'os testes do projeto passam' }));
+    return fala(JSON.stringify({ etapas }));
+  }
+
   if (agente.id !== 'maestro' && (agente.funcao === 'lider' || agente.funcao === 'sublider')) return liderGenerico(sistema, ultimoUsuario);
 
   if (agente.id === 'maestro') {

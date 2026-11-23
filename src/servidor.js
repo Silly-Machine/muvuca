@@ -14,10 +14,11 @@ import os from 'node:os';
 import { chamar } from './provedores.js';
 import { responderOffline, sistemaBuzina, SUGESTOES } from './buzina.js';
 import { criarMemoria } from './memoria.js';
-import { normalizarRotinas, devidas } from './rotinas.js';
+import { normalizarRotinas, devidas, vigiasDevidos, avaliarVigia, pedidoDoVigia } from './rotinas.js';
 import { caminhoAnexo, LIMITES_ANEXO } from './ajustes.js';
 import { isolamentoDisponivel } from './isolamento.js';
 import { arquivosDoTime, zip } from './exportar.js';
+import { planejar, tocar, resumoDaEspecificacao } from './especificacao.js';
 import { normalizarConexoes, conexoesDoAgente, prepararMcp, testarConexao, variaveisQueFaltam } from './conexoes.js';
 import { lerJson, gravarJson, normalizarPreferencias, normalizarProjetos, infoProjeto, pastaPadrao } from './ajustes.js';
 
@@ -188,6 +189,31 @@ async function abrirConversa(id) {
   m.eventos = [];
   return sessao;
 }
+// Especificações em etapas: uma por conversa, gravada em disco a cada mudança para poder ser retomada.
+const PASTA_ESPECS = path.join(DADOS, 'especificacoes');
+const arquivoDaEspec = (id) => path.join(PASTA_ESPECS, `conversa-${id}.json`);
+async function gravarEspec(sessao) {
+  const run = sessao.espec;
+  await fs.mkdir(PASTA_ESPECS, { recursive: true });
+  if (!run) return fs.rm(arquivoDaEspec(sessao.id), { force: true });
+  const { parar, ...paraDisco } = run;
+  await gravarJson(arquivoDaEspec(sessao.id), paraDisco);
+  sessao.muvuca.emitir({ tipo: 'espec', ...resumoDaEspecificacao(run) });
+}
+// Continua (ou começa) a especificação da conversa, em segundo plano. Erro inesperado vira pausa, nunca some.
+function tocarEspec(sessao) {
+  const run = sessao.espec;
+  tocar(run, { muvuca: sessao.muvuca, comandoTeste: prefs.comandoTeste || undefined, aoMudar: () => gravarEspec(sessao) })
+    .catch(async (e) => { run.estado = 'pausada'; run.motivo = `erro inesperado: ${e.message}`; await gravarEspec(sessao).catch(() => {}); });
+}
+// Especificação que estava andando quando a Muvuca fechou volta pausada: quem decide retomar é a pessoa.
+async function carregarEspec(sessao) {
+  const run = await lerJson(arquivoDaEspec(sessao.id), null);
+  if (!run || !Array.isArray(run.etapas)) return;
+  if (['rodando', 'planejando'].includes(run.estado)) { run.estado = 'pausada'; run.motivo = 'a Muvuca foi fechada no meio desta especificação'; }
+  for (const e of run.etapas) if (e.estado === 'rodando') { e.estado = 'pendente'; e.tentativas = Math.max(0, (e.tentativas || 1) - 1); }
+  sessao.espec = run;
+}
 const qualquerRodando = () => [...sessoes.values()].some((x) => x.muvuca.rodando);
 // A pasta está em uso por outra conversa (trabalhando nela, ou com mudanças dela esperando decisão)?
 const pastaEmUso = (pasta, menos) => [...sessoes.values()].find((x) => x.id !== menos && x.muvuca.projeto && path.resolve(x.muvuca.projeto) === path.resolve(pasta) && (x.muvuca.rodando || x.muvuca.foto));
@@ -205,11 +231,11 @@ try {
 } catch { rotinas = []; }
 const salvarRotinas = () => gravarJson(ARQ_ROTINAS, rotinas);
 // Roda uma rotina como um pedido normal para o time. O resultado fica anotado na própria rotina.
-async function dispararRotina(r, manual = false) {
+async function dispararRotina(r, manual = false, textoDoPedido = r.texto) {
   r.ultima = new Date().toISOString(); r.resultado = 'rodando'; await salvarRotinas();
   muvuca.emitir({ tipo: 'rotina', nome: r.nome, manual });
   try {
-    await muvuca.pedido({ texto: r.texto, projeto: r.projeto || prefs.projetoPadrao, comandoTeste: prefs.comandoTeste || undefined });
+    await muvuca.pedido({ texto: textoDoPedido, projeto: r.projeto || prefs.projetoPadrao, comandoTeste: prefs.comandoTeste || undefined });
     const fim = [...muvuca.eventos].reverse().find((e) => ['final', 'parado', 'erro'].includes(e.tipo));
     r.resultado = !fim ? 'sem resultado' : fim.tipo === 'parado' ? 'interrompida por você' : fim.tipo === 'erro' ? `erro: ${fim.texto}`
       : fim.aprovado ? 'aprovada' : fim.aprovado === false ? `não aprovada: ${fim.motivo}` : 'concluída (só conversa)';
@@ -217,11 +243,34 @@ async function dispararRotina(r, manual = false) {
   await salvarRotinas().catch(() => {});
 }
 // Relógio: a cada 20 s vê se alguma rotina está na hora. Com o time ocupado, tenta de novo no próximo tique (dentro da janela).
-setInterval(() => {
+// Vigias: rodam o comando deles de tempos em tempos, sem gastar modelo. Só quando a condição acontece (o comando
+// passa a falhar, ou a saída muda) o time recebe o pedido. Se o time estiver ocupado, o disparo fica guardado.
+const verificando = new Set();
+async function verificarVigia(r) {
+  if (verificando.has(r.id)) return null;
+  verificando.add(r.id);
+  try {
+    const pasta = r.projeto || prefs.projetoPadrao;
+    const st = await fs.stat(pasta).catch(() => null);
+    const res = st?.isDirectory() ? await rodar(r.comando, { cwd: pasta, limiteMs: 120000 }) : { codigo: -1, saida: `pasta não encontrada: ${pasta}` };
+    const av = avaliarVigia(r, res);
+    r.vigia = av.vigia;
+    if (av.disparar) r.vigia.pendente = pedidoDoVigia(r, res.saida);
+    await salvarRotinas().catch(() => {});
+    return { ...av, saida: res.saida };
+  } finally { verificando.delete(r.id); }
+}
+async function tiqueDasRotinas() {
+  for (const r of vigiasDevidos(rotinas)) await verificarVigia(r).catch(() => {});
   if (muvuca.rodando) return;
+  // um vigia que disparou tem prioridade sobre a rotina de horário: é algo que acabou de acontecer
+  const v = rotinas.find((r) => r.tipo === 'vigia' && r.ativa && r.vigia?.pendente);
+  if (v) { const texto = v.vigia.pendente; v.vigia.pendente = ''; await salvarRotinas().catch(() => {}); return dispararRotina(v, false, texto).catch(() => {}); }
   const r = devidas(rotinas)[0];
   if (r) dispararRotina(r).catch(() => {});
-}, 20000).unref();
+}
+let tiqueEmCurso = false;
+setInterval(() => { if (tiqueEmCurso) return; tiqueEmCurso = true; tiqueDasRotinas().catch(() => {}).finally(() => { tiqueEmCurso = false; }); }, Number(process.env.MUVUCA_TIQUE_MS) || 20000).unref();
 
 if (prefs.provedorTime && cfg.provedores[prefs.provedorTime] && (await situacaoProvedor(prefs.provedorTime, cfg.provedores[prefs.provedorTime])).pronto) {
   muvuca.usarProvedor(prefs.provedorTime, prefs.modelos[prefs.provedorTime]);
@@ -236,6 +285,13 @@ for (const nome of await fs.readdir(DADOS).catch(() => [])) {
   const x = await abrirConversa(m[1]);
   if (!(await restaurarPendente(x.muvuca, pastaPendente(m[1])))) sessoes.delete(m[1]);
 }
+// conversa extra que tinha uma especificação por terminar também volta, mesmo sem mudanças pendentes
+for (const nome of await fs.readdir(PASTA_ESPECS).catch(() => [])) {
+  const m = /^conversa-([2-9])\.json$/.exec(nome); if (!m || sessoes.has(m[1])) continue;
+  const run = await lerJson(path.join(PASTA_ESPECS, nome), null);
+  if (run && !['concluida', 'cancelada'].includes(run.estado)) await abrirConversa(m[1]); else await fs.rm(path.join(PASTA_ESPECS, nome), { force: true }).catch(() => {});
+}
+for (const x of sessoes.values()) await carregarEspec(x).catch(() => {});
 const lerProjetos = async () => { try { return normalizarProjetos(await lerJson(ARQ_PROJETOS, null) ?? [{ nome: path.basename(prefs.projetoPadrao), caminho: prefs.projetoPadrao }]); } catch { return []; } };
 
 async function lerTimes(pasta, origem) {
@@ -324,6 +380,7 @@ const servidor = http.createServer(async (req, res) => {
         if (sessoes.size >= MAX_CONVERSAS_ABERTAS) return json(res, 400, { erro: `no máximo ${MAX_CONVERSAS_ABERTAS} conversas abertas ao mesmo tempo: feche uma antes` });
         const id = ['2', '3', '4', '5', '6', '7', '8', '9'].find((n) => !sessoes.has(n));
         await abrirConversa(id);
+        await fs.rm(arquivoDaEspec(id), { force: true }).catch(() => {});   // número reaproveitado não herda especificação antiga
         return json(res, 200, { ok: true, id });
       }
       if (b.acao === 'fechar') {
@@ -375,6 +432,61 @@ const servidor = http.createServer(async (req, res) => {
       // biblioteca de agentes básicos do construtor (só formas que a tela sabe desenhar)
       const catalogo = JSON.parse(await fs.readFile(path.join(CONFIG, 'catalogo-agentes.json'), 'utf8').catch(() => '{"agentes":[]}')).agentes.filter((a) => FORMAS.includes(a.forma));
       return json(res, 200, { catalogo, times: [{ origem: 'arquivo', ...timeDoArquivo }, ...await lerTimes(PASTA_PRONTOS, 'pronto'), ...await lerTimes(PASTA_SALVOS, 'salvo')] });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/especificacao') return json(res, 200, { especificacao: resumoDaEspecificacao(sessao.espec) });
+    if (req.method === 'POST' && url.pathname === '/api/especificacao') {
+      // Começa uma especificação em etapas: quem lidera planeja, e as etapas rodam uma a uma como pedidos normais.
+      const b = await corpo(req, 2e5);
+      const especificacao = String(b.texto || '').trim();
+      if (especificacao.length < 20) return json(res, 400, { erro: 'escreva a especificação: o objetivo, o que precisa ter e como saber que ficou pronto' });
+      if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
+      if (sessao.espec && !['concluida', 'cancelada'].includes(sessao.espec.estado)) return json(res, 409, { codigo: 'especificacao', erro: 'esta conversa já tem uma especificação em andamento: retome ou cancele a que está aqui' });
+      const projeto = path.resolve(String(b.projeto || ''));
+      const st = await fs.stat(projeto).catch(() => null);
+      if (!b.projeto || !st?.isDirectory()) return json(res, 400, { erro: `pasta de projeto não encontrada: ${b.projeto || '(vazia)'}` });
+      const ocupada = pastaEmUso(projeto, sessao.id);
+      if (ocupada) return json(res, 409, { codigo: 'pasta', erro: `essa pasta está em uso na conversa ${ocupada.id}: use outra pasta ou resolva lá primeiro` });
+      if (muvuca.foto && muvuca.projeto && path.resolve(muvuca.projeto) !== projeto) return json(res, 400, { codigo: 'decisao', erro: `há mudanças esperando sua decisão em ${muvuca.projeto}: decida antes de começar uma especificação em outra pasta` });
+      const run = sessao.espec = { id: Date.now().toString(36), titulo: especificacao.split('\n').find((l) => l.trim())?.replace(/^#+\s*/, '').trim().slice(0, 100) || 'Especificação', especificacao, projeto, estado: 'planejando', motivo: '', criada: new Date().toISOString(), etapas: [] };
+      await gravarEspec(sessao);
+      (async () => {
+        try { run.etapas = await planejar(muvuca, especificacao, projeto); }
+        catch (e) { run.estado = 'cancelada'; run.motivo = `não deu para planejar: ${e.message}`; return gravarEspec(sessao).catch(() => {}); }
+        if (run.estado === 'cancelada') return;
+        tocarEspec(sessao);
+      })();
+      return json(res, 202, { ok: true, especificacao: resumoDaEspecificacao(run) });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/especificacao/acao') {
+      const b = await corpo(req); const run = sessao.espec;
+      if (!run) return json(res, 404, { erro: 'esta conversa não tem especificação' });
+      if (b.acao === 'pausar') {
+        if (run.estado !== 'rodando') return json(res, 400, { erro: 'a especificação não está andando' });
+        run.parar = true; muvuca.parar();   // para a etapa em curso; ela volta a ficar pendente
+        return json(res, 200, { ok: true });
+      }
+      if (b.acao === 'retomar' || b.acao === 'pular') {
+        if (run.estado !== 'pausada') return json(res, 400, { erro: 'só dá para retomar uma especificação pausada' });
+        if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
+        const i = run.etapas.findIndex((e) => !['pronta', 'pulada'].includes(e.estado));
+        if (i >= 0) { if (b.acao === 'pular') run.etapas[i].estado = 'pulada'; else { run.etapas[i].estado = 'pendente'; run.etapas[i].tentativas = 0; } }
+        tocarEspec(sessao);
+        return json(res, 200, { ok: true });
+      }
+      if (b.acao === 'cancelar') {
+        if (['concluida', 'cancelada'].includes(run.estado)) return json(res, 400, { erro: 'a especificação já terminou' });
+        const andando = run.estado === 'rodando';
+        run.estado = 'cancelada'; run.motivo = 'cancelada por você';
+        if (andando) muvuca.parar();
+        await gravarEspec(sessao);
+        return json(res, 200, { ok: true });
+      }
+      if (b.acao === 'fechar') {
+        if (!['concluida', 'cancelada'].includes(run.estado)) return json(res, 400, { erro: 'cancele a especificação antes de tirá-la da tela' });
+        sessao.espec = null; await gravarEspec(sessao);
+        return json(res, 200, { ok: true });
+      }
+      return json(res, 400, { erro: 'ação desconhecida' });
     }
     if (req.method === 'POST' && url.pathname === '/api/exportar') {
       // Exporta o time (o do construtor, ainda sem aplicar, ou qualquer outro) como arquivos que outra IA consegue usar:
@@ -619,11 +731,22 @@ const servidor = http.createServer(async (req, res) => {
       await salvarRotinas();
       return json(res, 200, { ok: true, rotinas });
     }
+    if (req.method === 'POST' && url.pathname === '/api/rotinas/verificar') {
+      // roda o comando do vigia agora e mostra o resultado, sem mandar pedido nenhum ao time
+      const b = await corpo(req);
+      const r = rotinas.find((x) => x.id === b.id && x.tipo === 'vigia');
+      if (!r) return json(res, 404, { erro: 'vigia não encontrado' });
+      const v = await verificarVigia(r);
+      if (!v) return json(res, 409, { erro: 'este vigia já está verificando' });
+      return json(res, 200, { ok: r.vigia.ok, resumo: r.vigia.resumo, dispararia: v.disparar, rotinas });
+    }
     if (req.method === 'POST' && url.pathname === '/api/rotinas/rodar') {
       const b = await corpo(req);
       const r = rotinas.find((x) => x.id === b.id);
       if (!r) return json(res, 404, { erro: 'rotina não encontrada' });
       if (muvuca.rodando) return json(res, 409, { erro: 'há um pedido em andamento' });
+      // vigia rodado à mão: verifica agora e manda o pedido com o que o comando mostrou, sem esperar a condição
+      if (r.tipo === 'vigia') { const v = await verificarVigia(r); r.vigia.pendente = ''; dispararRotina(r, true, pedidoDoVigia(r, v?.saida ?? '')).catch(() => {}); return json(res, 202, { ok: true }); }
       dispararRotina(r, true).catch(() => {});
       return json(res, 202, { ok: true });
     }
@@ -631,11 +754,15 @@ const servidor = http.createServer(async (req, res) => {
       const projeto = url.searchParams.get('projeto') || prefs.projetoPadrao;
       const notas = {};
       for (const a of muvuca.cfg.agentes) notas[a.id] = await memoria.ler(chaveMemoria(path.resolve(projeto), cfg.provedores[a.provedor]?.tipo === 'demo'), a.id);
-      return json(res, 200, { projeto: path.resolve(projeto), notas });
+      // lições do time: ficam na mesma memória, sob o nome reservado "time", na pasta de quem lidera
+      const lider = muvuca.agente(muvuca.idLider);
+      const licoes = await memoria.ler(chaveMemoria(path.resolve(projeto), cfg.provedores[lider?.provedor]?.tipo === 'demo'), 'time');
+      return json(res, 200, { projeto: path.resolve(projeto), notas, licoes });
     }
     if (req.method === 'POST' && url.pathname === '/api/memoria') {
       const b = await corpo(req);
-      const dono = muvuca.agente(String(b.agente || ''));
+      // "time" são as lições do time: a pasta é a de quem lidera (é de lá que o orquestrador as lê)
+      const dono = muvuca.agente(b.agente === 'time' ? muvuca.idLider : String(b.agente || ''));
       return json(res, 200, { ok: true, notas: await memoria.gravar(chaveMemoria(path.resolve(b.projeto || prefs.projetoPadrao), cfg.provedores[dono?.provedor]?.tipo === 'demo'), b.agente, b.notas) });
     }
     if (req.method === 'GET' && url.pathname === '/api/eventos') {
@@ -670,7 +797,7 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/parar') { muvuca.parar(); return json(res, 200, { ok: true }); }
     if (req.method === 'POST' && url.pathname === '/api/decidir') {
       const b = await corpo(req); const pasta = muvuca.projeto;
-      await muvuca.decidir(b.acao);
+      await muvuca.decidir(b.acao, b.motivo);
       // descartou: os anexos mandados com esses pedidos saem também (e as pastas que ficarem vazias, até a "anexos/")
       if (b.acao === 'descartar') for (const { projeto, abs } of sessao.anexos) {
         await fs.rm(abs, { force: true }).catch(() => {});
