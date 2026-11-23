@@ -14,6 +14,7 @@
 // (pytest, jest por npx, um script próprio): esses rodam como antes, e a tela diz que estão sem isolamento.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -89,7 +90,10 @@ export async function prepararIsolamento(projeto) {
   // Terceira forma: a pasta-mãe pelo caminho verdadeiro, com o nome da pasta como foi dado. Cobre o projeto que é ele
   // mesmo um link dentro de um caminho com nome abreviado (no Windows, "RUNNER~1" no lugar do nome inteiro do usuário).
   const maeReal = async (p) => path.join(await real(path.dirname(p)), path.basename(p));
-  const liberadas = [...new Set([pasta, await real(pasta), await maeReal(pasta), tmp, await real(tmp), await maeReal(tmp)])];
+  // Quarta forma: o caminho com os links resolvidos pelo próprio Node em JavaScript, que é como o carregador de
+  // módulos enxerga os arquivos. No Windows ela difere da "verdadeira" acima por manter os nomes abreviados.
+  const comoOCarregadorVe = (p) => { try { return realpathSync(p); } catch { return p; } };
+  const liberadas = [...new Set([pasta, await real(pasta), await maeReal(pasta), comoOCarregadorVe(pasta), tmp, await real(tmp), await maeReal(tmp), comoOCarregadorVe(tmp)])];
   return {
     ok: true, tmp,
     // TMP, TEMP e TMPDIR levam os.tmpdir() para a pasta liberada: teste que cria arquivo temporário continua funcionando
