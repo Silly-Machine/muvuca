@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: entrar com o Claude
+## 0.7.0 (23/11/2026): entrar com o Claude
 
 - **Botão "Entrar com o Claude".** Quando o Claude Code está instalado mas sem login, a Muvuca mostra uma tela com o botão, que abre a página de login do Claude no navegador e percebe sozinha quando o login termina. Aparece nas boas-vindas, ao abrir a Muvuca sem login e quando o login vence no meio de um pedido. A senha é digitada na página da Anthropic; a Muvuca não vê nem guarda o acesso.
 - **Login vencido deixa de aparecer como resposta do agente.** O pedido para com a mensagem "O login do Claude Code venceu ou ainda não foi feito", em vez do erro cru do aplicativo.
