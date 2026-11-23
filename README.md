@@ -8,7 +8,7 @@
 
 [![Testes](https://github.com/Silly-Machine/muvuca/actions/workflows/testes.yml/badge.svg)](https://github.com/Silly-Machine/muvuca/actions/workflows/testes.yml)
 [![Instaladores](https://github.com/Silly-Machine/muvuca/actions/workflows/instaladores.yml/badge.svg)](https://github.com/Silly-Machine/muvuca/actions/workflows/instaladores.yml)
-![Versão](https://img.shields.io/badge/vers%C3%A3o-0.3.2-f28a2e)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-0.4.0-f28a2e)
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2022-5f565c)
 ![Dependências](https://img.shields.io/badge/depend%C3%AAncias%20do%20servidor-0-5f565c)
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-f28a2e)](LICENSE)
@@ -23,7 +23,7 @@ A Muvuca é um painel local para trabalhar com um time de agentes de IA. Você e
 
 Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude Code) já logado na sua assinatura. Nenhuma chave de API é necessária, e nada do seu projeto passa por um servidor da Muvuca, porque não existe um.
 
-> **Estado do projeto:** protótipo em evolução (versão 0.3.2). Funciona de ponta a ponta e tem testes, mas leia [o que foi testado e o que não foi](docs/guia.md#o-que-foi-testado-e-o-que-não-foi) antes de apontá-la para um projeto importante.
+> **Estado do projeto:** protótipo em evolução (versão 0.4.0). Funciona de ponta a ponta e tem testes, mas leia [o que foi testado e o que não foi](docs/guia.md#o-que-foi-testado-e-o-que-não-foi) antes de apontá-la para um projeto importante.
 
 ## Destaques
 

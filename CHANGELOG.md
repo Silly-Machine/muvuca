@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: conexões (MCP)
+## 0.4.0 (22/11/2026): conexões (MCP)
 
 - **Aba Conexões.** Os agentes passam a alcançar o que está fora da pasta do projeto por servidores MCP: documentação, issues, um banco de dados. Uma conexão pode ser um comando neste computador ou um endereço na rede, e o botão "Testar" mostra as ferramentas que ela oferece.
 - **Uma conexão por agente.** Você marca quem pode usar cada uma; de fábrica, ninguém usa nenhuma.
