@@ -2,6 +2,15 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: conferido com o Claude de verdade
+
+Nada mudou no programa. Fica o registro do que foi provado em 23/11/2026, depois de refeito o login do Claude Code:
+
+- **Entrar com o Claude:** o botão abriu a página de login, o login foi feito no navegador e a tela percebeu sozinha e se fechou.
+- **Isolamento nos testes que o agente roda** (o item que a 0.6.0 deixou como "não conferido"): com a permissão do comando exato, o Claude rodou `node --test`; as formas `node --test --allow-fs-write=*` e `node --allow-child-process --test .` foram negadas; e o teste que ele rodou não conseguiu ler nem escrever fora da pasta.
+
+Ainda sem prova com o Claude: dois pedidos reais ao mesmo tempo, e um pedido completo do time com um agente escrevendo e rodando testes isolados.
+
 ## 0.7.0 (23/11/2026): entrar com o Claude
 
 - **Botão "Entrar com o Claude".** Quando o Claude Code está instalado mas sem login, a Muvuca mostra uma tela com o botão, que abre a página de login do Claude no navegador e percebe sozinha quando o login termina. Aparece nas boas-vindas, ao abrir a Muvuca sem login e quando o login vence no meio de um pedido. A senha é digitada na página da Anthropic; a Muvuca não vê nem guarda o acesso.
