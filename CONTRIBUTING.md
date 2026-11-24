@@ -38,12 +38,26 @@ A API pede a chave de acesso. Num programa ou no `curl`, mande o cabeçalho `x-m
 | `scripts/` | lançamento de versões e roteiros de teste ao vivo |
 | `assets/` | fontes dos personagens e os scripts que geram `public/bonecos/` |
 | `docs/` | guia, processo de versões e imagens da documentação |
+| `.claude/` | orientação para assistentes de código: regras, especificações e habilidades |
 
 Rode os testes com `npm test`, não com `node --test` puro: sem o padrão de nomes, o Node executaria também os arquivos de `test/apoio/` como se fossem testes.
 
+## Desenvolver com IA
+
+O repositório traz a orientação que um assistente de código precisa, no padrão do Kiro (direção, especificações e habilidades) e nos lugares que o Claude Code lê sozinho:
+
+| O quê | Onde |
+|---|---|
+| visão geral e comandos | `CLAUDE.md` |
+| direção (produto, tecnologia, estrutura, e regras por pasta) | `.claude/rules/` |
+| especificações: requisitos, desenho e tarefas | `.claude/specs/` |
+| habilidades: `/spec`, `/lancar`, `/testar-ao-vivo` | `.claude/skills/` |
+
+Trabalho que não cabe num pedido só começa por uma especificação: `/spec nome-do-recurso`. O formato está em [.claude/specs/README.md](.claude/specs/README.md). Quem usa o Kiro pode copiar `.claude/specs/` para `.kiro/specs/` sem mudar os arquivos.
+
 ## Antes de mandar
 
-1. `npm test` passa. São 104 testes, cerca de 1 minuto.
+1. `npm test` passa. Leva cerca de 1 minuto.
 2. Se a mudança mexe em rotas do servidor, rode a bateria ao vivo: com o servidor em modo demonstração e a pasta padrão vazia, `npm run bateria`.
 3. Se a mudança aparece na tela, abra e confira no navegador. Diga no pull request o que você conferiu.
 4. Comportamento novo vem com teste. Correção de erro vem com um teste que falhava antes.

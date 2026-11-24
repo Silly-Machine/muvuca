@@ -15,7 +15,10 @@ scripts/*.log
 node_modules/
 .env
 .env.*
-.claude/
+# orientação para a IA vai para o repositório; o que é desta máquina, não
+.claude/settings.local.json
+.claude/launch.json
+.claude/worktrees/
 
 # aplicativo de mesa
 dist/
