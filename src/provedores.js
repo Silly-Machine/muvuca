@@ -72,6 +72,33 @@ export function lerSaidaCli(saida) {
 
 export const FALHA_DE_LOGIN = /Failed to authenticate|OAuth session expired|OAuth token (has )?expired|Invalid API key|Please run \/login|not logged in|authentication_error/i;
 
+// Variáveis de ambiente que fazem o aplicativo cobrar de uma chave de API em vez de usar o login da assinatura.
+// Quem tem a chave no ~/.bashrc (para outra coisa) e abre a Muvuca pelo terminal passava a chave adiante sem saber,
+// e o time parava em "Credit balance is too low" mesmo com a assinatura em dia.
+const CHAVES_DO_CLI = { claude: ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'] };
+export const SEM_CREDITO = /Credit balance is too low/i;
+const chavesDe = (prov) => (Array.isArray(prov.variaveisDeChave) ? prov.variaveisDeChave : CHAVES_DO_CLI[prov.comando] || []);
+const comAssinatura = new Map();   // comando -> { quando, sim, promessa }
+export const esquecerAssinatura = () => comAssinatura.clear();   // depois de um login novo, e nos testes
+// Há login de assinatura valendo sem a chave? Pergunta ao próprio aplicativo ("auth status") com as chaves fora do ambiente.
+function temAssinatura(prov, presentes) {
+  const guardado = comAssinatura.get(prov.comando);
+  if (guardado && (guardado.sim || Date.now() - guardado.quando < 60000)) return guardado.promessa;
+  const novo = { quando: Date.now(), sim: false };
+  novo.promessa = rodar(prov.comando, { args: [...(prov.argsStatus || ['auth', 'status'])], limiteMs: 15000, env: Object.fromEntries(presentes.map((v) => [v, undefined])) })
+    .then((r) => { try { novo.sim = JSON.parse(r.saida.slice(r.saida.indexOf('{'))).loggedIn === true; } catch { novo.sim = false; } return novo.sim; });
+  comAssinatura.set(prov.comando, novo);
+  return novo.promessa;
+}
+// O que tirar do ambiente ao chamar o aplicativo: as chaves de API, quando há assinatura logada. Sem assinatura a chave
+// fica (é o único jeito de aquele usuário trabalhar). "usarChaveDeApi": true no provedor mantém a chave sempre.
+export async function chavesARetirar(prov, env = process.env) {
+  if (prov.usarChaveDeApi === true) return [];
+  const presentes = chavesDe(prov).filter((v) => env[v]);
+  if (!presentes.length) return [];
+  return (await temAssinatura(prov, presentes)) ? presentes : [];
+}
+
 // Os argumentos com que o aplicativo do provedor é chamado. Separado da chamada para poder ser testado.
 export function argsDoCli(prov, { ferramentas, mcp, isolamento } = {}) {
   const podeEscrever = ferramentas?.includes('escrever');
@@ -93,8 +120,9 @@ async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso,
   const args = argsDoCli(prov, { ferramentas, mcp, isolamento });
   const conversa = mensagens.filter((m) => m.role === 'user' || (m.role === 'assistant' && m.content)).map((m) => (m.role === 'user' ? m.content : `[sua resposta anterior]\n${m.content}`)).join('\n\n');
   let vistos = 0;
+  const retiradas = await chavesARetirar(prov);
   const r = await rodar(prov.comando, {
-    args, cwd, sinal, limiteMs: (prov.limiteSegundos || 600) * 1000, entrada: `${sistema}\n\n${conversa}`, env: isolamento?.env,
+    args, cwd, sinal, limiteMs: (prov.limiteSegundos || 600) * 1000, entrada: `${sistema}\n\n${conversa}`, env: { ...isolamento?.env, ...Object.fromEntries(retiradas.map((v) => [v, undefined])) },
     aoSair: (pedaco) => {
       for (const m of pedaco.matchAll(/"name"\s*:\s*"mcp__([a-z0-9_]+?)__([A-Za-z0-9_.-]+)"/g)) aoPasso?.({ ferramenta: 'conexao', servidor: m[1], alvo: m[2] });
       const n = (pedaco.match(/"type"\s*:\s*"(tool_use|command_execution|function_call|file_change)"/g) || []).length; for (let i = 0; i < n; i++) aoPasso?.({ ferramenta: 'cli', alvo: `passo ${++vistos}` });
@@ -105,6 +133,13 @@ async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso,
   // Login vencido ou que nunca foi feito: o aplicativo sai com erro e uma mensagem de autenticação. Isso não é resposta
   // do agente; a tela precisa saber para oferecer o botão de entrar.
   if (r.codigo !== 0 && FALHA_DE_LOGIN.test(r.saida)) throw Object.assign(new Error(`O login do ${prov.comando === 'claude' ? 'Claude Code' : prov.comando} venceu ou ainda não foi feito. Entre de novo para o time voltar a trabalhar.`), { codigo: 'login' });
+  // Chave de API sem crédito: dizer isso com todas as letras, e de onde a chave veio.
+  if (r.codigo !== 0 && SEM_CREDITO.test(r.saida)) {
+    const chave = chavesDe(prov).find((v) => process.env[v]);
+    throw new Error(chave
+      ? `A chave de API da variável de ambiente ${chave} está sem crédito, e não há login de assinatura para usar no lugar. Entre com a sua assinatura (${prov.comando} auth login), ponha crédito na chave ou abra a Muvuca sem essa variável.`
+      : `A conta usada pelo ${prov.comando} está sem crédito ("Credit balance is too low"). Confira o login com "${prov.comando} auth status".`);
+  }
   if (r.codigo !== 0 && !lido.texto) throw new Error(`${prov.comando} saiu com código ${r.codigo}: ${r.saida.slice(-300)}`);
   if (r.codigo !== 0) lido.texto += `\n[aviso: ${prov.comando} saiu com código ${r.codigo}]`;
   return { texto: lido.texto, chamadas: [], passos: lido.passos, uso: lido.uso, msg: { role: 'assistant', content: lido.texto } };

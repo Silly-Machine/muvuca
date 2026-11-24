@@ -61,6 +61,8 @@ Por baixo, o botão aciona o `claude auth login` do seu Claude Code, que é quem
 
 A tela aparece em três situações: nas boas-vindas (o botão fica na opção "Claude de verdade"), ao abrir a Muvuca com o time no Claude e sem login, e quando um pedido falha porque o login venceu no meio do caminho. "Agora não" fecha a tela; os pedidos ao Claude falham até o login ser feito.
 
+**Chave de API no terminal.** Se o terminal de onde a Muvuca foi aberta tem `ANTHROPIC_API_KEY` (ou `ANTHROPIC_AUTH_TOKEN`), o Claude Code usaria essa chave, cobrada à parte, em vez da assinatura. A Muvuca evita isso: havendo login de assinatura, ela chama o `claude` sem essas variáveis. Sem login de assinatura, a chave é usada normalmente. Para forçar o uso da chave mesmo com assinatura, ponha `"usarChaveDeApi": true` no provedor `claude-cli` do `agentes.local.json`.
+
 Da conta do Claude, a Muvuca só pergunta se há login; e-mail e organização não saem do aplicativo `claude`. Para rever a tela, abra o endereço com `?boasvindas` no fim.
 
 ## O que o modo demonstração mostra
