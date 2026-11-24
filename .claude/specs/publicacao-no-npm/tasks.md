@@ -1,12 +1,12 @@
 # Tarefas: publicação automática no npm
 
-Nada aqui começa antes de os requisitos e o desenho serem aprovados.
+Aprovada em 24/11/2026.
 
-- [ ] 1. Acrescentar o trabalho `npm` ao fluxo de instaladores
+- [x] 1. Acrescentar o trabalho `npm` ao fluxo de instaladores
   - conforme o desenho; conferir a sintaxe do arquivo
   - _Requisitos: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 3.1_
 
-- [ ] 2. Documentar
+- [x] 2. Documentar
   - `docs/versoes.md` (passo do npm e nota sobre documentação), roteiro do `README.md`, linha em "Em andamento" no `CHANGELOG.md`
   - _Requisitos: 3.2_
 

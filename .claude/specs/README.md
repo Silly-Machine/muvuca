@@ -57,4 +57,4 @@ São coisas diferentes. A especificação em etapas (`src/especificacao.js`) é 
 
 - [`_modelo/`](_modelo/): ponto de partida para uma especificação nova.
 - [`chave-de-api-e-assinatura/`](chave-de-api-e-assinatura/): concluída; serve de exemplo completo.
-- [`publicacao-no-npm/`](publicacao-no-npm/): aguardando aprovação.
+- [`publicacao-no-npm/`](publicacao-no-npm/): em execução; falta o cadastro em npmjs.com e o primeiro lançamento.

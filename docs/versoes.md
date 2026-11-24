@@ -61,9 +61,17 @@ O fluxo [Instaladores](../.github/workflows/instaladores.yml) roda a cada tag `v
 2. **Gera os instaladores** de Windows, macOS (Apple Silicon e Intel) e Linux, rodando os testes em cada sistema antes.
 3. **Publica** na página de Releases: os instaladores, um `SHA256SUMS.txt` e as notas da versão, tiradas do `CHANGELOG.md`.
 
+4. **Publica no npm** a mesma versão, depois de os instaladores serem gerados. Versão com sufixo vai com a etiqueta `next`. Se a versão já está no npm, o passo termina sem fazer nada.
+
 Leva cerca de 5 minutos. Rodar o fluxo de novo para a mesma tag troca os arquivos e as notas da versão que já existe.
 
 Para só gerar os instaladores, sem publicar, rode o fluxo à mão pela aba Actions ("Run workflow").
+
+### A publicação no npm
+
+O fluxo publica sem token guardado: o npm confia nele pela **publicação confiável**. O cadastro é feito uma vez pelo dono do pacote, em npmjs.com → `muvuca` → Settings → Trusted Publisher → GitHub Actions, com organização `Silly-Machine`, repositório `muvuca` e fluxo `instaladores.yml`. Sem o cadastro, o passo do npm falha e os instaladores saem do mesmo jeito; depois de cadastrar, rode de novo só o trabalho que falhou.
+
+O npm recebe versões, não commits: mudança só de documentação não pede versão nova e não vai ao npm. Publicação no npm não se desfaz, só se marca como obsoleta (`npm deprecate`).
 
 ## Comandos de apoio
 

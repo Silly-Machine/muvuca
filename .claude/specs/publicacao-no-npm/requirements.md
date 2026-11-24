@@ -1,4 +1,4 @@
-Estado: rascunho, aguardando aprovação (24/11/2026)
+Estado: em execução (24/11/2026)
 
 # Requisitos: publicação automática no npm
 

@@ -2,7 +2,7 @@ name: Instaladores
 
 # Gera os instaladores do aplicativo de mesa. Roda quando uma versão é marcada (tag "v1.2.3")
 # ou à mão, pela aba Actions. Com tag, os arquivos vão para a página de Releases, com as notas
-# tiradas do CHANGELOG.md. Como lançar: docs/versoes.md.
+# tiradas do CHANGELOG.md, e a versão é publicada no npm. Como lançar: docs/versoes.md.
 on:
   push:
     tags: ['v*']
@@ -108,3 +108,32 @@ jobs:
           else
             gh release create "$TAG" arquivos/* --repo "$GITHUB_REPOSITORY" --verify-tag --title "Muvuca ${TAG#v}" --notes-file notas.md "${OPCOES[@]}"
           fi
+
+  # Publica a versão no npm, sem token guardado: o npm confia neste fluxo (publicação confiável, por OIDC).
+  # O cadastro é feito uma vez em npmjs.com, no pacote: Settings > Trusted Publisher > GitHub Actions,
+  # com Silly-Machine / muvuca / instaladores.yml. Não vale para execução à mão, por isso o "push".
+  npm:
+    name: Publicar no npm
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: instalador
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24   # a publicação confiável pede npm 11.5.1 ou mais novo
+          registry-url: https://registry.npmjs.org
+      - name: Publicar, se a versão ainda não está lá
+        run: |
+          VERSAO="${GITHUB_REF_NAME#v}"
+          if npm view "muvuca@$VERSAO" version > /dev/null 2>&1; then
+            echo "muvuca@$VERSAO já está no npm."
+            exit 0
+          fi
+          # versão com sufixo (1.1.0-beta.1) vai com a etiqueta "next" e não vira a "latest"
+          case "$VERSAO" in *-*) ETIQUETA=next ;; *) ETIQUETA=latest ;; esac
+          npm publish --tag "$ETIQUETA"
