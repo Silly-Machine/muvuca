@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: a chave de API não passa na frente da assinatura
+## 1.0.2 (24/11/2026): a chave de API não passa na frente da assinatura
 
 - **Chave de API no ambiente não derruba mais o time.** Quem tinha `ANTHROPIC_API_KEY` no terminal (no `~/.bashrc`, por exemplo) e abria a Muvuca dali via o Claude Code usar essa chave, cobrada à parte, em vez da assinatura; com a chave sem crédito, todo pedido falhava em "Credit balance is too low". Agora, quando há login de assinatura, a Muvuca chama o `claude` sem a chave. Sem login de assinatura a chave continua valendo, e se ela estiver sem crédito o erro diz qual variável é e o que fazer. Para usar a chave de propósito, ponha `"usarChaveDeApi": true` no provedor.
 
