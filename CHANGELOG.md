@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: o npm acompanha as versões
+## 1.0.3 (24/11/2026): o npm acompanha as versões
 
 - **Cada versão lançada vai sozinha para o npm.** O mesmo fluxo que gera os instaladores publica o pacote, sem token guardado e com o selo de procedência. Antes, o npm dependia de alguém publicar à mão e ficava para trás.
 
