@@ -78,7 +78,7 @@ export class Muvuca {
     if (this.rodando) throw new Error('há um pedido em andamento');
     // a troca limpa a conversa (e o cartão de manter/descartar): a tela resolve a decisão antes, com o código abaixo
     if (this.foto) throw Object.assign(new Error('a última conversa mudou arquivos do projeto e isso ainda espera sua decisão'), { codigo: 'decisao' });
-    this.cfg = { ...this.cfg, nomeTime: t.nome, arquitetura: t.arquitetura, agentes: t.agentes };
+    this.cfg = { ...this.cfg, nomeTime: t.nome, arquitetura: t.arquitetura, agentes: t.agentes, desenho: t.desenho, modelo: t.modelo };
     this.eventos = []; this.lider = [];
     this.emitir({ tipo: 'time', nome: t.nome, arquitetura: t.arquitetura });
   }

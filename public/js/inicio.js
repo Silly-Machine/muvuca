@@ -25,7 +25,9 @@ async function boasVindas(forcar = false) {
     // instalado, mas sem login: o botão de entrar resolve aqui mesmo
     $('#bvEntrar').hidden = !(c.instalado && c.logado === false);
     info.textContent = c.pronto ? `Usa o aplicativo "claude" logado neste computador (${c.versao || 'versão não informada'}). Vale a sua assinatura.`
-      : !c.instalado ? 'O aplicativo "claude" (Claude Code) não foi encontrado. Instale, faça login e clique em "Conferir de novo".' : c.motivo + '.';
+      : !c.instalado ? 'O Claude Code ainda não está neste computador. Para instalar, copie o comando abaixo, rode e depois clique em "Conferir de novo". Enquanto isso, a demonstração funciona.' : c.motivo + '.';
+    $('#bvInstalar').hidden = c.instalado || !c.instalar;
+    if (c.instalar) { $('#bvOnde').textContent = `Rode ${c.instalar.onde}:`; $('#bvComando').textContent = c.instalar.comando; }
     if (c.pronto && !$('#bvDemo').checked) $('#bvClaude').checked = true; else if (!c.pronto) $('#bvDemo').checked = true;
   };
   $('#bvPasta').value = j.pasta; $('#bvEscolher').hidden = !desktop; pintar();
@@ -33,6 +35,12 @@ async function boasVindas(forcar = false) {
   $('#bvEntrar').onclick = async (e) => {
     e.preventDefault(); $('#bvEntrar').disabled = true; $('#bvClaudeInfo').textContent = 'A página de login do Claude abriu no seu navegador. Entre com a sua conta e volte para cá.';
     await entrarComClaude(); $('#bvEntrar').disabled = false; j = await ler(); pintar();
+  };
+  $('#bvCopiar').onclick = async (e) => {
+    e.preventDefault();
+    try { await navigator.clipboard.writeText($('#bvComando').textContent); $('#bvCopiar').textContent = 'Copiado'; }
+    catch { getSelection().selectAllChildren($('#bvComando')); $('#bvCopiar').textContent = 'Selecionado: Ctrl+C'; }
+    setTimeout(() => { $('#bvCopiar').textContent = 'Copiar'; }, 2500);
   };
   $('#bvConferir').onclick = async (e) => { e.preventDefault(); $('#bvClaudeInfo').textContent = 'conferindo…'; j = await ler(); pintar(); };
   const d = $('#boasVindas');

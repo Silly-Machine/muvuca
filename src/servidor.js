@@ -8,10 +8,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Muvuca, nivelPadrao, chaveMemoria } from './orquestrador.js';
-import { validarTime, fatiar, ARQUITETURAS, FORMAS } from './times.js';
+import { validarTime, fatiar, ARQUITETURAS, FORMAS, posicao } from './times.js';
 import { salvarFoto, carregarFoto, diferencas, rodar, dentro, encerrarProcessos } from './ferramentas.js';
 import os from 'node:os';
-import { chamar } from './provedores.js';
+import { chamar, completarPath, instrucaoClaude } from './provedores.js';
 import { responderOffline, sistemaBuzina, SUGESTOES } from './buzina.js';
 import { criarMemoria } from './memoria.js';
 import { normalizarRotinas, devidas, vigiasDevidos, avaliarVigia, pedidoDoVigia } from './rotinas.js';
@@ -89,7 +89,7 @@ let provedorPadrao = (cfg.agentes.find((a) => a.funcao === 'lider') || cfg.agent
   if (guardado?.time) {
     try {
       const t = validarTime(guardado.time, cfg.provedores, provedorPadrao);
-      muvuca.cfg = { ...muvuca.cfg, nomeTime: t.nome, arquitetura: t.arquitetura, agentes: t.agentes };
+      muvuca.cfg = { ...muvuca.cfg, nomeTime: t.nome, arquitetura: t.arquitetura, agentes: t.agentes, desenho: t.desenho, modelo: t.modelo };
     } catch (e) {
       console.log(`O time em uso guardado não vale mais (${e.message}); ficou o time do arquivo.`);
       await fs.rename(ARQ_TIME_EM_USO, ARQ_TIME_EM_USO + '.invalido').catch(() => {});
@@ -97,6 +97,7 @@ let provedorPadrao = (cfg.agentes.find((a) => a.funcao === 'lider') || cfg.agent
   }
 }
 // Um provedor está pronto para uso? CLI precisa do comando instalado; API precisa da chave e de endereço/modelo preenchidos.
+completarPath();   // o "claude" instalado pelo instalador oficial pode não estar no PATH de quem abriu a Muvuca
 const comandoExiste = new Map();
 async function situacaoProvedor(nome, p) {
   if (p.tipo === 'demo') return { pronto: true, motivo: 'roteiro simulado, sem custo' };
@@ -438,10 +439,10 @@ const servidor = http.createServer(async (req, res) => {
       const atual = muvuca.cfg;   // o construtor pode ter trocado o time
       return json(res, 200, {
         versao: VERSAO, buzina: prefs.buzina, rodando: muvuca.rodando, config: path.basename(arquivoCfg), projetoPadrao: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || prefs.projetoPadrao,
-        nomeTime: atual.nomeTime || timeDoArquivo.nome, arquitetura: muvuca.arquitetura, arquiteturas: ARQUITETURAS,
+        nomeTime: atual.nomeTime || timeDoArquivo.nome, arquitetura: muvuca.arquitetura, arquiteturas: ARQUITETURAS, desenho: atual.desenho || null, modelo: atual.modelo || '',
         // provedores sem chave nem argumentos: a tela só precisa do nome e dos modelos
         provedores: Object.entries(cfg.provedores).map(([nome, p]) => ({ nome, tipo: p.tipo, modelo: p.modelo || '', modelos: p.modelos || null })),
-        agentes: atual.agentes.map((a) => ({ id: a.id, nome: a.nome, papel: a.papel, funcao: a.funcao || '', chefe: muvuca.chefeDe(a), conexoes: Array.isArray(a.conexoes) ? a.conexoes : null, complexidade: a.complexidade || '', nivelPadrao: nivelPadrao(a) || '', sistema: a.sistema || '', cor: a.cor, forma: a.forma, provedor: a.provedor, ferramentas: a.ferramentas || [], tipo: cfg.provedores[a.provedor]?.tipo || '?', modeloFixo: a.modelo || '', modelo: a.modelo || cfg.provedores[a.provedor]?.modelo || '', modelos: a.modelos || (a.modelo ? null : cfg.provedores[a.provedor]?.modelos) || null })),
+        agentes: atual.agentes.map((a) => ({ id: a.id, pos: a.pos || null, nome: a.nome, papel: a.papel, funcao: a.funcao || '', chefe: muvuca.chefeDe(a), conexoes: Array.isArray(a.conexoes) ? a.conexoes : null, complexidade: a.complexidade || '', nivelPadrao: nivelPadrao(a) || '', sistema: a.sistema || '', cor: a.cor, forma: a.forma, provedor: a.provedor, ferramentas: a.ferramentas || [], tipo: cfg.provedores[a.provedor]?.tipo || '?', modeloFixo: a.modelo || '', modelo: a.modelo || cfg.provedores[a.provedor]?.modelo || '', modelos: a.modelos || (a.modelo ? null : cfg.provedores[a.provedor]?.modelos) || null })),
       });
     }
     if (req.method === 'GET' && url.pathname === '/api/times') {
@@ -536,6 +537,29 @@ const servidor = http.createServer(async (req, res) => {
       }
       return json(res, 200, { nome: t.nome, arquivos: arquivos.map((a) => ({ caminho: a.caminho, tamanho: Buffer.byteLength(a.conteudo) })), agentsMd: arquivos[0].conteudo });
     }
+    // Mover os bonecos no palco: muda só o lugar de cada um no desenho, nunca o time. Vale até com um pedido
+    // em andamento, porque o protocolo não olha o desenho. Na conversa 1, o lugar novo fica no time em uso.
+    if (req.method === 'POST' && url.pathname === '/api/desenho') {
+      const b = await corpo(req);
+      const pedidas = b.pos && typeof b.pos === 'object' && !Array.isArray(b.pos) ? Object.entries(b.pos) : null;
+      if (!pedidas?.length || pedidas.length > 200) return json(res, 400, { erro: 'mande "pos" com o lugar de cada agente que mudou, por exemplo {"pos": {"dev": [1, 2]}}' });
+      const novas = new Map();
+      for (const [id, p] of pedidas) {
+        if (!muvuca.cfg.agentes.some((a) => a.id === id)) return json(res, 400, { erro: `o agente "${id}" não está no time do palco` });
+        const v = posicao(p); if (!v) return json(res, 400, { erro: `lugar inválido para "${id}": use [x, y] com números entre -200 e 200` });
+        novas.set(id, v);
+      }
+      const comPos = (a) => (novas.has(a.id) ? { ...a, pos: novas.get(a.id) } : a);
+      muvuca.cfg = { ...muvuca.cfg, agentes: muvuca.cfg.agentes.map(comPos) };
+      if (sessao.id === '1') {
+        const guardado = await lerJson(ARQ_TIME_EM_USO, null);
+        const c = muvuca.cfg;
+        const time = guardado?.time ? { ...guardado.time, agentes: (guardado.time.agentes || []).map(comPos) }
+          : { nome: c.nomeTime, arquitetura: c.arquitetura, agentes: c.agentes, ...(c.desenho ? { desenho: c.desenho } : {}), ...(c.modelo ? { modelo: c.modelo } : {}) };
+        await gravarJson(ARQ_TIME_EM_USO, { time, gravado: new Date().toISOString() });
+      }
+      return json(res, 200, { ok: true, pos: Object.fromEntries(novas) });
+    }
     if (req.method === 'POST' && url.pathname === '/api/time') {
       const b = await corpo(req);
       const t = validarTime(b.time, cfg.provedores, provedorPadrao);
@@ -577,7 +601,10 @@ const servidor = http.createServer(async (req, res) => {
       return json(res, 200, { andamento: !!loginClaude?.filho, logado: await claudeLogado(), ...(link && { link }), ...(loginClaude?.erro && !loginClaude.filho && { erro: loginClaude.erro }) });
     }
     if (req.method === 'GET' && url.pathname === '/api/inicio') {
-      // Tela de boas-vindas: o que já está pronto nesta máquina
+      // Tela de boas-vindas: o que já está pronto nesta máquina. Quem não foi achado é procurado de novo: a pessoa
+      // pode ter acabado de instalar o Claude Code e clicado em "Conferir de novo".
+      for (const [k, v] of comandoExiste) if (!v) comandoExiste.delete(k);
+      completarPath();
       const cli = Object.entries(cfg.provedores).find(([, p]) => p.tipo === 'cli' && p.comando === 'claude');
       const s = cli ? await situacaoProvedor(cli[0], cli[1]) : { pronto: false, motivo: 'nenhum provedor usa o aplicativo "claude"' };
       const instalado = !!cli && comandoExiste.get('claude') === true;
@@ -587,7 +614,7 @@ const servidor = http.createServer(async (req, res) => {
       return json(res, 200, {
         feito: prefs.inicioFeito, pasta: prefs.projetoPadrao, pastaExiste: !!(await infoProjeto(prefs.projetoPadrao)).existe, pastaDados: DADOS,
         provedorAtual: provedorPadrao,
-        claude: { provedor: cli?.[0] || '', instalado, logado, pronto: s.pronto && logado !== false, motivo: logado === false ? 'o aplicativo "claude" está instalado, mas sem login: rode "claude" num terminal e entre na sua conta' : s.motivo, versao: instalado ? await versaoDe('claude') : '' },
+        claude: { provedor: cli?.[0] || '', instalado, logado, instalar: instrucaoClaude(), pronto: s.pronto && logado !== false, motivo: logado === false ? 'o aplicativo "claude" está instalado, mas sem login: rode "claude" num terminal e entre na sua conta' : s.motivo, versao: instalado ? await versaoDe('claude') : '' },
       });
     }
     if (req.method === 'POST' && url.pathname === '/api/inicio') {

@@ -4,20 +4,20 @@ import { depois } from './tardias.js';
 import * as Regras from './regras/indice.js';
 import { $, el, lerDoServidor, pedir } from './base.js';
 import { mascote } from './personagens.js';
-import { NOME_ARQ, NOME_FORMA, NOME_FUNCAO, SEM_LIDER, camadas, chefeDe, montarGrafo, ns, vizinhosDe } from './palco.js';
+import { NOME_ARQ, NOME_FORMA, NOME_FUNCAO, SEM_LIDER, desenharArestas, montarGrafo, ns, paraUnidades } from './palco.js';
 
 /* ---------- construtor de times ---------- */
 const PALETA = ['#ff8e6b', '#4fb3ff', '#ffc94d', '#a48bff', '#4fe0a0', '#ff7bc8', '#5a8dff', '#63e6a3', '#ffb347'];
 compartilhado.rascunho = null; compartilhado.galeria = []; compartilhado.catalogo = []; let tempoPrevia = 0; compartilhado.avisoTime = ''; let tempoDica = 0;
-const copiaAgente = (a) => ({ id: a.id, nome: a.nome, funcao: a.funcao || '', papel: a.papel || '', chefe: a.chefe || '', ferramentas: [...(a.ferramentas || [])], cor: a.cor || '#8f7bff', forma: a.forma || 'pilha', provedor: a.provedor || '', modelo: a.modeloFixo ?? a.modelo ?? '', complexidade: a.complexidade || '', sistema: a.sistema || '', conexoes: Array.isArray(a.conexoes) ? [...a.conexoes] : null });
-const timeAtual = () => ({ nome: compartilhado.nomeTime, descricao: '', arquitetura: compartilhado.arquitetura, agentes: compartilhado.agentes.map(copiaAgente) });
+const copiaAgente = (a) => ({ id: a.id, pos: Regras.desenho.posicaoValida(a.pos) ? [...a.pos] : null, nome: a.nome, funcao: a.funcao || '', papel: a.papel || '', chefe: a.chefe || '', ferramentas: [...(a.ferramentas || [])], cor: a.cor || '#8f7bff', forma: a.forma || 'pilha', provedor: a.provedor || '', modelo: a.modeloFixo ?? a.modelo ?? '', complexidade: a.complexidade || '', sistema: a.sistema || '', conexoes: Array.isArray(a.conexoes) ? [...a.conexoes] : null });
+const timeAtual = () => ({ nome: compartilhado.nomeTime, descricao: '', arquitetura: compartilhado.arquitetura, desenho: compartilhado.desenho, modelo: compartilhado.modelo, agentes: compartilhado.agentes.map(copiaAgente) });
 const EM_BRANCO = { nome: 'Time novo', arquitetura: 'centralizada', descricao: 'Começa com um líder, um executor e um revisor.', agentes: [
   { id: 'lider', nome: 'Líder', funcao: 'lider', papel: 'coordena o time e monta o plano', cor: '#ff8e6b', forma: 'regente' },
   { id: 'dev', nome: 'Dev', papel: 'implementa com teste junto', ferramentas: ['listar', 'ler', 'escrever', 'rodar'], cor: '#4fb3ff', forma: 'pilha' },
   { id: 'revisor', nome: 'Revisor', funcao: 'revisor', papel: 'revisão de código', ferramentas: ['listar', 'ler'], cor: '#4fe0a0', forma: 'escudo' }] };
 
 async function abrirConstrutor() {
-  depois.secao('construtor');
+  depois.secao('construtor'); maximizar(false);
   try { const j = await lerDoServidor('/api/times'); compartilhado.galeria = j.times || []; compartilhado.catalogo = j.catalogo || []; } catch { compartilhado.galeria = []; }
   montarBiblioteca();
   montarGaleria();
@@ -39,7 +39,9 @@ function montarGaleria() {
   cartao(EM_BRANCO, 'Do zero');
 }
 function usarComoBase(t) {
-  compartilhado.rascunho = { nome: t.nome, descricao: t.descricao || '', arquitetura: t.arquitetura || 'centralizada', agentes: (t.agentes || []).map(copiaAgente) };
+  // o modelo pronto de origem fica anotado, para "voltar ao desenho do modelo"
+  compartilhado.rascunho = { nome: t.nome, descricao: t.descricao || '', arquitetura: t.arquitetura || 'centralizada', desenho: t.desenho || null, modelo: t.origem === 'pronto' ? t.nome : t.modelo || '', agentes: (t.agentes || []).map(copiaAgente) };
+  vista.nova = true;
   $('#cErro').textContent = ''; montarEditor();
 }
 function montarEditor() {
@@ -133,8 +135,17 @@ function avisos(t) {
 function atualizarPrevia(ja) {
   clearTimeout(tempoPrevia);
   tempoPrevia = setTimeout(() => {
-    const lista = compartilhado.rascunho.agentes.map((a, i) => ({ ...a, id: a.id || `sem-id-${i}` }));
-    montarGrafo($('#previa'), lista, compartilhado.rascunho.arquitetura, 'p');
+    const r = compartilhado.rascunho;
+    const lista = r.agentes.map((a, i) => ({ ...a, id: a.id || `sem-id-${i}` }));
+    // quem não tem lugar no desenho ganha um agora, e o lugar fica gravado no rascunho (vai para o desfazer e para o time)
+    const pos = Regras.desenho.completar({ ...r, agentes: lista }, { perto: pertoPendente }); pertoPendente = {};
+    lista.forEach((a, i) => { a.pos = pos[a.id]; r.agentes[i].pos = pos[a.id]; });
+    const m = mundo(), velha = m._origem;
+    montarGrafo(m, lista, r.arquitetura, 'p', r.desenho);
+    // o mundo começa no agente mais à esquerda e mais acima: se ele mudou, a vista compensa e o desenho não pula
+    if (velha && !vista.nova) { vista.tx += (m._origem.x0 - velha.x0) * m._escala.ux * vista.z; vista.ty += (m._origem.y0 - velha.y0) * m._escala.uy * vista.z; }
+    if (vista.nova) { vista.nova = false; caber(); } else aplicarVista();
+    barraDaVista();
     prepararArrasto(); if (!$('#cDica').classList.contains('feito')) dica();   // não apaga a confirmação do último arrasto
     const av = avisos(compartilhado.rascunho); $('#cAvisos').textContent = av.join(' ');
     $('#cResumo').textContent = `${lista.length} agente(s), arquitetura ${NOME_ARQ[compartilhado.rascunho.arquitetura]}.`;
@@ -155,11 +166,11 @@ function montarBiblioteca() {
   });
 }
 const DICAS = {
-  centralizada: 'Arraste da biblioteca para a prévia: todo mundo responde ao líder. Arraste um agente sobre outro para trocar a ordem.',
-  hierarquica: 'Solte da biblioteca sobre um líder ou sub-líder para pôr no time dele. Arraste um agente da prévia sobre outro líder para mudar de chefe.',
-  sequencial: 'Arraste um agente sobre outro para mudar a ordem da esteira.',
+  centralizada: 'Arraste da biblioteca para a prévia: todo mundo responde ao líder. Arraste um agente para mudar o lugar dele; solto sobre outro, troca a ordem. Ctrl + roda aproxima.',
+  hierarquica: 'Solte da biblioteca sobre um líder ou sub-líder para pôr no time dele. Arraste um agente para mudar o lugar; solto sobre outro líder, muda de chefe.',
+  sequencial: 'Arraste um agente para mudar o lugar dele no desenho; solto sobre outro, muda a ordem da esteira.',
   unico: 'Um agente só: arraste da biblioteca e remova o que sobrar.',
-  rede: 'Solte da biblioteca sobre um agente para já ligar os dois. Arraste um agente sobre outro para ligar ou desligar a passagem de vez.',
+  rede: 'Solte da biblioteca sobre um agente para já ligar os dois. Arraste um agente para mudar o lugar; solto sobre outro, liga ou desliga a passagem de vez.',
 };
 function dica(texto) {
   clearTimeout(tempoDica);
@@ -168,12 +179,16 @@ function dica(texto) {
   if (texto) tempoDica = setTimeout(() => dica(), 4500);
 }
 const achar = (id) => compartilhado.rascunho.agentes.find((a) => a.id === id);
-function removerAgente(id) {
-  compartilhado.rascunho.agentes = compartilhado.rascunho.agentes.filter((a) => a.id !== id);
-  compartilhado.rascunho.agentes.forEach((x) => { if (x.chefe === id) x.chefe = ''; if (x.conexoes) x.conexoes = x.conexoes.filter((c) => c !== id); });
+function removerAgente(id) { removerVarios([id]); }
+// Tira vários de uma vez: quem respondia a eles volta para o líder, e as passagens de vez para eles somem.
+function removerVarios(ids) {
+  const fora = new Set(ids), r = compartilhado.rascunho;
+  r.agentes = r.agentes.filter((a) => !fora.has(a.id));
+  r.agentes.forEach((x) => { if (fora.has(x.chefe)) x.chefe = ''; if (x.conexoes) x.conexoes = x.conexoes.filter((c) => !fora.has(c)); });
+  ids.forEach((id) => selecao.delete(id));
   montarEditor();
 }
-function adicionarDoCatalogo(cid, alvo) {
+function adicionarDoCatalogo(cid, alvo, ponto) {
   const base = compartilhado.catalogo.find((x) => x.id === cid); if (!base || !compartilhado.rascunho) return;
   const novo = copiaAgente({ ...base, ferramentas: base.ferramentas || [] });
   let n = 1; while (compartilhado.rascunho.agentes.some((a) => a.id === (n === 1 ? base.id : `${base.id}-${n}`))) n++;
@@ -195,26 +210,28 @@ function adicionarDoCatalogo(cid, alvo) {
   // o revisor fica no fim; os outros entram antes dele
   const iRev = compartilhado.rascunho.agentes.findIndex((a) => a.funcao === 'revisor');
   compartilhado.rascunho.agentes.splice(novo.funcao !== 'revisor' && iRev >= 0 ? iRev : compartilhado.rascunho.agentes.length, 0, novo);
+  if (ponto && !b) pertoPendente[novo.id] = ponto;   // solto no vazio: nasce onde caiu
   montarEditor(); dica(msg);
 }
+// Devolve true quando mudou o time; nas recusas, só explica.
 function moverNo(src, alvo) {
-  const a = achar(src), b = achar(alvo); if (!a || !b || a === b) return;
+  const a = achar(src), b = achar(alvo); if (!a || !b || a === b) return false;
   const arq = compartilhado.rascunho.arquitetura;
   if (arq === 'hierarquica') {
-    if (a.funcao === 'lider') return dica('O líder não responde a ninguém.');
-    if (b.funcao !== 'lider' && b.funcao !== 'sublider') return dica('Solte sobre um líder ou sub-líder para mudar de chefe.');
-    for (let x = b, k = 0; x && k < 12; x = achar(x.chefe), k++) if (x === a) return dica('Assim a chefia daria uma volta: escolha outro chefe.');
-    a.chefe = b.funcao === 'lider' ? '' : b.id; montarEditor(); return dica(`${a.nome} agora responde a ${b.nome}.`);
+    if (a.funcao === 'lider') return dica('O líder não responde a ninguém.'), false;
+    if (b.funcao !== 'lider' && b.funcao !== 'sublider') return dica('Solte sobre um líder ou sub-líder para mudar de chefe.'), false;
+    for (let x = b, k = 0; x && k < 12; x = achar(x.chefe), k++) if (x === a) return dica('Assim a chefia daria uma volta: escolha outro chefe.'), false;
+    a.chefe = b.funcao === 'lider' ? '' : b.id; montarEditor(); dica(`${a.nome} agora responde a ${b.nome}.`); return true;
   }
   if (arq === 'rede') {
-    if (a.funcao === 'revisor' || b.funcao === 'revisor') return dica('O revisor fica fora da rede.');
+    if (a.funcao === 'revisor' || b.funcao === 'revisor') return dica('O revisor fica fora da rede.'), false;
     const todos = compartilhado.rascunho.agentes.filter((x) => x !== a && x.funcao !== 'revisor').map((x) => x.id);
     const atual = Array.isArray(a.conexoes) ? a.conexoes : todos, tinha = atual.includes(b.id);
     a.conexoes = tinha ? atual.filter((x) => x !== b.id) : [...atual, b.id];
-    montarEditor(); return dica(`${a.nome} ${tinha ? 'não passa mais' : 'agora passa'} a vez para ${b.nome}.`);
+    montarEditor(); dica(`${a.nome} ${tinha ? 'não passa mais' : 'agora passa'} a vez para ${b.nome}.`); return true;
   }
   const L = compartilhado.rascunho.agentes; L.splice(L.indexOf(a), 1); L.splice(L.indexOf(b), 0, a);
-  montarEditor(); dica(`${a.nome} foi para antes de ${b.nome}.`);
+  montarEditor(); dica(`${a.nome} foi para antes de ${b.nome}.`); return true;
 }
 /* ---------- desenhar setas na prévia ---------- */
 // Com o modo ligado: clique num agente (origem) e depois em outro (destino) para criar a seta; clique numa seta para tirá-la.
@@ -253,15 +270,15 @@ let arrastouSeta = false;
 function comecarElastico(ev, no) {
   if (!modoSetas || ev.button !== 0) return;
   const prev = $('#previa'), svg = prev.querySelector('.arestas'), id = no.dataset.ag;
-  const r = prev.getBoundingClientRect(), o = no.querySelector('.mascote').getBoundingClientRect();
-  const x0 = o.left + o.width / 2 - r.left, y0 = o.top + o.height / 2 - r.top;
+  const o = no.querySelector('.mascote').getBoundingClientRect();
+  const [x0, y0] = noMundo(o.left + o.width / 2, o.top + o.height / 2);
   let linha = null, moveu = false;
   const sobre = (e) => document.elementFromPoint(e.clientX, e.clientY)?.closest?.('#previa .agente');
   const limpar = () => { linha?.remove(); prev.querySelectorAll('.alvo, .origem').forEach((x) => x.classList.remove('alvo', 'origem')); };
   const mover = (e) => {
     if (!moveu && Math.hypot(e.clientX - ev.clientX, e.clientY - ev.clientY) < 7) return;
     if (!moveu) { moveu = true; origemSeta = null; limpar(); no.classList.add('origem'); linha = ns('path', { class: 'elastico' }); svg.append(linha); estadoSetas(`De ${achar(id)?.nome || id} para… solte em cima do destino.`); }
-    linha.setAttribute('d', `M${x0} ${y0}L${e.clientX - r.left} ${e.clientY - r.top}`);
+    const [x1, y1] = noMundo(e.clientX, e.clientY); linha.setAttribute('d', `M${x0} ${y0}L${x1} ${y1}`);
     prev.querySelectorAll('.alvo').forEach((x) => x.classList.remove('alvo'));
     const a = sobre(e); if (a && a !== no) a.classList.add('alvo');
   };
@@ -316,6 +333,7 @@ $('#previa').addEventListener('click', (e) => {
   const x = e.target.closest?.('.tira'); if (x) { setaSel = null; return desligarSeta(x.dataset.de, x.dataset.para); }
   const t = e.target.closest?.('.toque'); if (t) return selecionarSeta(t.dataset.de, t.dataset.para);
   if (!e.target.closest?.('.agente') && setaSel) selecionarSeta(null);
+  if (!e.target.closest?.('.agente') && !e.shiftKey && selecao.size) selecionar(null);
 });
 $('#previa').addEventListener('keydown', (e) => { const x = e.target.closest?.('.tira'); if (x && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setaSel = null; desligarSeta(x.dataset.de, x.dataset.para); } });
 
@@ -348,8 +366,75 @@ document.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && !e.altKey && k === 'z') { e.preventDefault(); return e.shiftKey ? refazer() : desfazer(); }
   if ((e.ctrlKey || e.metaKey) && !e.altKey && k === 'y') { e.preventDefault(); return refazer(); }
-  if ((e.key === 'Delete' || e.key === 'Backspace') && setaSel) { e.preventDefault(); const { de, para } = setaSel; setaSel = null; desligarSeta(de, para); }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && setaSel) { e.preventDefault(); const { de, para } = setaSel; setaSel = null; desligarSeta(de, para); return; }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selecao.size && !modoSetas && !modoBorracha) {
+    e.preventDefault(); const n = selecao.size, nome = achar([...selecao][0])?.nome;
+    removerVarios([...selecao]); return dica(n === 1 ? `${nome} saiu do time. Ctrl+Z traz de volta.` : `${n} agentes saíram do time. Ctrl+Z traz todos de volta.`);
+  }
+  if (e.key === 'Escape' && !modoSetas && !modoBorracha) {
+    if (selecao.size) return selecionar(null);
+    if ($('.previa-caixa').classList.contains('maximizada')) return maximizar(false);
+  }
 });
+
+/* ---------- seleção de agentes na prévia ---------- */
+// Clique seleciona um agente (e abre o cartão); Shift ou Ctrl + clique soma ou tira; Shift + arrastar o fundo
+// seleciona por caixa. Arrastar um selecionado move todos juntos; Delete tira todos do time.
+const selecao = new Set();
+function marcarSelecao() {
+  const existe = new Set((compartilhado.rascunho?.agentes || []).map((a) => a.id));
+  [...selecao].forEach((id) => { if (!existe.has(id)) selecao.delete(id); });
+  $('#previa').querySelectorAll('.agente').forEach((d) => { const s = selecao.has(d.dataset.ag); d.classList.toggle('sel', s); d.setAttribute('aria-selected', String(s)); });
+  if (setaSel || modoSetas || modoBorracha) return;
+  estadoSetas(selecao.size > 1 ? `${selecao.size} agentes selecionados: arraste um para mover todos, Delete tira do time, Esc desmarca.` : undefined);
+}
+function selecionar(id, somar = false) {
+  if (!somar) selecao.clear();
+  if (id) { if (somar && selecao.has(id)) selecao.delete(id); else selecao.add(id); }
+  marcarSelecao();
+}
+// Caixa de seleção: Shift + arrastar no fundo da prévia.
+function comecarCaixa(e) {
+  const p = $('#previa'), r = p.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+  const caixa = el('div', 'caixa-sel'); p.append(caixa);
+  const antes = new Set(selecao);
+  const retangulo = (ev) => ({ l: Math.min(x0, ev.clientX), t: Math.min(y0, ev.clientY), r: Math.max(x0, ev.clientX), b: Math.max(y0, ev.clientY) });
+  const mover = (ev) => {
+    if (ev.pointerId !== e.pointerId) return;
+    const q = retangulo(ev);
+    Object.assign(caixa.style, { left: q.l - r.left + 'px', top: q.t - r.top + 'px', width: q.r - q.l + 'px', height: q.b - q.t + 'px' });
+    selecao.clear(); antes.forEach((id) => selecao.add(id));
+    p.querySelectorAll('.agente').forEach((d) => { const b = d.getBoundingClientRect(); if (b.left < q.r && b.right > q.l && b.top < q.b && b.bottom > q.t) selecao.add(d.dataset.ag); });
+    marcarSelecao();
+  };
+  const fim = (ev) => {
+    if (ev.pointerId !== e.pointerId) return;
+    document.removeEventListener('pointermove', mover); document.removeEventListener('pointerup', fim); document.removeEventListener('pointercancel', fim);
+    caixa.remove(); cliqueEngolido = true; setTimeout(() => { cliqueEngolido = false; }, 0);
+  };
+  document.addEventListener('pointermove', mover); document.addEventListener('pointerup', fim); document.addEventListener('pointercancel', fim);
+}
+
+/* ---------- quadro maximizado ---------- */
+// O quadro de desenho ocupa a janela inteira, com a biblioteca dentro dele para continuar arrastando peças.
+let lugarDaBiblioteca = null;
+function maximizar(liga) {
+  const c = $('.previa-caixa'), b = $('#biblioteca'), botao = $('#cMaximizar');
+  if (liga === c.classList.contains('maximizada')) return;
+  c.classList.toggle('maximizada', liga); document.body.classList.toggle('quadro-max', liga);
+  if (liga) { lugarDaBiblioteca = [b.parentNode, b.nextSibling]; $('.barra-vista').after(b); b.classList.add('na-moldura'); }
+  else if (lugarDaBiblioteca) { lugarDaBiblioteca[0].insertBefore(b, lugarDaBiblioteca[1]); b.classList.remove('na-moldura'); }
+  botao.setAttribute('aria-pressed', String(liga)); botao.textContent = liga ? '⤡ Tamanho normal' : '⤢ Quadro grande';
+  botao.title = liga ? 'Voltar o quadro ao tamanho normal (Esc)' : 'Abrir o quadro de desenho na janela inteira (Esc volta)';
+  $('#cQuadroNome').textContent = compartilhado.rascunho?.nome ? `· ${compartilhado.rascunho.nome}` : '';
+  if (liga) dica('Quadro grande: arraste peças da faixa de cima, mova os agentes à vontade. Esc ou "Fechar" volta.');
+  requestAnimationFrame(() => { caber(); desenharArestas(mundo()); if (liga) $('#cFecharQuadro').focus({ preventScroll: true }); });
+}
+$('#cMaximizar').onclick = () => maximizar(!$('.previa-caixa').classList.contains('maximizada'));
+$('#cFecharQuadro').onclick = () => maximizar(false);
+document.querySelectorAll('[data-abre-quadro]').forEach((b) => { b.onclick = () => maximizar(true); });
+// clique duplo no fundo da prévia também abre o quadro grande
+$('#previa').addEventListener('dblclick', (e) => { if (!e.target.closest?.('.agente, .toque, .tira')) maximizar(true); });
 
 function abrirCartao(id) {
   const i = compartilhado.rascunho.agentes.findIndex((a) => a.id === id); const d = $(`#cAgentes details[data-i="${i}"]`); if (!d) return;
@@ -357,16 +442,18 @@ function abrirCartao(id) {
 }
 function prepararArrasto() {
   $('#previa').querySelectorAll('.agente').forEach((d) => {
-    d.draggable = !modoSetas && !modoBorracha; d.title = modoBorracha ? 'Clique para tirar do time' : modoSetas ? 'Clique para começar ou terminar uma seta' : 'Arraste sobre outro agente, ou clique para editar';
-    d.ondragstart = (e) => { e.dataTransfer.setData('text/plain', 'no:' + d.dataset.ag); e.dataTransfer.effectAllowed = 'move'; document.body.classList.add('arrastando'); };
-    d.ondragend = () => document.body.classList.remove('arrastando');
-    d.onclick = () => {
+    d.title = modoBorracha ? 'Clique para tirar do time' : modoSetas ? 'Clique para começar ou terminar uma seta' : 'Arraste para mudar o lugar (solto sobre outro agente, liga os dois), ou clique para editar';
+    d.onclick = (e) => {
       if (arrastouSeta) return;
       if (modoBorracha) { const a = achar(d.dataset.ag); removerAgente(d.dataset.ag); return dica(`${a?.nome || d.dataset.ag} saiu do time. Ctrl+Z traz de volta.`); }
-      modoSetas ? cliqueSeta(d.dataset.ag) : abrirCartao(d.dataset.ag);
+      if (modoSetas) return cliqueSeta(d.dataset.ag);
+      const somar = e.shiftKey || e.ctrlKey || e.metaKey;
+      selecionar(d.dataset.ag, somar);
+      if (!somar) abrirCartao(d.dataset.ag);
     };
-    d.onpointerdown = (e) => comecarElastico(e, d);
+    d.onpointerdown = (e) => (modoSetas ? comecarElastico(e, d) : modoBorracha ? null : comecarMover(e, d));
   });
+  marcarSelecao();
 }
 function soltar(e, alvo) {
   e.preventDefault(); document.body.classList.remove('arrastando');
@@ -374,8 +461,7 @@ function soltar(e, alvo) {
   const [tipo, id] = e.dataTransfer.getData('text/plain').split(':');
   if (alvo === 'lixeira') { if (tipo === 'no') { const a = achar(id); removerAgente(id); dica(`${a?.nome || id} saiu do time.`); } return; }
   const sobre = e.target.closest?.('.agente')?.dataset.ag;
-  if (tipo === 'catalogo') adicionarDoCatalogo(id, sobre);
-  else if (tipo === 'no' && sobre) moverNo(id, sobre);
+  if (tipo === 'catalogo') adicionarDoCatalogo(id, sobre, sobre ? null : unidadesNoPonto(e.clientX, e.clientY));
 }
 $('#previa').addEventListener('dragover', (e) => {
   e.preventDefault();
@@ -389,33 +475,219 @@ $('#lixeira').addEventListener('dragover', (e) => { e.preventDefault(); $('#lixe
 $('#lixeira').addEventListener('dragleave', () => $('#lixeira').classList.remove('alvo'));
 $('#lixeira').addEventListener('drop', (e) => { $('#lixeira').classList.remove('alvo'); soltar(e, 'lixeira'); });
 
-// Desenho da arquitetura para o cartão da galeria, tirado da estrutura real do time:
-// ponto único, linha de pontos (esteira), estrela (supervisor), pirâmide (hierarquia), círculo (rede).
+// Desenho da arquitetura para o cartão da galeria: as posições do próprio time (as gravadas, ou o desenho automático),
+// encolhidas para caber no cartão. Unidades viram pixels na proporção da prévia, para não achatar o desenho.
 function miniatura(t) {
-  const L = t.agentes || [], arq = t.arquitetura, P = new Map();
-  const membros = L.filter((a) => a.funcao !== 'revisor'), rev = L.find((a) => a.funcao === 'revisor');
-  if (arq === 'rede') {
-    const n = membros.length;
-    membros.forEach((a, i) => { const g = -Math.PI / 2 + (i * 2 * Math.PI) / n; P.set(a.id, [100 + Math.cos(g) * (n > 1 ? 40 : 0), 34 + Math.sin(g) * (n > 1 ? 24 : 0)]); });
-    if (rev) P.set(rev.id, [172, 56]);
-  } else if (arq === 'sequencial' || arq === 'unico') {
-    const fila = camadas(L, 'sequencial')[0] || [];
-    fila.forEach((a, i) => P.set(a.id, [fila.length === 1 ? 100 : 26 + (i * 148) / (fila.length - 1), 35]));
-  } else if (arq === 'centralizada') {
-    const lider = L.find((a) => a.funcao === 'lider') || L[0], outros = L.filter((a) => a !== lider);
-    if (lider) P.set(lider.id, [100, 35]);
-    outros.forEach((a, i) => { const g = -Math.PI / 2 + (i * 2 * Math.PI) / outros.length; P.set(a.id, [100 + Math.cos(g) * 46, 35 + Math.sin(g) * 25]); });
-  } else {
-    const linhas = camadas(L, arq);
-    linhas.forEach((linha, r) => linha.forEach((a, i) => P.set(a.id, [100 + (i - (linha.length - 1) / 2) * Math.min(40, 170 / linha.length), linhas.length === 1 ? 35 : 10 + (r * 50) / (linhas.length - 1)])));
-  }
-  const ligas = [];
-  if (arq === 'rede') { const vistos = new Set(); for (const a of membros) for (const b of vizinhosDe(L, a)) { const k = [a.id, b.id].sort().join(); if (!vistos.has(k)) { vistos.add(k); ligas.push([a.id, b.id]); } } }
-  else if (arq === 'sequencial' || arq === 'unico') { const fila = camadas(L, 'sequencial')[0] || []; for (let i = 1; i < fila.length; i++) ligas.push([fila[i - 1].id, fila[i].id]); }
-  else for (const a of L) { const c = chefeDe(L, a, arq); if (c) ligas.push([c, a.id]); }
+  const L = t.agentes || [], pos = Regras.desenho.completar(t), c = Regras.desenho.caixa(pos) || { x0: 0, y0: 0, x1: 0, y1: 0 };
+  const largura = (c.x1 - c.x0) * 98, altura = (c.y1 - c.y0) * 124;
+  const k = Math.min(1, 170 / (largura || 1), 46 / (altura || 1));
+  const ponto = ([x, y]) => [100 + (x - (c.x0 + c.x1) / 2) * 98 * k, 35 + (y - (c.y0 + c.y1) / 2) * 124 * k];
+  const P = new Map(L.filter((a) => pos[a.id]).map((a) => [a.id, ponto(pos[a.id])]));
+  // na rede, ida e volta entre os mesmos dois viram uma linha só
+  const vistas = new Set(), ligas = Regras.desenho.relacoes(t).filter(([a, b]) => { const chave = [a, b].sort().join(); if (vistas.has(chave)) return false; vistas.add(chave); return true; });
   const linhasSvg = ligas.filter(([a, b]) => P.has(a) && P.has(b)).map(([a, b]) => { const [x1, y1] = P.get(a), [x2, y2] = P.get(b); return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }).join('');
   const pontos = L.filter((a) => P.has(a.id)).map((a) => { const [x, y] = P.get(a.id); const cor = /^#[0-9a-f]{6}$/i.test(a.cor || '') ? a.cor : '#8f7bff'; return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${a.funcao === 'lider' ? 6.5 : a.funcao === 'sublider' ? 5.5 : 4.5}" fill="${cor}"${a.funcao === 'revisor' ? ' stroke="#4fe0a0" stroke-dasharray="2 2" fill-opacity=".35"' : ''}/>`; }).join('');
   return `<svg class="mini" viewBox="0 0 200 70" aria-hidden="true"><g stroke="#5c5578" stroke-width="1.4">${linhasSvg}</g>${pontos}</svg>`;
+}
+
+/* ---------- desenho livre: vista (deslocar e zoom) e arrastar agentes ---------- */
+// A prévia é uma janela sobre o "mundo": o mundo tem o desenho em pixels e recebe translate + scale.
+// As posições dos agentes ficam no rascunho, em unidades (js/regras/desenho.js); o arrasto só grava ao soltar,
+// então um arrasto é um passo só no desfazer.
+const ZOOM_MIN = 0.25, ZOOM_MAX = 3;
+const vista = { tx: 0, ty: 0, z: 1, nova: true };
+let pertoPendente = {};   // id → ponto onde a peça da biblioteca foi solta, para o próximo desenho
+function mundo() {
+  let m = $('#previa .mundo'); if (!m) { m = el('div', 'mundo'); $('#previa').append(m); }
+  return m;
+}
+function aplicarVista() {
+  const m = mundo(); m.style.setProperty('--tx', vista.tx + 'px'); m.style.setProperty('--ty', vista.ty + 'px'); m.style.setProperty('--z', vista.z);
+  $('#cZoomTexto').textContent = Math.round(vista.z * 100) + '%';
+  $('#cZoomMenos').disabled = vista.z <= ZOOM_MIN + 1e-6; $('#cZoomMais').disabled = vista.z >= ZOOM_MAX - 1e-6;
+}
+const limitarZoom = (z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+// Enquadra o desenho inteiro na prévia, sem passar de 140%: time pequeno não vira gigante.
+function caber() {
+  const m = mundo(), p = $('#previa'), W = m.offsetWidth, H = m.offsetHeight, PW = p.clientWidth, PH = p.clientHeight;
+  if (!W || !H || !PW || !PH) return;
+  vista.z = limitarZoom(Math.min(PW / W, PH / H, 1.4));
+  vista.tx = (PW - W * vista.z) / 2; vista.ty = (PH - H * vista.z) / 2;
+  aplicarVista();
+}
+// Muda o zoom mantendo parado o ponto (cx, cy) da prévia.
+function zoomEm(z, cx, cy) {
+  const novo = limitarZoom(z); if (novo === vista.z) return aplicarVista();
+  vista.tx = cx - (cx - vista.tx) * novo / vista.z; vista.ty = cy - (cy - vista.ty) * novo / vista.z; vista.z = novo;
+  aplicarVista();
+}
+const zoomNoMeio = (fator) => { const p = $('#previa'); zoomEm(vista.z * fator, p.clientWidth / 2, p.clientHeight / 2); };
+// De coordenadas da tela para pixels dentro do mundo.
+function noMundo(cx, cy) {
+  const r = $('#previa').getBoundingClientRect();
+  return [(cx - r.left - vista.tx) / vista.z, (cy - r.top - vista.ty) / vista.z];
+}
+// Ponto da tela em unidades de desenho, para um agente cujo centro fique ali.
+function unidadesNoPonto(cx, cy) {
+  const m = mundo(); if (!m._escala) return null;
+  const [px, py] = noMundo(cx, cy);
+  return paraUnidades(m, px, py - m._escala.alt / 2).map((v) => Math.round(v * 100) / 100);
+}
+$('#cZoomMenos').onclick = () => zoomNoMeio(1 / 1.25);
+$('#cZoomMais').onclick = () => zoomNoMeio(1.25);
+$('#cZoomTexto').onclick = () => zoomNoMeio(1 / vista.z);
+$('#cCaber').onclick = () => caber();
+// Ctrl + roda (e a pinça do trackpad, que chega como roda com Ctrl): zoom em volta do ponteiro.
+$('#previa').addEventListener('wheel', (e) => {
+  if (!e.ctrlKey && !e.metaKey) return;   // sem Ctrl, a roda continua rolando a página
+  e.preventDefault();
+  const r = $('#previa').getBoundingClientRect();
+  zoomEm(vista.z * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.03 : 0.0015)), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+// Espaço segurado: arrastar em qualquer lugar desloca, mesmo em cima de um agente.
+let espaco = false;
+const noConstrutor = () => document.body.classList.contains('ver-construtor');
+const emCampo = (e) => !!e.target.closest?.('input, textarea, select, button, [contenteditable]');
+document.addEventListener('keydown', (e) => {
+  if (!noConstrutor() || emCampo(e)) return;
+  if (e.code === 'Space' && !e.repeat) { espaco = true; $('#previa').classList.add('pronta-deslocar'); e.preventDefault(); }
+  if (e.code === 'Digit1' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); caber(); }
+});
+document.addEventListener('keyup', (e) => { if (e.code === 'Space') { espaco = false; $('#previa').classList.remove('pronta-deslocar'); } });
+// Deslocar: arrastar o fundo (ou com espaço, em qualquer lugar). Com dois dedos, desloca e muda o zoom junto.
+const toques = new Map();
+$('#previa').addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch') toques.set(e.pointerId, [e.clientX, e.clientY]);
+  if (toques.size === 2) return comecarPinca();
+  const sobreAlgo = e.target.closest?.('.agente, .toque, .tira');
+  if (e.shiftKey && e.button === 0 && !espaco && !sobreAlgo && !modoSetas && !modoBorracha) { e.preventDefault(); e.stopPropagation(); return comecarCaixa(e); }
+  if (!(espaco || e.button === 1 || (e.button === 0 && !sobreAlgo))) return;
+  if (sobreAlgo) e.stopPropagation();
+  e.preventDefault();
+  const x0 = e.clientX, y0 = e.clientY, tx0 = vista.tx, ty0 = vista.ty; let moveu = false;
+  const mover = (ev) => {
+    if (toques.size > 1 || ev.pointerId !== e.pointerId) return;
+    if (!moveu && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 4) return;
+    moveu = true; $('#previa').classList.add('deslocando');
+    vista.tx = tx0 + ev.clientX - x0; vista.ty = ty0 + ev.clientY - y0; aplicarVista();
+  };
+  const fim = (ev) => {
+    if (ev.pointerId !== e.pointerId) return;
+    document.removeEventListener('pointermove', mover); document.removeEventListener('pointerup', fim); document.removeEventListener('pointercancel', fim);
+    $('#previa').classList.remove('deslocando');
+    if (moveu) { cliqueEngolido = true; setTimeout(() => { cliqueEngolido = false; }, 0); }
+  };
+  document.addEventListener('pointermove', mover); document.addEventListener('pointerup', fim); document.addEventListener('pointercancel', fim);
+}, true);
+const soltarToque = (e) => toques.delete(e.pointerId);
+document.addEventListener('pointerup', soltarToque); document.addEventListener('pointercancel', soltarToque);
+function comecarPinca() {
+  const r = $('#previa').getBoundingClientRect();
+  const medir = () => { const [[ax, ay], [bx, by]] = [...toques.values()]; return { d: Math.hypot(bx - ax, by - ay) || 1, cx: (ax + bx) / 2 - r.left, cy: (ay + by) / 2 - r.top }; };
+  let antes = medir();
+  const mover = (ev) => {
+    if (!toques.has(ev.pointerId)) return;
+    toques.set(ev.pointerId, [ev.clientX, ev.clientY]); if (toques.size !== 2) return;
+    const agora = medir();
+    vista.tx += agora.cx - antes.cx; vista.ty += agora.cy - antes.cy;
+    zoomEm(vista.z * agora.d / antes.d, agora.cx, agora.cy);
+    antes = agora;
+  };
+  const fim = () => { if (toques.size < 2) { document.removeEventListener('pointermove', mover); document.removeEventListener('pointerup', fim); document.removeEventListener('pointercancel', fim); } };
+  document.addEventListener('pointermove', mover); document.addEventListener('pointerup', fim); document.addEventListener('pointercancel', fim);
+}
+// Um arrasto que terminou não vira clique (no agente, abriria o cartão; no fundo, tiraria a seleção da seta).
+let cliqueEngolido = false;
+$('#previa').addEventListener('click', (e) => { if (cliqueEngolido) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+// Arrastar um agente: move o desenho. Solto sobre outro agente, vale o que valia antes (mudar de chefe, de ordem
+// ou a passagem de vez); solto na lixeira, sai do time; solto fora da prévia, volta para onde estava.
+function comecarMover(e, d) {
+  if (e.button !== 0 || espaco || toques.size > 1) return;
+  const raiz = mundo(), id = d.dataset.ag, x0 = e.clientX, y0 = e.clientY;
+  const left0 = parseFloat(d.style.left), top0 = parseFloat(d.style.top);
+  let moveu = false, quadro = 0, grupo = [];
+  const debaixo = (ev) => document.elementFromPoint(ev.clientX, ev.clientY);
+  const marcar = (ev) => {
+    const alvo = debaixo(ev);
+    raiz.querySelectorAll('.alvo').forEach((x) => x.classList.remove('alvo'));
+    alvo?.closest?.('#previa .agente')?.classList.add('alvo');
+    $('#lixeira').classList.toggle('alvo', !!alvo?.closest?.('#lixeira'));
+  };
+  const mover = (ev) => {
+    if (ev.pointerId !== e.pointerId || toques.size > 1) return;
+    if (!moveu && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+    if (!moveu) {
+      moveu = true; d.classList.add('movendo'); d.style.pointerEvents = 'none'; document.body.classList.add('arrastando');
+      if (!selecao.has(id)) selecionar(id);   // arrastar quem não estava selecionado seleciona só ele
+      grupo = [...raiz.querySelectorAll('.agente.sel')].filter((x) => x !== d).map((x) => ({ x, l: parseFloat(x.style.left), t: parseFloat(x.style.top) }));
+      grupo.forEach((g) => { g.x.classList.add('movendo'); g.x.style.pointerEvents = 'none'; });
+    }
+    const dx = (ev.clientX - x0) / vista.z, dy = (ev.clientY - y0) / vista.z;
+    d.style.left = (left0 + dx) + 'px'; d.style.top = (top0 + dy) + 'px';
+    grupo.forEach((g) => { g.x.style.left = (g.l + dx) + 'px'; g.x.style.top = (g.t + dy) + 'px'; });
+    marcar(ev);
+    cancelAnimationFrame(quadro); quadro = requestAnimationFrame(() => desenharArestas(raiz));
+  };
+  const fim = (ev) => {
+    if (ev.pointerId !== e.pointerId) return;
+    document.removeEventListener('pointermove', mover); document.removeEventListener('pointerup', fim); document.removeEventListener('pointercancel', fim);
+    if (!moveu) return;   // foi só um clique: abre o cartão
+    cliqueEngolido = true; setTimeout(() => { cliqueEngolido = false; }, 0);
+    const alvo = ev.type === 'pointerup' ? debaixo(ev) : null;
+    d.classList.remove('movendo'); d.style.pointerEvents = ''; document.body.classList.remove('arrastando');
+    grupo.forEach((g) => { g.x.classList.remove('movendo'); g.x.style.pointerEvents = ''; });
+    raiz.querySelectorAll('.alvo').forEach((x) => x.classList.remove('alvo')); $('#lixeira').classList.remove('alvo');
+    const a = achar(id); if (!a) return atualizarPrevia(true);
+    if (alvo?.closest?.('#lixeira')) {
+      if (grupo.length) { const ids = [id, ...grupo.map((g) => g.x.dataset.ag)]; removerVarios(ids); return dica(`${ids.length} agentes saíram do time. Ctrl+Z traz todos de volta.`); }
+      removerAgente(id); return dica(`${a.nome || id} saiu do time. Ctrl+Z traz de volta.`);
+    }
+    const outro = alvo?.closest?.('#previa .agente')?.dataset.ag;
+    if (outro && outro !== id) {
+      const antes = a.pos; a.pos = null;   // mudou de chefe ou de ordem: volta a ficar perto de quem faz sentido
+      if (!moverNo(id, outro)) { a.pos = antes; atualizarPrevia(true); }
+      return;
+    }
+    if (!alvo?.closest?.('#previa')) { atualizarPrevia(true); return dica('Solte dentro da prévia para mover, ou na lixeira para tirar do time.'); }
+    const lugar = (x) => paraUnidades(raiz, parseFloat(x.style.left), parseFloat(x.style.top)).map((v) => Math.round(v * 100) / 100);
+    a.pos = lugar(d);
+    grupo.forEach((g) => { const b = achar(g.x.dataset.ag); if (b) b.pos = lugar(g.x); });   // todos no mesmo passo do desfazer
+    atualizarPrevia(true);
+  };
+  document.addEventListener('pointermove', mover); document.addEventListener('pointerup', fim); document.addEventListener('pointercancel', fim);
+}
+
+// Reorganizar: refaz o desenho automático do time inteiro (na rede, em anel ou em camadas) e enquadra.
+function reorganizar() {
+  const r = compartilhado.rascunho; if (!r) return;
+  if (r.arquitetura === 'rede') r.desenho = { ...r.desenho, rede: $('#cRede').value };
+  r.agentes.forEach((a) => { a.pos = null; });
+  vista.nova = true; atualizarPrevia(true); dica('Desenho reorganizado. Ctrl+Z desfaz.');
+}
+$('#cReorganizar').onclick = reorganizar;
+$('#cRede').onchange = reorganizar;
+// O modelo pronto de onde o rascunho veio, se ele ainda existe na galeria.
+const modeloDeOrigem = () => compartilhado.rascunho?.modelo && compartilhado.galeria.find((t) => t.origem === 'pronto' && t.nome === compartilhado.rascunho.modelo);
+$('#cVoltarModelo').onclick = () => {
+  const m = modeloDeOrigem(); if (!m) return;
+  const base = new Map(m.agentes.map((a) => [a.id, a.pos]));
+  compartilhado.rascunho.agentes.forEach((a) => { a.pos = base.get(a.id) ? [...base.get(a.id)] : null; });
+  vista.nova = true; atualizarPrevia(true); dica(`Voltou ao desenho do modelo "${m.nome}". Ctrl+Z desfaz.`);
+};
+// Estilo das setas: guardado no desenho do time, então vale também no palco, no time salvo e no exportado.
+$('#cSetaEstilo').onchange = (e) => {
+  const r = compartilhado.rascunho; if (!r) return;
+  const { setas, ...resto } = r.desenho || {};
+  r.desenho = e.target.value === 'arredondadas' ? { ...resto, setas: 'arredondadas' } : resto;
+  if (!Object.keys(r.desenho).length) delete r.desenho;
+  atualizarPrevia(true); dica(`Setas ${e.target.value}. Ctrl+Z desfaz.`);
+};
+function barraDaVista() {
+  const r = compartilhado.rascunho;
+  $('#cSetaEstilo').value = Regras.desenho.estiloDaSeta(r.desenho);
+  $('#cRede').hidden = r.arquitetura !== 'rede'; $('#cRede').value = r.desenho?.rede === 'camadas' ? 'camadas' : 'anel';
+  $('#cVoltarModelo').hidden = !modeloDeOrigem();
 }
 
 function novoAgente() {
@@ -424,7 +696,7 @@ function novoAgente() {
   montarEditor();
   const ult = $('#cAgentes').lastElementChild; if (ult) { ult.open = true; ult.scrollIntoView({ block: 'nearest' }); ult.querySelector('input')?.focus(); }
 }
-const limpar = (t) => ({ nome: t.nome, descricao: t.descricao, arquitetura: t.arquitetura, agentes: t.agentes.map((a) => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== '' && v != null))) });
+const limpar = (t) => ({ nome: t.nome, descricao: t.descricao, arquitetura: t.arquitetura, ...(t.desenho ? { desenho: t.desenho } : {}), ...(t.modelo ? { modelo: t.modelo } : {}), agentes: t.agentes.map((a) => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== '' && v != null))) });
 /* ---------- exportar o time ---------- */
 // Salva a arquitetura do rascunho em arquivos que outra IA consegue usar: AGENTS.md, o JSON da Muvuca e os subagentes
 // do Claude Code. Não precisa aplicar o time antes: exporta o que está no construtor.

@@ -21,6 +21,34 @@ test('todos os modelos prontos passam no validador', async () => {
   for (const n of nomes) await pronto(n);
 });
 
+
+test('desenho: posição aceita e arredondada, inválida descartada sem recusar o time; desenho da rede e modelo de origem', () => {
+  const base = (extra = {}, agentes) => ({ nome: 'd', arquitetura: 'centralizada', agentes: agentes || [
+    { id: 'lider', nome: 'Líder', funcao: 'lider', pos: [0.123, 0] },
+    { id: 'dev', nome: 'Dev', ferramentas: ['escrever'], pos: [1, 'x'] },
+    { id: 'qa', nome: 'QA', ferramentas: ['escrever'], pos: [-500, 1] },
+    { id: 'outro', nome: 'Outro', ferramentas: ['escrever'] }], ...extra });
+  const t = validarTime(base({ modelo: 'Supervisor', desenho: { rede: 'camadas' } }), cfg.provedores, 'demo');
+  assert.deepStrictEqual(t.agentes.map((a) => a.pos), [[0.12, 0], undefined, undefined, undefined]);
+  assert.strictEqual(t.modelo, 'Supervisor');
+  assert.strictEqual(t.desenho, undefined, 'o desenho da rede só vale na rede');
+  const r = validarTime(base({ arquitetura: 'rede', desenho: { rede: 'camadas' } }, [{ id: 'a', nome: 'A', ferramentas: ['escrever'] }, { id: 'b', nome: 'B' }]), cfg.provedores, 'demo');
+  assert.deepStrictEqual(r.desenho, { rede: 'camadas' });
+  assert.strictEqual(validarTime(base({ arquitetura: 'rede', desenho: { rede: 'espiral' } }, [{ id: 'a', nome: 'A', ferramentas: ['escrever'] }]), cfg.provedores, 'demo').desenho, undefined);
+  // estilo das setas: arredondadas fica guardado em qualquer arquitetura; quadradas é o padrão e não ocupa espaço
+  assert.deepStrictEqual(validarTime(base({ desenho: { setas: 'arredondadas' } }), cfg.provedores, 'demo').desenho, { setas: 'arredondadas' });
+  assert.strictEqual(validarTime(base({ desenho: { setas: 'quadradas' } }), cfg.provedores, 'demo').desenho, undefined);
+  assert.strictEqual(validarTime(base({ desenho: { setas: 'tortas' } }), cfg.provedores, 'demo').desenho, undefined);
+  assert.deepStrictEqual(validarTime(base({ arquitetura: 'rede', desenho: { rede: 'anel', setas: 'arredondadas' } }, [{ id: 'a', nome: 'A', ferramentas: ['escrever'] }, { id: 'b', nome: 'B' }]), cfg.provedores, 'demo').desenho, { rede: 'anel', setas: 'arredondadas' });
+});
+
+test('modelos prontos trazem o desenho base: todo agente com posição e ninguém em cima de ninguém', async () => {
+  for (const n of (await fs.readdir(PRONTOS)).filter((x) => x.endsWith('.json'))) {
+    const t = await pronto(n);
+    for (const a of t.agentes) assert.ok(a.pos, `${n}: ${a.id} sem posição`);
+    t.agentes.forEach((a, i) => t.agentes.slice(i + 1).forEach((b) => assert.ok(Math.abs(a.pos[0] - b.pos[0]) >= 1 || Math.abs(a.pos[1] - b.pos[1]) >= 0.85, `${n}: ${a.id} cobre ${b.id}`)));
+  }
+});
 test('biblioteca de agentes básicos: formas válidas, sem repetir boneco, e cada um vira time sozinho', async () => {
   const { agentes } = JSON.parse(await fs.readFile(new URL('../config/catalogo-agentes.json', import.meta.url), 'utf8'));
   const { FORMAS } = await import('../src/times.js');
@@ -180,6 +208,38 @@ test('o time em uso volta quando a Muvuca reabre (a Buzina não some do palco)',
     assert.ok(await fs.stat(path.join(dados, 'time-em-uso.json.invalido')));
   } finally {
     // servidor que ficou de pé por um erro no meio do teste não pode prender o processo
+    for (const x of servidores) await Promise.race([x.parar(), new Promise((r) => setTimeout(r, 3000))]);
+    await fs.rm(dados, { recursive: true, force: true });
+  }
+});
+
+test('mover os bonecos no palco muda só o lugar deles, e o lugar novo volta quando a Muvuca reabre', async () => {
+  const dados = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-palco-livre-'));
+  const servidores = [];
+  try {
+    let s = await subir(dados); servidores.push(s);
+    const antes = await s.get('/api/config');
+    const [a, b] = antes.agentes;
+    const r = await s.post('/api/desenho', { pos: { [a.id]: [2.345, -1], [b.id]: [-3, 4] } });
+    assert.equal(r.s, 200, JSON.stringify(r));
+    let c = await s.get('/api/config');
+    assert.deepEqual(c.agentes.find((x) => x.id === a.id).pos, [2.35, -1], 'arredondado');
+    assert.deepEqual(c.agentes.find((x) => x.id === b.id).pos, [-3, 4]);
+    // o time não muda: mesmos agentes, mesmas funções e chefes
+    const semPos = (lista) => lista.map(({ pos, ...x }) => x);
+    assert.deepEqual(semPos(c.agentes), semPos(antes.agentes));
+    // entradas ruins: recusadas com uma frase, sem mudar nada
+    assert.equal((await s.post('/api/desenho', { pos: { fantasma: [0, 0] } })).s, 400);
+    assert.equal((await s.post('/api/desenho', { pos: { [a.id]: [0, 999] } })).s, 400);
+    assert.equal((await s.post('/api/desenho', { pos: [] })).s, 400);
+    assert.equal((await s.post('/api/desenho', {})).s, 400);
+    assert.deepEqual((await s.get('/api/config')).agentes.find((x) => x.id === a.id).pos, [2.35, -1]);
+    await s.parar();
+    s = await subir(dados); servidores.push(s);
+    c = await s.get('/api/config');
+    assert.deepEqual(c.agentes.find((x) => x.id === a.id).pos, [2.35, -1], 'o lugar novo sobrevive a reabrir');
+    assert.deepEqual(semPos(c.agentes), semPos(antes.agentes));
+  } finally {
     for (const x of servidores) await Promise.race([x.parar(), new Promise((r) => setTimeout(r, 3000))]);
     await fs.rm(dados, { recursive: true, force: true });
   }

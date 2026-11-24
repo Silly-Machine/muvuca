@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ligarSeta, desligarSeta } from '../public/js/regras/setas.js';
 import { criarHistorico } from '../public/js/regras/historico.js';
+import * as desenho from '../public/js/regras/desenho.js';
 
 const PUBLIC = path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), 'public');
 const ag = (id, extra = {}) => ({ id, nome: id[0].toUpperCase() + id.slice(1), ferramentas: ['ler', 'escrever'], ...extra });
@@ -104,6 +105,89 @@ test('histórico: guarda no máximo o limite de passos, descartando os mais anti
   assert.deepEqual([h.desfazer('5'), h.desfazer('4'), h.desfazer('3'), h.desfazer('2')], ['4', '3', '2', null]);
 });
 
+
+// ---------- desenho do time (regras/desenho.js) ----------
+// Hierarquia em cadeia: líder → sub1 → sub2 → ... → subN, cada sub-líder com um executor e o último com dois.
+function cadeia(niveis) {
+  const ags = [ag('lider', { funcao: 'lider', ferramentas: [] })];
+  let chefe = 'lider';
+  for (let i = 1; i <= niveis; i++) { ags.push(ag(`sub${i}`, { funcao: 'sublider', ferramentas: [], chefe })); ags.push(ag(`exec${i}`, { chefe: `sub${i}` })); chefe = `sub${i}`; }
+  ags.push(ag('ultimo', { chefe }), ag('revisor', { funcao: 'revisor', ferramentas: ['ler'] }));
+  return time('hierarquica', ags);
+}
+
+test('desenho automático: hierarquia funda sem cruzar setas, cada chefe sobre os seus, sempre igual', () => {
+  const t = cadeia(7);
+  const p = desenho.layoutAutomatico(t);
+  assert.deepEqual(desenho.layoutAutomatico(t), p, 'determinístico');
+  assert.equal(Object.keys(p).length, t.agentes.length);
+  const prof = Math.max(...Object.values(p).map(([, y]) => y));
+  assert.ok(prof >= 8, `a cadeia vai até o fim, sem corte de 6 níveis (${prof})`);
+  for (const [chefe, sub] of desenho.relacoes(t)) assert.equal(p[sub][1], p[chefe][1] + 1, `${sub} fica uma camada abaixo de ${chefe}`);
+  // sem cruzamento: em cada camada, os filhos de chefes diferentes não se intercalam, na mesma ordem dos chefes
+  const filhosDe = (id) => desenho.relacoes(t).filter(([c]) => c === id).map(([, s]) => p[s][0]);
+  const chefes = [...new Set(desenho.relacoes(t).map(([c]) => c))];
+  for (const a of chefes) for (const b of chefes) {
+    if (a === b || p[a][1] !== p[b][1] || p[a][0] >= p[b][0]) continue;
+    assert.ok(Math.max(...filhosDe(a)) < Math.min(...filhosDe(b)), `filhos de ${a} e de ${b} se cruzariam`);
+  }
+  for (const c of chefes) { const f = filhosDe(c); assert.ok(p[c][0] >= Math.min(...f) && p[c][0] <= Math.max(...f), `${c} centrado sobre os seus`); }
+  // ninguém em cima de ninguém
+  const v = Object.values(p);
+  v.forEach((a, i) => v.slice(i + 1).forEach((b) => assert.ok(Math.abs(a[0] - b[0]) >= 1 || Math.abs(a[1] - b[1]) >= 1, 'agentes sobrepostos')));
+});
+
+test('desenho automático: esteira em linha, rede em anel ou em camadas, revisor fora do anel', () => {
+  const est = desenho.layoutAutomatico(time('sequencial', [ag('revisor', { funcao: 'revisor' }), ag('a'), ag('b'), ag('c')]));
+  assert.deepEqual(Object.keys(est).sort((x, y) => est[x][0] - est[y][0]), ['a', 'b', 'c', 'revisor'], 'na ordem, revisor no fim');
+  assert.ok(Object.values(est).every(([, y]) => y === 0));
+
+  const rede = time('rede', [ag('a', { conexoes: ['b'] }), ag('b', { conexoes: ['c'] }), ag('c', { conexoes: ['d'] }), ag('d', { conexoes: ['a'] }), ag('e', { conexoes: ['a'] }), ag('revisor', { funcao: 'revisor' })]);
+  const anel = desenho.layoutAutomatico(rede);
+  const membros = ['a', 'b', 'c', 'd', 'e'], cx = membros.reduce((s, id) => s + anel[id][0], 0) / 5;
+  assert.ok(Math.abs(anel.a[0] - cx) < 0.01 && membros.every((id) => anel[id][1] >= anel.a[1]), 'quem começa fica no topo do anel');
+  assert.ok(membros.every((id) => anel.revisor[1] > anel[id][1]), 'o revisor fica embaixo, fora do anel');
+
+  const cam = desenho.layoutAutomatico(rede, { rede: 'camadas' });
+  assert.deepEqual(['a', 'b', 'c', 'd', 'e'].map((id) => cam[id][1]), [0, 1, 2, 3, 4], 'camada = distância a partir de quem começa; "e" ninguém alcança e fica no fim');
+  assert.deepEqual(desenho.layoutAutomatico({ ...rede, desenho: { rede: 'camadas' } }), cam, 'a escolha guardada no time vale');
+});
+
+test('completar: quem tem posição não sai do lugar; o novo fica perto do chefe ou do ponto pedido, sem cobrir ninguém', () => {
+  const t = time('centralizada', [ag('lider', { funcao: 'lider', ferramentas: [], pos: [0, 0] }), ag('a', { pos: [-1, 1] }), ag('b', { pos: [0, 1] }), ag('novo')]);
+  const p = desenho.completar(t);
+  assert.deepEqual([p.lider, p.a, p.b], [[0, 0], [-1, 1], [0, 1]]);
+  assert.equal(p.novo[1], 1, 'na camada embaixo do líder');
+  assert.ok(Object.entries(p).every(([id, q]) => id === 'novo' || Math.abs(q[0] - p.novo[0]) >= 1 || Math.abs(q[1] - p.novo[1]) >= 1));
+  assert.equal(t.agentes[3].pos, undefined, 'não altera o time recebido');
+  assert.deepEqual(desenho.completar(t, { perto: { novo: [5, 3] } }).novo, [5, 3], 'o ponto onde a peça foi solta');
+  assert.deepEqual(desenho.completar(t, { perto: { novo: [0.2, 1] } }).novo.length, 2);
+  assert.ok(Math.abs(desenho.completar(t, { perto: { novo: [0.2, 1] } }).novo[0] - 0.2) >= 0.8, 'ponto ocupado: vai para o lado');
+  // posição inválida conta como sem posição
+  const s = time('sequencial', [ag('a', { pos: [0, 0] }), ag('b', { pos: ['x', 1] })]);
+  assert.deepEqual(desenho.completar(s).b, [1, 0], 'na esteira, à direita do anterior');
+  // ninguém com posição: desenho automático
+  const u = time('sequencial', [ag('a'), ag('b')]);
+  assert.deepEqual(desenho.completar(u), desenho.layoutAutomatico(u));
+});
+test('setas quadradas e arredondadas: mesmo ponto de saída e de chegada, só o traço muda', () => {
+  const A = { x: 100, topo: 0, base: 80, meio: 40, raio: 30 }, B = { x: 200, topo: 140, base: 220, meio: 180, raio: 30 };
+  assert.equal(desenho.rotaDaSeta(A, B), 'M100 80V110H200V140', 'quadrada: do pé de A, cotovelo de cantos vivos, até a cabeça de B');
+  assert.equal(desenho.rotaDaSeta(A, B, 'arredondadas'), 'M100 80C100 110 200 110 200 140', 'arredondada: curva entre os mesmos pontos');
+  assert.equal(desenho.rotaDaSeta(B, A), 'M200 140V110H100V80', 'B em cima: sobe da cabeça ao pé');
+  const C = { x: 260, topo: 10, base: 90, meio: 50, raio: 30 };
+  assert.equal(desenho.rotaDaSeta(A, C), 'M128 40H180V50H232', 'lado a lado: de lateral a lateral');
+  assert.match(desenho.rotaDaSeta(A, C, 'arredondadas'), /^M128 40C180 40 180 50 232 50$/);
+  assert.equal(desenho.rotaDaSeta(A, { ...B, x: 100 }), 'M100 80V140', 'alinhados: reta, nos dois estilos');
+  assert.equal(desenho.rotaDaSeta(A, { ...B, x: 100 }, 'arredondadas'), 'M100 80V140');
+  // rede: reta, ou curva suave para o lado
+  assert.match(desenho.retaDaRede(A, B), /^M[\d.]+ [\d.]+L[\d.]+ [\d.]+$/);
+  assert.match(desenho.retaDaRede(A, B, 'arredondadas'), /^M[\d.]+ [\d.]+Q[\d.-]+ [\d.-]+ [\d.]+ [\d.]+$/);
+  // o estilo guardado no time; qualquer outra coisa vale como quadradas
+  assert.equal(desenho.estiloDaSeta({ setas: 'arredondadas' }), 'arredondadas');
+  assert.equal(desenho.estiloDaSeta({ setas: 'tortas' }), 'quadradas');
+  assert.equal(desenho.estiloDaSeta(null), 'quadradas');
+});
 // A tela é feita de módulos: cada arquivo tem o próprio escopo e declara o que importa. Estes testes conferem a
 // estrutura sem navegador: quem importa quem, em que ordem, e que nada escapa para o escopo global.
 const JS = path.join(PUBLIC, 'js');
@@ -142,7 +226,7 @@ test('tela em módulos: cada parte só importa das anteriores (sem ciclos), e to
     }
   }
   for (const arq of ['estado.js', 'tardias.js']) assert.deepEqual(importacoes(arq), [], `${arq} não depende de ninguém`);
-  assert.deepEqual(importacoes('regras/indice.js').sort(), ['./historico.js', './setas.js']);
+  assert.deepEqual(importacoes('regras/indice.js').sort(), ['./desenho.js', './historico.js', './setas.js']);
 });
 
 test('tela em módulos: nada vai para o escopo global, e o que um módulo usa de outro vem por importação', () => {

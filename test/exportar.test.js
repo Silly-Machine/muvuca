@@ -169,3 +169,9 @@ test('servidor: prévia, baixar o .zip e gravar na pasta do projeto, sem atropel
     await s.post('/api/parar', {});
   } finally { await s.parar(); }
 });
+
+test('muvuca-time.json leva o desenho: lugar de cada agente, desenho da rede e modelo de origem', () => {
+  const t = { nome: 'R', arquitetura: 'rede', desenho: { rede: 'camadas' }, modelo: 'Rede completa', agentes: [{ id: 'a', nome: 'A', provedor: 'demo', ferramentas: ['escrever'], pos: [1.5, 0] }] };
+  const j = JSON.parse(timeJson(t));
+  assert.deepEqual([j.agentes[0].pos, j.desenho, j.modelo, j.agentes[0].provedor], [[1.5, 0], { rede: 'camadas' }, 'Rede completa', undefined]);
+});

@@ -39,11 +39,11 @@ header h1 { font-size:30px; background:linear-gradient(90deg, var(--coral), var(
 .balao { bottom:auto; top:calc(var(--tam, 160px) * 1.0625 - 10px); transform:translate(-50%, -6px); z-index:4; }
 .balao.visivel { transform:translate(-50%, 0); }
 .balao::after { top:auto; bottom:100%; border-top-color:transparent; border-bottom-color:#fbf3e8; }
-.nivel:has(.balao.visivel) { z-index:3; }
+.agente:has(.balao.visivel) { z-index:3; }
 /* quem chefia alguém (líder, sub-líder) tem arestas embaixo também: o balão vai para o lado */
-:is(.nivel[data-nivel="0"], .agente.chefe) .balao { top:26px; left:calc(50% + 70px); transform:translate(6px, 0); }
-:is(.nivel[data-nivel="0"], .agente.chefe) .balao.visivel { transform:translate(0, 0); }
-:is(.nivel[data-nivel="0"], .agente.chefe) .balao::after { left:auto; right:100%; top:16px; bottom:auto; margin:0; border-color:transparent; border-right-color:#fbf3e8; }
+:is(.agente[data-nivel="0"], .agente.chefe) .balao { top:26px; left:calc(50% + 70px); transform:translate(6px, 0); }
+:is(.agente[data-nivel="0"], .agente.chefe) .balao.visivel { transform:translate(0, 0); }
+:is(.agente[data-nivel="0"], .agente.chefe) .balao::after { left:auto; right:100%; top:16px; bottom:auto; margin:0; border-color:transparent; border-right-color:#fbf3e8; }
 .aresta { stroke:#5a4a55; stroke-width:2.2; } .aresta.ativa { stroke-width:3; }
 .aresta.alarme { stroke:var(--rosa); filter:drop-shadow(0 0 6px var(--rosa)); }
 
@@ -159,7 +159,7 @@ body.sem-conversa #alternarConversa { right:14px; } body.sem-conversa #alternarC
 #cSetas svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
 #cSetas[aria-pressed=true] { background:linear-gradient(180deg, #ffdc8f, var(--holofote)); color:#3a2a10; }
 /* as setas da prévia são sempre clicáveis: os espaços vazios entre os bonecos deixam o clique passar */
-#previa .nivel { pointer-events:none; } #previa .agente { pointer-events:auto; }
+#previa .agente { pointer-events:auto; }
 #previa .toque { fill:none; stroke:transparent; stroke-width:18; stroke-linecap:round; pointer-events:stroke; cursor:pointer; }
 #previa .toque:hover { stroke:rgba(245,203,114,.14); } #previa .toque.sel { stroke:rgba(245,203,114,.3); }
 #previa .tira { display:none; cursor:pointer; pointer-events:all; outline:none; }
@@ -343,5 +343,7 @@ body:is(.ver-projetos, .ver-config, .ver-quadro, .ver-rotinas, .ver-conexoes) :i
 .linha-nivel select { padding:5px 8px; font-size:12.5px; border-radius:12px; }
 #cfMsg { font-size:13px; min-height:1.3em; }
 
-@media (max-width: 1080px) { body { grid-template-columns:60px 1fr; grid-template-rows:auto auto; overflow:auto; height:auto; } #conversa { grid-column:1 / -1; border-left:0; border-top:1px solid var(--borda); min-height:60vh; } .nivel { flex-wrap:wrap; } .oficina { grid-template-columns:1fr; } .previa-caixa { position:static; } }
+@media (max-width: 1080px) { body { grid-template-columns:60px 1fr; grid-template-rows:auto auto; overflow:auto; height:auto; } #conversa { grid-column:1 / -1; border-left:0; border-top:1px solid var(--borda); min-height:60vh; } .oficina { grid-template-columns:1fr; } .previa-caixa { position:static; } }
 #rForm [hidden] { display:none !important; }
+.barra-vista { margin-top:-4px; flex-wrap:wrap; row-gap:6px; } .barra-vista button { white-space:nowrap; } .barra-vista [hidden] { display:none !important; } .barra-vista .zoom { min-width:54px; } .barra-vista select { padding:4px 8px; font-size:12.5px; border-radius:12px; }
+#previa.pronta-deslocar, #previa.pronta-deslocar .agente { cursor:grab; }

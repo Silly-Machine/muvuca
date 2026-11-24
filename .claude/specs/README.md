@@ -58,3 +58,5 @@ São coisas diferentes. A especificação em etapas (`src/especificacao.js`) é 
 - [`_modelo/`](_modelo/): ponto de partida para uma especificação nova.
 - [`chave-de-api-e-assinatura/`](chave-de-api-e-assinatura/): concluída; serve de exemplo completo.
 - [`publicacao-no-npm/`](publicacao-no-npm/): suspensa; a publicação pelo fluxo falhou e a pendência está anotada nas tarefas.
+- [`desenho-de-arquitetura/`](desenho-de-arquitetura/): em execução; fase 1 (desenho livre, 1.1.0) feita. Pesquisa em `pesquisa.md`.
+- `execucao-no-grafo/`: planejada, no caminho do n8n; começa depois da 1.5.0 (veja o fim de `desenho-de-arquitetura/requirements.md`).

@@ -7,6 +7,13 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const RAIZ = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const [maior] = process.versions.node.split('.').map(Number);
+if (maior < 22) {
+  console.error(`A Muvuca precisa do Node 22 ou mais novo, e este computador tem o ${process.versions.node}.
+Instale a versão LTS em https://nodejs.org e rode de novo. Se preferir não mexer no Node, use o aplicativo de mesa:
+https://github.com/Silly-Machine/muvuca/releases/latest`);
+  process.exit(1);
+}
 const args = process.argv.slice(2);
 const tem = (...nomes) => nomes.some((n) => args.includes(n));
 const valor = (nome) => { const i = args.indexOf(nome); return i >= 0 ? args[i + 1] : undefined; };
@@ -44,8 +51,15 @@ function abrir(url) {
 }
 
 // Se já há uma Muvuca aberta com esta pasta de dados (o aplicativo de mesa, por exemplo), usa essa em vez de subir outra.
-const { muvucaAberta } = await import(pathToFileURL(path.join(RAIZ, 'src', 'aberta.js')).href);
+const { muvucaAberta, versaoDiferente } = await import(pathToFileURL(path.join(RAIZ, 'src', 'aberta.js')).href);
 const jaAberta = await muvucaAberta();
+const minhaVersao = JSON.parse(fs.readFileSync(path.join(RAIZ, 'package.json'), 'utf8')).version;
+const outra = versaoDiferente(jaAberta, minhaVersao);
+if (outra) {
+  console.error(outra + `
+A aberta continua em http://localhost:${jaAberta.porta}/?t=${jaAberta.token}`);
+  process.exit(1);
+}
 if (jaAberta) {
   const link = `http://localhost:${jaAberta.porta}/?t=${jaAberta.token}`;
   console.log(`A Muvuca já está aberta: ${link}`);

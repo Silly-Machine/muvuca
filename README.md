@@ -23,7 +23,7 @@ A Muvuca é um painel local para trabalhar com um time de agentes de IA. Você e
 
 Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude Code) já logado na sua assinatura. Nenhuma chave de API é necessária, e nada do seu projeto passa por um servidor da Muvuca, porque não existe um.
 
-> **Estado do projeto:** versão 1.0.0, a primeira estável. Os fluxos principais foram provados com o Claude de verdade e há testes automáticos nos três sistemas. Dois avisos honestos: os instaladores ainda não são assinados (o Windows e o macOS mostram um aviso ao abrir) e não há atualização automática. Leia [o que foi testado e o que não foi](docs/guia.md#o-que-foi-testado-e-o-que-não-foi) antes de apontá-la para um projeto importante.
+> **Estado do projeto:** estável desde a 1.0.0. Os fluxos principais foram provados com o Claude de verdade e há testes automáticos nos três sistemas. Dois avisos honestos: os instaladores ainda não são assinados (o Windows e o macOS mostram um aviso ao abrir) e não há atualização automática. Leia [o que foi testado e o que não foi](docs/guia.md#o-que-foi-testado-e-o-que-não-foi) antes de apontá-la para um projeto importante.
 
 ## Destaques
 
@@ -48,31 +48,47 @@ Ela roda no seu computador e usa o **seu** Claude: o aplicativo `claude` (Claude
 
 ## Instalação
 
-Para usar o Claude de verdade, instale antes o [Claude Code](https://claude.com/claude-code). O login você faz pela própria Muvuca: o botão **"Entrar com o Claude"** abre a página de login no navegador. Sem o Claude Code, a Muvuca funciona em modo demonstração.
+Três passos, em qualquer computador. Não precisa de conta na Muvuca, de chave de API nem de saber programar.
 
-### 1. Aplicativo de mesa (Windows, macOS e Linux)
+### 1. Baixe o aplicativo
 
-Baixe o instalador do seu sistema na página de [Releases](https://github.com/Silly-Machine/muvuca/releases):
-
-| Sistema | Arquivo |
+| Sistema | Baixar |
 |---|---|
-| Windows | `Muvuca.Setup.x.y.z.exe` |
-| macOS | `Muvuca-x.y.z-arm64.dmg` (Apple Silicon) ou `Muvuca-x.y.z.dmg` (Intel) |
-| Linux | `Muvuca-x.y.z.AppImage` |
+| Windows 10 ou 11 | [Muvuca-Windows.exe](https://github.com/Silly-Machine/muvuca/releases/latest/download/Muvuca-Windows.exe) |
+| macOS com chip Apple (M1 em diante) | [Muvuca-macOS-arm64.dmg](https://github.com/Silly-Machine/muvuca/releases/latest/download/Muvuca-macOS-arm64.dmg) |
+| macOS com processador Intel | [Muvuca-macOS-x64.dmg](https://github.com/Silly-Machine/muvuca/releases/latest/download/Muvuca-macOS-x64.dmg) |
+| Linux (64 bits) | [Muvuca-Linux.AppImage](https://github.com/Silly-Machine/muvuca/releases/latest/download/Muvuca-Linux.AppImage) |
 
-Os instaladores ainda não são assinados. Na primeira abertura, o Windows mostra o aviso do SmartScreen ("Mais informações" e depois "Executar assim mesmo") e o macOS pede para abrir com o botão direito e "Abrir".
+Os links trazem sempre a versão mais nova. As anteriores ficam na página de [Releases](https://github.com/Silly-Machine/muvuca/releases).
 
-### 2. Pelo terminal, sem instalar
+### 2. Abra pela primeira vez
 
-Precisa de Node 22 ou mais novo.
+O aplicativo ainda não tem assinatura digital, então o sistema pergunta antes de abrir. É esperado, e só acontece na primeira vez:
+
+- **Windows:** na tela azul "O Windows protegeu o computador", clique em **Mais informações** e depois em **Executar assim mesmo**. Depois, siga o instalador.
+- **macOS:** arraste a Muvuca para Aplicativos e abra. Se aparecer "não pode ser aberto", vá em **Ajustes do Sistema > Privacidade e Segurança**, role até o aviso da Muvuca e clique em **Abrir Mesmo Assim**.
+- **Linux:** dê permissão de execução (`chmod +x Muvuca-Linux.AppImage`) e abra. No Ubuntu 22.04 ou mais novo, se não abrir, instale o `libfuse2` (`sudo apt install libfuse2`).
+
+### 3. Escolha quem trabalha
+
+Na tela de boas-vindas:
+
+- **Demonstração:** funciona na hora, sem conta e sem custo, com um roteiro simulado. Bom para conhecer.
+- **Claude de verdade:** usa a sua assinatura do Claude pelo aplicativo Claude Code. Se ele ainda não estiver no computador, a própria tela mostra o comando para instalar, com um botão de copiar. Depois, "Entrar com o Claude" abre o login no navegador.
+
+Pronto. Para atualizar, baixe a versão nova e instale por cima: o seu time, os projetos e a memória continuam.
+
+### Outras formas
+
+**Pelo terminal, sem instalar** (precisa de [Node](https://nodejs.org) 22 ou mais novo):
 
 ```sh
 npx github:Silly-Machine/muvuca
 ```
 
-O comando sobe o servidor local e abre a tela no navegador. Opções: `--porta 4318`, `--dados PASTA`, `--sem-abrir`, `--ajuda`.
+O comando sobe a Muvuca e abre a tela no navegador. Opções: `--porta 4318`, `--dados PASTA`, `--sem-abrir`, `--ajuda`.
 
-### 3. Do código-fonte
+**Do código-fonte:**
 
 ```sh
 git clone https://github.com/Silly-Machine/muvuca.git
@@ -81,6 +97,17 @@ npm start            # servidor + navegador; não precisa de "npm install"
 ```
 
 Para o aplicativo de mesa em modo de desenvolvimento: `npm install` e depois `npm run app`.
+
+### Se algo não funcionar
+
+| O que aparece | O que fazer |
+|---|---|
+| "O Claude Code ainda não está neste computador" | Rode o comando que a tela mostra (no PowerShell ou no Terminal) e clique em "Conferir de novo". Não precisa fechar a Muvuca. |
+| "instalado, mas sem login" | Clique em "Entrar com o Claude", ou rode `claude` num terminal e entre na sua conta. |
+| "A Muvuca precisa do Node 22 ou mais novo" | Só no caminho pelo terminal. Instale o Node LTS, ou use o aplicativo de mesa, que já traz tudo. |
+| "Outra versão da Muvuca já está aberta" | Feche a outra (o aplicativo ou o terminal onde ela roda) e abra de novo. |
+| "A porta 4317 já está em uso" | Outra Muvuca está aberta, ou outro programa usa a porta. Use `--porta 4318`. |
+| Abriu o endereço e aparece "este navegador ainda não tem acesso" | Abra pelo link com a chave que aparece no terminal (`http://localhost:4317/?t=...`), ou pelo aplicativo. |
 
 ## Primeiros passos
 

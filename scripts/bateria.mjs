@@ -193,6 +193,42 @@ for (const t of times0.times.filter((x) => x.origem === 'pronto')) {
   const prov = await post('/api/time', { time: { nome: 'x', arquitetura: 'unico', agentes: [{ id: 'a', nome: 'A', provedor: 'nao-existe', ferramentas: ['escrever'] }] } }); ok('provedor inexistente é recusado', prov.s === 400 && /provedor/.test(prov.j?.erro || ''), JSON.stringify(prov.j)); }
 ok('biblioteca tem os 15 agentes básicos, com a Buzina marcada como secreta', times0.catalogo.length === 15 && times0.catalogo.find((a) => a.id === 'buzina')?.secreto === true);
 
+secao('Desenho do time');
+// cada agente guarda o lugar no desenho (pos); os modelos prontos trazem o desenho base
+for (const t of times0.times.filter((x) => x.origem === 'pronto' && !x.erro)) ok(`${t.nome}: todo agente com lugar no desenho`, t.agentes.every((a) => Array.isArray(a.pos) && a.pos.length === 2), JSON.stringify(t.agentes.map((a) => a.pos)));
+{ const base = times0.times.find((x) => x.origem === 'pronto' && x.arquitetura === 'rede' && !x.erro);
+  const desenhado = { ...base, desenho: { rede: 'camadas' }, modelo: base.nome, agentes: base.agentes.map((a, i) => ({ ...a, pos: i === 0 ? [3.456, -1] : i === 1 ? [999, 0] : a.pos })) };
+  const r = await post('/api/time', { time: desenhado, salvar: true });
+  ok('time com desenho vai para o palco e é salvo', r.s === 200 && r.j?.arquivo, JSON.stringify(r.j));
+  const cc = await config();
+  ok('o palco recebe o lugar de cada agente, arredondado', JSON.stringify(cc.agentes[0].pos) === '[3.46,-1]', JSON.stringify(cc.agentes[0]?.pos));
+  ok('lugar fora do limite é descartado sem recusar o time', cc.agentes[1].pos === null, JSON.stringify(cc.agentes[1]?.pos));
+  ok('o palco recebe o desenho da rede e o modelo de origem', cc.desenho?.rede === 'camadas' && cc.modelo === base.nome, JSON.stringify({ desenho: cc.desenho, modelo: cc.modelo }));
+  { const rs = await post('/api/time', { time: { ...desenhado, desenho: { rede: 'anel', setas: 'arredondadas' } }, salvar: false });
+    ok('setas arredondadas chegam ao palco junto com o desenho da rede', rs.s === 200 && JSON.stringify((await config()).desenho) === '{"rede":"anel","setas":"arredondadas"}', JSON.stringify((await config()).desenho)); }
+  if (r.j?.arquivo) {
+    const arq = path.join(PASTA_DADOS, 'times', r.j.arquivo);
+    const salvo = JSON.parse(await fs.readFile(arq, 'utf8'));
+    ok('o time salvo leva o desenho', JSON.stringify(salvo.agentes[0].pos) === '[3.46,-1]' && salvo.desenho?.rede === 'camadas' && salvo.modelo === base.nome, JSON.stringify({ pos: salvo.agentes[0].pos, desenho: salvo.desenho, modelo: salvo.modelo }));
+    const naGaleria = (await get('/api/times')).j.times.find((x) => x.origem === 'salvo' && x.arquivo === r.j.arquivo);
+    ok('o time salvo volta pela galeria com o desenho', JSON.stringify(naGaleria?.agentes[0].pos) === '[3.46,-1]', JSON.stringify(naGaleria?.agentes?.[0]));
+    await fs.rm(arq);   // a bateria devolve a pasta de dados como achou
+  }
+  const semPos = await post('/api/time', { time: { ...base, agentes: base.agentes.map(({ pos, ...a }) => a) }, salvar: false });
+  ok('time sem desenho continua valendo (desenho automático na tela)', semPos.s === 200 && (await config()).agentes.every((a) => a.pos === null), JSON.stringify(semPos.j));
+  const r2 = await post('/api/time', { time: timeArquivo, salvar: false }); ok('volta ao time do arquivo depois do desenho', r2.s === 200); }
+// mover os bonecos no palco: só o lugar muda, e o time em uso guarda
+{ const antes = await config(); const id = antes.agentes[0].id, anterior = antes.agentes[0].pos;
+  const r = await post('/api/desenho', { pos: { [id]: [1.234, 2] } });
+  const depois = await config();
+  ok('arrastar no palco grava o lugar, arredondado', r.s === 200 && JSON.stringify(depois.agentes[0].pos) === '[1.23,2]', JSON.stringify({ r: r.j, pos: depois.agentes[0].pos }));
+  ok('arrastar no palco não muda o time', JSON.stringify(depois.agentes.map(({ pos, ...x }) => x)) === JSON.stringify(antes.agentes.map(({ pos, ...x }) => x)));
+  ok('agente que não está no palco é recusado com uma frase', (await post('/api/desenho', { pos: { fantasma: [0, 0] } })).s === 400);
+  ok('lugar fora do limite é recusado', (await post('/api/desenho', { pos: { [id]: [0, 999] } })).s === 400);
+  if (anterior) await post('/api/desenho', { pos: { [id]: anterior } });   // devolve o lugar como achou
+}
+{ const js = await get('/js/regras/desenho.js'); ok('regras do desenho servidas à tela como módulo', js.s === 200 && /javascript/.test(js.tipo) && /export function completar/.test(js.t), js.s + ' ' + js.tipo); }
+
 // ---------- 8. preferências e projetos
 secao('Configurações e projetos');
 { const r = await post('/api/preferencias', { preferencias: { ...prefs0, maxCiclos: 99, maxPassos: -5 } }); ok('limites fora da faixa são ajustados', r.j?.preferencias.maxCiclos === 10 && r.j.preferencias.maxPassos === 1, JSON.stringify(r.j));

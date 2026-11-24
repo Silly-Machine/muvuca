@@ -6,10 +6,10 @@ import fs from 'node:fs/promises';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { subir, RAIZ } from './apoio/servidor-de-teste.js';
 import { gravarJson, lerJson, normalizarPreferencias } from '../src/ajustes.js';
-import { muvucaAberta } from '../src/aberta.js';
+import { muvucaAberta, versaoDiferente } from '../src/aberta.js';
 
 const pastaDados = () => fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-dados-'));
 
@@ -121,15 +121,43 @@ test('Muvuca já aberta: quem chega depois acha a que está rodando, e o aviso s
   const s = await subir(dados);
   try {
     const achou = await muvucaAberta(dados);
-    assert.deepEqual(achou, { porta: s.porta, token: s.token, endereco: `http://127.0.0.1:${s.porta}` });
+    const versao = JSON.parse(await fs.readFile(path.join(RAIZ, 'package.json'), 'utf8')).version;
+    assert.deepEqual(achou, { porta: s.porta, token: s.token, endereco: `http://127.0.0.1:${s.porta}`, versao });
     // o comando "muvuca" na mesma pasta de dados não sobe outra: aponta para a que já existe e sai
     const r = spawnSync(process.execPath, [path.join(RAIZ, 'bin', 'muvuca.js'), '--sem-abrir', '--dados', dados], { encoding: 'utf8', timeout: 30000, env: { ...process.env, NODE_TEST_CONTEXT: '' } });
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, new RegExp(`já está aberta: http://localhost:${s.porta}/\\?t=${s.token}`));
   } finally { await s.parar(); }
+  // versão diferente aberta: quem chega depois não aproveita a outra sem avisar
+  assert.equal(versaoDiferente(null, '1.1.0'), '', 'ninguém aberto: nada a avisar');
+  assert.equal(versaoDiferente({ versao: '1.1.0' }, '1.1.0'), '', 'mesma versão: aproveita');
+  const msg = versaoDiferente({ versao: '1.0.1' }, '1.1.0');
+  assert.match(msg, /1.0.1 aberta/); assert.match(msg, /esta é a 1.1.0/); assert.match(msg, /Feche a outra/);
   // processo morto: mesmo que o aviso tenha ficado no disco, ninguém é dado como aberto
   await fs.writeFile(path.join(dados, 'aberta.json'), JSON.stringify({ pid: s.pid, porta: s.porta }));
   assert.equal(await muvucaAberta(dados), null);
   await fs.writeFile(path.join(dados, 'aberta.json'), 'lixo');
   assert.equal(await muvucaAberta(dados), null);
+});
+
+test('comando "muvuca" com outra versão aberta na mesma pasta de dados: avisa e não mistura as duas', async () => {
+  const dados = await pastaDados();
+  await fs.writeFile(path.join(dados, 'acesso.token'), 'chave-de-teste');
+  // uma "Muvuca" de outra versão, de mentira: só responde a configuração
+  const falsa = http.createServer((req, res) => {
+    if (req.headers['x-muvuca-token'] !== 'chave-de-teste') { res.writeHead(401); return res.end(); }
+    res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ versao: '0.0.1' }));
+  });
+  await new Promise((ok) => falsa.listen(0, '127.0.0.1', ok));
+  try {
+    await fs.writeFile(path.join(dados, 'aberta.json'), JSON.stringify({ pid: process.pid, porta: falsa.address().port }));
+    // assíncrono: com spawnSync o teste ficaria parado e a Muvuca falsa não conseguiria responder
+    const filho = spawn(process.execPath, [path.join(RAIZ, 'bin', 'muvuca.js'), '--sem-abrir', '--dados', dados], { env: { ...process.env, NODE_TEST_CONTEXT: '' } });
+    let stderr = ''; filho.stderr.on('data', (d) => { stderr += d; });
+    const prazo = setTimeout(() => filho.kill(), 20000);
+    const r = { status: await new Promise((ok) => filho.on('close', ok)), stderr }; clearTimeout(prazo);
+    assert.equal(r.status, 1, 'não sobe outra nem aponta para a de outra versão');
+    assert.match(r.stderr, /Muvuca 0\.0\.1 aberta/);
+    assert.match(r.stderr, /Feche a outra/);
+  } finally { await new Promise((ok) => falsa.close(ok)); }
 });

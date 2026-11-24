@@ -10,7 +10,7 @@ Referência completa: como cada parte funciona, o que foi testado e o que ficou 
 | Comando `muvuca` | `npx github:Silly-Machine/muvuca` ou `npm start` no código-fonte | 4317 (`--porta` troca) |
 | Só o servidor | `node src/servidor.js` | 4317 (`MUVUCA_PORTA` troca; 0 escolhe uma livre) |
 
-Nas três, o servidor atende só em `127.0.0.1`: outra máquina da rede não alcança. Se já houver uma Muvuca aberta com a mesma pasta de dados, o comando e o aplicativo mostram essa em vez de subir outra.
+Nas três, o servidor atende só em `127.0.0.1`: outra máquina da rede não alcança. Se já houver uma Muvuca aberta com a mesma pasta de dados, o comando e o aplicativo mostram essa em vez de subir outra, desde que seja a mesma versão. Se for outra (o aplicativo instalado e o comando de uma versão mais nova, por exemplo), eles avisam qual está aberta e pedem para fechá-la, em vez de misturar as duas. E se o servidor voltar numa versão nova com a tela ainda aberta, a tela avisa e oferece recarregar.
 
 ### Acesso
 
@@ -47,6 +47,8 @@ Quem usava uma versão anterior, com esses arquivos dentro da pasta do aplicativ
 Enquanto as boas-vindas não forem concluídas, a tela abre com duas escolhas:
 
 1. **Quem faz o trabalho.** "Claude de verdade" aparece liberado quando o aplicativo `claude` (Claude Code) está instalado, logado e tem as opções que a Muvuca usa. A conferência das opções é feita contra a ajuda do próprio aplicativo; se faltar alguma, a tela diz qual e pede para atualizar. "Demonstração" está sempre disponível.
+   - **Sem o Claude Code:** a tela mostra o comando do instalador oficial do seu sistema (`irm https://claude.ai/install.ps1 | iex` no PowerShell; `curl -fsSL https://claude.ai/install.sh | bash` no macOS e no Linux), com um botão de copiar. Depois de instalar, "Conferir de novo" procura outra vez, sem reiniciar a Muvuca.
+   - **Onde ela procura:** além do PATH, nas pastas em que os instaladores costumam pôr o `claude` (`~/.local/bin`, `~/.claude/local` e, no Windows, `%APPDATA%\npm`). Assim o aplicativo aberto pelo ícone, ou aberto antes da instalação, também acha.
 2. **Onde o time trabalha.** A pasta do projeto. Se não existir, a Muvuca cria. No aplicativo de mesa há um botão "Escolher…" com o seletor de pastas do sistema.
 
 ### Entrar com o Claude
@@ -168,7 +170,7 @@ O terceiro ícone da barra lateral abre o construtor. Você parte de um modelo, 
 | centralizada (supervisor) | Um líder planeja e distribui; todos respondem a ele. | Time centralizado (Maestro e os quatro) |
 | hierárquica | O líder divide o pedido entre sub-líderes. Cada sub-líder planeja para o próprio time, com sessão própria. | Estúdio hierárquico (Diretora → Torre e Prisma → quatro executores) |
 | sequencial (esteira) | Sem líder. Cada agente faz a sua etapa, na ordem da lista, sabendo quem vem antes e depois. | Esteira de produção (Analista → Chevron → Testador → Documentador); Dupla com revisão |
-| rede | Sem chefe nem plano. O primeiro da lista começa. Cada um faz a sua parte e termina com `{"proximo":"id ou fim"}`, escolhendo entre os vizinhos dele quem continua. Passar para quem não é vizinho encerra a rede. Um teto de passagens (`maxPassagens`, padrão: o dobro de membros, no máximo 12) evita ping-pong. Na tela, é um anel. | Rede completa (todos com todos); Rede personalizada (conexões escolhidas no editor, em "Pode passar a vez para") |
+| rede | Sem chefe nem plano. O primeiro da lista começa. Cada um faz a sua parte e termina com `{"proximo":"id ou fim"}`, escolhendo entre os vizinhos dele quem continua. Passar para quem não é vizinho encerra a rede. Um teto de passagens (`maxPassagens`, padrão: o dobro de membros, no máximo 12) evita ping-pong. Na tela, começa em anel ou em camadas. | Rede completa (todos com todos); Rede personalizada (conexões escolhidas no editor, em "Pode passar a vez para") |
 
 Em todas, o portão de testes e o revisor fecham o ciclo, e a devolução sobe o nível de complexidade.
 
@@ -178,13 +180,34 @@ Em todas, o portão de testes e o revisor fecham o ciclo, e a devolução sobe o
 - **Soltar sobre um agente:**
   - na hierarquia, se o agente for líder ou sub-líder, o novo entra no time dele;
   - na rede, o novo já entra ligado a ele.
+- **Arrastar um agente da prévia para um lugar vazio:** muda o lugar dele no desenho, sem mudar o time.
 - **Arrastar um agente da prévia sobre outro:**
   - na hierarquia, muda o chefe (o validador recusa chefia em ciclo);
   - na rede, liga ou desliga a passagem de vez;
   - na esteira e no supervisor, muda a ordem.
 - **Lixeira:** remove o agente. **Clique num boneco da prévia:** abre o cartão dele.
 
-**Galeria:** cada modelo mostra um desenho da arquitetura feito a partir da estrutura real do time: um ponto (agente único), estrela (supervisor), pirâmide (hierárquica), linha de pontos (esteira) ou anel (rede). O revisor aparece tracejado.
+**Desenho livre:** cada agente guarda o seu lugar no desenho (`pos`, em unidades: uma é a largura de um agente na horizontal e uma camada na vertical). O mesmo desenho aparece na prévia, no palco e no time salvo ou exportado.
+- **Ponto de partida:** time sem desenho ganha o automático, com o líder no topo e cada chefe centrado sobre o seu time, sem setas cruzadas em qualquer profundidade. A esteira fica em linha; a rede, em anel ou em camadas.
+- **Agente novo:** entra perto de onde faz sentido (embaixo do chefe, depois do anterior da esteira, ao lado de um vizinho na rede, ou onde a peça foi solta), sem cobrir ninguém. Quem já tem lugar não sai dele.
+- **Reorganizar:** refaz o desenho automático do time inteiro. Na rede, escolha antes "em anel" ou "em camadas".
+- **Desenho do modelo:** devolve cada agente ao lugar dele no modelo pronto de onde o time veio. Os modelos prontos trazem esse desenho gravado e nunca mudam.
+- **Desfazer:** cada arrasto, "Reorganizar" e "Desenho do modelo" valem um Ctrl+Z.
+
+**Navegar na prévia:**
+- Ctrl + roda do mouse, ou a pinça do trackpad, aproxima e afasta em volta do ponteiro, de 25% a 300%.
+- Arrastar o fundo, ou segurar espaço e arrastar, move a vista. Numa tela de toque, use dois dedos.
+- "Caber na tela" (ou Shift+1) enquadra o desenho inteiro. O zoom só muda sozinho ao abrir outro time e ao reorganizar.
+- "Abrir quadro de desenho" (no topo do construtor), "Quadro grande" (na barra da prévia) ou um clique duplo no fundo da prévia abre uma tela grande só para desenhar, com a biblioteca dentro dele. "Fechar" ou Esc volta.
+
+**Selecionar:** cada agente aparece na prévia como uma miniatura.
+- Clique seleciona e abre o cartão. Shift ou Ctrl + clique soma ou tira da seleção. Shift + arrastar no fundo seleciona tudo o que a caixa tocar.
+- Arrastar um selecionado move todos juntos. Delete, ou soltar na lixeira, tira todos do time. Cada uma dessas ações vale um Ctrl+Z.
+- Clique no fundo ou Esc desmarca.
+
+**Setas:** quadradas (cotovelos de cantos vivos, o padrão) ou arredondadas (curvas suaves), na barra da prévia. A escolha fica no time e vale também no palco.
+
+**Galeria:** cada modelo mostra o desenho do próprio time, encolhido para caber no cartão. O revisor aparece tracejado.
 
 **Bonecos:** 16 formas, todas em SVG, desenhadas por código e com as mesmas animações de estado: maestro de cartola (líder), engrenagem (back-end), cápsula de batuta (sub-líder), pilha de discos (dados), cristal, esfera de lente, escudo de óculos, monitor de antena, gota, nuvem, cogumelo, polvo, foguete, gato vigia, livro e vaso de planta.
 
@@ -279,6 +302,8 @@ Mascotes 3D e escritório, voz, copiloto de tela, criação de agente pelo paine
 Os cinco personagens são originais (não são os mascotes de marca do vídeo): Maestro é um líder de cartola com gravata-borboleta e batuta, Chevron é uma engrenagem (os dentes giram, mais rápido quando trabalha), Pixel é um cristal lapidado, Scout é uma esfera com olho de lente e Revisor é um escudo de óculos. São SVG desenhados por código em `public/index.html` (objeto `PERSONAGENS`), coloridos a partir do campo `cor` de cada agente; o campo `forma` escolhe o personagem.
 
 Cada estado tem expressão e animação próprias: disponível (respira e pisca), pensando (inclina, olha para cima, bolha de três pontos), trabalhando (olhos de foco, notebook, mãos e pés batucando), concluído (pulo, olhos felizes, estrelinhas) e aguardando aprovação (olhos arregalados, tremida, alerta). O holofote acende em quem está ativo e os demais escurecem.
+
+**Mover no palco:** arraste qualquer boneco do palco para onde quiser. Muda só o lugar dele no desenho (`POST /api/desenho`), nunca o time, e vale até durante um pedido. O lugar fica no time em uso (`time-em-uso.json`) e volta quando a Muvuca reabre. Com o time parado, o palco se refaz para caber de novo; trabalhando, só as setas acompanham.
 
 Para ver os estados sem rodar nada: `http://localhost:4317/?vitrine=disponivel,pensando,trabalhando,concluido,aguardando`.
 

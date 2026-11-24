@@ -270,12 +270,26 @@ $('#cNovo').onclick = novoAgente; $('#cAplicar').onclick = () => aplicarTime(fal
 $('#cDescartar').onclick = () => { compartilhado.rascunho = null; limparHistorico(); secao('time'); };
 new ResizeObserver(() => compartilhado.rascunho && desenharArestas($('#previa'))).observe($('#previa'));
 
+// A tela é a versão que o navegador carregou. Se o servidor voltar numa versão diferente (atualizou e reiniciou),
+// a tela antiga não deve conversar com o servidor novo: avisa e pede para recarregar.
+let versaoDaTela = '';
+function avisarVersaoNova(versao) {
+  if (!versao) return;
+  if (!versaoDaTela) { versaoDaTela = versao; return; }
+  if (versao === versaoDaTela || $('#versaoNova')) return;
+  const aviso = document.createElement('div'); aviso.id = 'versaoNova'; aviso.setAttribute('role', 'alert');
+  aviso.textContent = `A Muvuca agora é a versão ${versao}, e esta tela ainda é a ${versaoDaTela}. `;
+  const b = document.createElement('button'); b.textContent = 'Recarregar a tela'; b.onclick = () => location.reload();
+  aviso.append(b); document.body.append(aviso);
+}
+
 async function carregarConfig() {
   const c = await lerDoServidor('/api/config');
-  compartilhado.agentes = c.agentes; compartilhado.arquitetura = c.arquitetura || 'centralizada'; compartilhado.nomeTime = c.nomeTime || ''; compartilhado.arquiteturas = c.arquiteturas || {}; compartilhado.provedores = c.provedores || [];
+  compartilhado.agentes = c.agentes; compartilhado.arquitetura = c.arquitetura || 'centralizada'; compartilhado.nomeTime = c.nomeTime || ''; compartilhado.desenho = c.desenho || null; compartilhado.modelo = c.modelo || ''; compartilhado.arquiteturas = c.arquiteturas || {}; compartilhado.provedores = c.provedores || [];
   if (compartilhado.destino !== 'time' && !compartilhado.agentes.some((a) => a.id === compartilhado.destino)) compartilhado.destino = 'time';
   montarTime();
   if (c.versao) $('#versao').textContent = 'v' + c.versao;
+  avisarVersaoNova(c.versao);
   return c;
 }
 $('#texto').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });

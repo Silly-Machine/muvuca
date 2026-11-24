@@ -3,6 +3,6 @@
   "descricao": "Um agente com todas as ferramentas faz tudo, e o portão de testes ainda confere. A linha de base: compare com os times para ver se a coordenação compensa.",
   "arquitetura": "unico",
   "agentes": [
-    { "id": "solo", "nome": "Solo", "papel": "faz o pedido inteiro: código, testes e documentação", "ferramentas": ["listar", "ler", "escrever", "rodar"], "complexidade": "media", "cor": "#7bd88f", "forma": "planta", "sistema": "Você é um desenvolvedor experiente trabalhando sozinho. Planeja rápido, faz em passos pequenos e testa." }
+    { "id": "solo", "pos": [0, 0], "nome": "Solo", "papel": "faz o pedido inteiro: código, testes e documentação", "ferramentas": ["listar", "ler", "escrever", "rodar"], "complexidade": "media", "cor": "#7bd88f", "forma": "planta", "sistema": "Você é um desenvolvedor experiente trabalhando sozinho. Planeja rápido, faz em passos pequenos e testa." }
  ]
 }

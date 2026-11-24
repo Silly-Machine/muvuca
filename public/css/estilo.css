@@ -34,18 +34,11 @@ header h1 { margin:0; font:600 24px/1.1 var(--titulo); letter-spacing:.01em; }
 
 /* time em grafo: líder em cima, quem ele coordena embaixo, arestas desenhadas no SVG de fundo */
 #time { flex:1; position:relative; min-height:240px; margin-bottom:12px; }
-#time > .grafo { position:absolute; left:50%; top:50%; width:max-content; min-width:100%; display:flex; flex-direction:column; gap:46px; padding:6px 0 4px;
-  transform:translate(-50%, -50%) scale(var(--escala, 1)); transform-origin:center; }
-.nivel { position:relative; z-index:1; display:flex; justify-content:center; align-items:flex-end; gap:14px; }
-.nivel[data-nivel="0"] { --tam:150px; } .nivel[data-nivel="1"] { --tam:128px; } .nivel[data-nivel="2"] { --tam:106px; }
-.nivel.cheia { --tam:100px; } .nivel.cheia .agente { width:132px; }
-.nivel.seq { --tam:112px; align-items:flex-start; } .nivel.seq .agente { width:142px; }
-.nivel.anel { --tam:104px; display:block; margin:0 auto; } .nivel.anel .agente { position:absolute; width:140px; }
-#previa .nivel.anel { --tam:56px; } #previa .nivel.anel .agente { width:84px; }
+#time > .grafo { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%) scale(var(--escala, 1)); transform-origin:center; }
+/* cada agente na sua coordenada (js/regras/desenho.js): "left" é o centro do boneco, "top" é o topo dele */
+:is(.grafo, .mundo) > .agente { position:absolute; z-index:1; width:var(--larg); margin-left:calc(var(--larg) / -2); }
+.agente[data-nivel="0"] { --tam:150px; } .agente[data-nivel="1"] { --tam:128px; } .agente[data-nivel="2"] { --tam:106px; } .agente[data-nivel="s"] { --tam:112px; }
 .aresta.rede { stroke-width:1.4; opacity:.75; } .aresta.rede.ativa { opacity:1; }
-/* três níveis não cabem com folga: o palco aperta o espaço entre linhas */
-#time .grafo:has(.nivel[data-nivel="2"]) { gap:34px; }
-#time .grafo:has(.nivel[data-nivel="2"]) .nivel[data-nivel="0"] { --tam:118px; }
 .arestas { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; z-index:0; }
 .aresta { fill:none; stroke:#4a4462; stroke-width:1.6; stroke-linecap:round; transition:stroke .4s, stroke-width .4s, opacity .4s; }
 .aresta.revisa { stroke-dasharray:2 6; }
@@ -129,9 +122,9 @@ header h1 { margin:0; font:600 24px/1.1 var(--titulo); letter-spacing:.01em; }
 .balao::after { content:""; position:absolute; left:50%; top:100%; margin-left:-7px; border:7px solid transparent; border-top-color:var(--tinta); }
 .balao.visivel { opacity:1; transform:translate(-50%, 0); }
 /* o líder fica no topo: o balão dele abre para o lado, não por cima do cabeçalho */
-.nivel[data-nivel="0"] .balao { bottom:auto; top:26px; left:calc(50% + 70px); transform:translate(6px, 0); }
-.nivel[data-nivel="0"] .balao.visivel { transform:translate(0, 0); }
-.nivel[data-nivel="0"] .balao::after { left:auto; right:100%; top:16px; margin:0; border-top-color:transparent; border-right-color:var(--tinta); }
+.agente[data-nivel="0"] .balao { bottom:auto; top:26px; left:calc(50% + 70px); transform:translate(6px, 0); }
+.agente[data-nivel="0"] .balao.visivel { transform:translate(0, 0); }
+.agente[data-nivel="0"] .balao::after { left:auto; right:100%; top:16px; margin:0; border-top-color:transparent; border-right-color:var(--tinta); }
 .nome { font:600 17px/1.2 var(--titulo); margin-top:2px; letter-spacing:.02em; }
 .prov { color:var(--apagado); font-size:11.5px; font-family:var(--mono); display:flex; gap:6px; justify-content:center; align-items:center; min-height:18px; }
 /* nível de complexidade: cor fixa por nível, em chip pequeno */
@@ -177,9 +170,12 @@ input[type=color] { padding:2px; height:36px; }
 .ferr { display:flex; gap:12px; flex-wrap:wrap; font-size:12.5px; color:var(--tinta); padding:4px 0; } .ferr label { display:flex; gap:5px; align-items:center; } .ferr input { width:auto; }
 .mais { margin-top:9px; width:100%; border-style:dashed; color:var(--apagado); }
 .previa-caixa { position:sticky; top:0; background:var(--painel); border:1px solid var(--borda); border-radius:16px; padding:12px; }
-#previa { position:relative; display:flex; flex-direction:column; justify-content:center; gap:30px; min-height:250px; padding:6px 0;
+/* a prévia é uma janela sobre o desenho: o "mundo" dentro dela se desloca e muda de zoom (construtor.js) */
+#previa { position:relative; height:340px; overflow:hidden; touch-action:none;
   background:radial-gradient(400px 200px at 50% 0, #2a2238 0, transparent 70%); border-radius:12px; }
-#previa .nivel { --tam:62px; gap:4px; } #previa .agente { width:86px; animation:none; } #previa .nivel.seq .agente { width:80px; }
+#previa .mundo { position:absolute; left:0; top:0; transform-origin:0 0; transform:translate(var(--tx, 0px), var(--ty, 0px)) scale(var(--z, 1)); }
+#previa .agente { --tam:62px; animation:none; } #previa .agente[data-nivel="0"] { --tam:68px; }
+#previa.deslocando { cursor:grabbing; } #previa .agente.movendo { z-index:4; opacity:.85; cursor:grabbing; }
 #previa :is(.prov, .pilula, .foco, .chao, .balao) { display:none; } #previa .nome { font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #previa .rel { font-size:10px; }
 #cAvisos { color:var(--holofote); font-size:12.5px; margin:8px 0 0; min-height:1em; } #cErro { font-size:12.5px; margin:4px 0 0; }
@@ -232,3 +228,43 @@ pre { margin:7px 0 0; white-space:pre-wrap; word-break:break-word; font:12px/1.4
 .diff span { display:block; padding:0 6px; min-height:1.45em; } .diff .mais { background:#143524; color:#a6efc4; } .diff .menos { background:#42182a; color:#ffb9c8; } .diff .salto { color:var(--apagado); }
 .aprovar { border-color:#c2506a; background:#24131c; } .aprovar code { display:block; background:#0c0a12; padding:7px 9px; border-radius:8px; margin:7px 0; word-break:break-all; font:12px var(--mono); }
 .botoes { display:flex; gap:8px; margin-top:9px; }
+
+/* aviso de que o servidor mudou de versão e a tela precisa recarregar */
+#versaoNova { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); z-index: 1000; max-width: calc(100vw - 32px);
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-radius: 10px;
+  background: var(--painel); color: var(--tinta); border: 1px solid var(--holofote); box-shadow: 0 6px 20px #0006; }
+
+/* prévia: cada agente é uma miniatura (um cartão pequeno), que dá para selecionar */
+#previa .agente { box-sizing:border-box; padding:5px 4px 4px; border-radius:14px; background:linear-gradient(180deg, #3a2f37, var(--painel2));
+  box-shadow:0 0 0 1.5px color-mix(in srgb, var(--cor) 45%, transparent), 0 6px 14px -8px #000; transition:box-shadow .15s; }
+#previa .agente:hover { box-shadow:0 0 0 1.5px color-mix(in srgb, var(--cor) 80%, transparent), 0 6px 14px -8px #000; }
+#previa .agente.sel { box-shadow:0 0 0 2.5px var(--holofote), 0 0 16px -3px var(--holofote); }
+#previa .agente.sel .nome { color:var(--holofote); }
+#previa .caixa-sel { position:absolute; z-index:5; border:1.5px dashed var(--holofote); border-radius:6px; background:color-mix(in srgb, var(--holofote) 12%, transparent); pointer-events:none; }
+
+/* quadro de desenho grande: uma subtela por cima de tudo, com título, "Fechar" e a biblioteca numa faixa */
+.quadro-chamada { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.abrir-quadro { font-weight:600; padding:8px 14px; border-radius:12px; background:var(--holofote); color:#2a1f10; box-shadow:0 6px 16px -8px #000; }
+.abrir-quadro:hover { filter:brightness(1.08); }
+.abrir-quadro.mini { margin-left:auto; padding:4px 10px; font-size:12px; border-radius:10px; }
+.previa-titulo { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.quadro-cab { display:none; align-items:center; gap:10px; margin-bottom:8px; font-size:16px; }
+.quadro-cab span { color:var(--apagado); font-size:14px; }
+.quadro-cab button { margin-left:auto; }
+.previa-caixa.maximizada .quadro-cab { display:flex; }
+.previa-caixa.maximizada .previa-titulo { display:none; }
+body.quadro-max::before { content:''; position:fixed; inset:0; z-index:899; background:#0009; backdrop-filter:blur(2px); }
+.previa-caixa.maximizada { position:fixed; inset:18px; z-index:900; display:flex; flex-direction:column; overflow:auto; box-shadow:0 30px 80px -20px #000; }
+.previa-caixa.maximizada #previa { flex:1 1 auto; height:auto; min-height:260px; }
+.previa-caixa.maximizada > .nota:last-child { display:none; }
+.biblioteca.na-moldura { display:flex; gap:6px; overflow-x:auto; margin:4px 0 8px; padding-bottom:4px; }
+.biblioteca.na-moldura .peca { flex:0 0 74px; }
+body.quadro-max { overflow:hidden; }
+
+/* palco: os bonecos podem ser arrastados para qualquer lugar */
+#time .agente { cursor:grab; touch-action:none; } #time .agente.movendo { z-index:4; cursor:grabbing; animation:none; }
+
+/* boas-vindas: comando para instalar o Claude Code */
+.instalar-claude { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px; font-size:12.5px; }
+.instalar-claude[hidden] { display:none !important; }
+.instalar-claude code { padding:4px 8px; border-radius:8px; background:#0006; font-family:var(--mono); user-select:all; }

@@ -3,10 +3,10 @@
   "descricao": "O clássico: um líder planeja, quatro especialistas executam ou aconselham, o revisor confere. Bom para pedidos de tamanho médio.",
   "arquitetura": "centralizada",
   "agentes": [
-    { "id": "maestro", "nome": "Maestro", "funcao": "lider", "papel": "coordena o time e monta o plano", "cor": "#ff8e6b", "forma": "cartola", "sistema": "Você é o líder técnico de um time pequeno. É direto e decide rápido." },
-    { "id": "chevron", "nome": "Chevron", "papel": "back-end: rotas, regras, banco e testes", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor back-end. Escreve código simples, com teste automatizado junto." },
-    { "id": "pixel", "nome": "Pixel", "papel": "front-end: telas, acessibilidade, estilo", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#ffc94d", "forma": "cristal", "sistema": "Você é desenvolvedor front-end. Entrega telas acessíveis e responsivas." },
-    { "id": "scout", "nome": "Scout", "papel": "pesquisa: referência, documentação, boas práticas", "ferramentas": ["listar", "ler"], "complexidade": "baixa", "cor": "#a48bff", "forma": "lente", "sistema": "Você pesquisa e responde com a referência mais curta e útil possível." },
-    { "id": "revisor", "nome": "Revisor", "funcao": "revisor", "papel": "revisão de código", "ferramentas": ["listar", "ler"], "cor": "#4fe0a0", "forma": "escudo", "sistema": "Você é revisor de código. Só aponta defeito real, com arquivo e motivo. Não corrige." }
+    { "id": "maestro", "pos": [0, 0], "nome": "Maestro", "funcao": "lider", "papel": "coordena o time e monta o plano", "cor": "#ff8e6b", "forma": "cartola", "sistema": "Você é o líder técnico de um time pequeno. É direto e decide rápido." },
+    { "id": "chevron", "pos": [-1.5, 1], "nome": "Chevron", "papel": "back-end: rotas, regras, banco e testes", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor back-end. Escreve código simples, com teste automatizado junto." },
+    { "id": "pixel", "pos": [-0.5, 1], "nome": "Pixel", "papel": "front-end: telas, acessibilidade, estilo", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#ffc94d", "forma": "cristal", "sistema": "Você é desenvolvedor front-end. Entrega telas acessíveis e responsivas." },
+    { "id": "scout", "pos": [0.5, 1], "nome": "Scout", "papel": "pesquisa: referência, documentação, boas práticas", "ferramentas": ["listar", "ler"], "complexidade": "baixa", "cor": "#a48bff", "forma": "lente", "sistema": "Você pesquisa e responde com a referência mais curta e útil possível." },
+    { "id": "revisor", "pos": [1.5, 1], "nome": "Revisor", "funcao": "revisor", "papel": "revisão de código", "ferramentas": ["listar", "ler"], "cor": "#4fe0a0", "forma": "escudo", "sistema": "Você é revisor de código. Só aponta defeito real, com arquivo e motivo. Não corrige." }
  ]
 }

@@ -47,7 +47,10 @@
     </section></div>
   <div id="fichas"></div>
   <div id="construtor">
-    <h2 class="sec">Comece de um modelo</h2>
+    <div class="quadro-chamada">
+      <h2 class="sec">Comece de um modelo</h2>
+      <button type="button" class="abrir-quadro" data-abre-quadro title="Abre uma tela grande só para desenhar o time (Esc fecha)">⤢ Abrir quadro de desenho</button>
+    </div>
     <div id="galeria" class="galeria"></div>
     <div class="oficina">
       <div>
@@ -61,14 +64,30 @@
         <div id="cAgentes"></div>
         <button id="cNovo" type="button" class="mais">+ Agente</button>
       </div>
-      <div class="previa-caixa">
-        <h2 class="sec">Prévia <small id="cResumo"></small></h2>
+      <div class="previa-caixa" aria-label="Quadro de desenho do time">
+        <div class="quadro-cab">
+          <strong>Quadro de desenho</strong><span id="cQuadroNome"></span>
+          <button type="button" id="cFecharQuadro" title="Fechar o quadro grande (Esc)">✕ Fechar</button>
+        </div>
+        <h2 class="sec previa-titulo">Prévia <small id="cResumo"></small><button type="button" class="abrir-quadro mini" data-abre-quadro title="Abre uma tela grande só para desenhar o time (Esc fecha)">⤢ Quadro grande</button></h2>
         <div class="barra-setas">
           <button type="button" id="cSetas" aria-pressed="false" title="Ligar e desligar agentes com setas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19L19 5M19 5h-7M19 5v7"/></svg>Desenhar setas</button>
           <button type="button" id="cBorracha" aria-pressed="false" title="Borracha: apagar setas e agentes com um clique"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 19.5h11M5.2 15.8l8.9-8.9a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8l-7.6 7.6H8.2l-3-3a.5.5 0 0 1 0-.7z"/><path d="M10.6 10.4l4.9 4.9"/></svg>Borracha</button>
           <span id="cSetasEstado" class="espaco" aria-live="polite"></span>
           <button type="button" id="cDesfazer" class="hist" disabled title="Desfazer (Ctrl+Z)" aria-label="Desfazer">↶ Desfazer</button>
           <button type="button" id="cRefazer" class="hist" disabled title="Refazer (Ctrl+Y)" aria-label="Refazer">↷</button>
+        </div>
+        <div class="barra-setas barra-vista">
+          <button type="button" id="cZoomMenos" class="hist" title="Afastar (Ctrl + roda do mouse)" aria-label="Afastar">−</button>
+          <button type="button" id="cZoomTexto" class="hist zoom" title="Voltar a 100%" aria-label="Nível de zoom; clique para voltar a 100%">100%</button>
+          <button type="button" id="cZoomMais" class="hist" title="Aproximar (Ctrl + roda do mouse)" aria-label="Aproximar">+</button>
+          <button type="button" id="cCaber" class="hist" title="Caber na tela (Shift+1)">Caber na tela</button>
+          <button type="button" id="cMaximizar" class="hist" aria-pressed="false" title="Abrir o quadro de desenho na janela inteira (Esc volta)">⤢ Quadro grande</button>
+          <span class="espaco"></span>
+          <select id="cSetaEstilo" aria-label="Estilo das setas" title="Estilo das setas do time (vale também no palco)"><option value="quadradas">setas quadradas</option><option value="arredondadas">setas arredondadas</option></select>
+          <select id="cRede" hidden aria-label="Desenho da rede ao reorganizar"><option value="anel">rede em anel</option><option value="camadas">rede em camadas</option></select>
+          <button type="button" id="cReorganizar" class="hist" title="Refaz o desenho automático do time (Ctrl+Z desfaz)">Reorganizar</button>
+          <button type="button" id="cVoltarModelo" class="hist" hidden title="Devolve cada agente ao lugar dele no modelo de origem (Ctrl+Z desfaz)">Desenho do modelo</button>
         </div>
         <div id="previa"></div>
         <p id="cDica" class="nota dica-arrasto"></p>
@@ -272,6 +291,7 @@
     <h3>1. Quem faz o trabalho</h3>
     <div class="opcoes">
       <label class="opcao"><input type="radio" name="bvProv" value="claude" id="bvClaude"><b>Claude de verdade</b><small id="bvClaudeInfo">conferindo…</small>
+        <span id="bvInstalar" class="instalar-claude" hidden><span id="bvOnde"></span><code id="bvComando"></code><button type="button" id="bvCopiar" class="pequeno">Copiar</button></span>
         <button type="button" id="bvEntrar" class="primario" hidden>Entrar com o Claude</button>
         <button type="button" id="bvConferir" hidden>Conferir de novo</button></label>
       <label class="opcao"><input type="radio" name="bvProv" value="demo" id="bvDemo"><b>Demonstração</b><small>Roteiro simulado: sem conta, sem rede e sem custo. Bom para conhecer a tela.</small></label>

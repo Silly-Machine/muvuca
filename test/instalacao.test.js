@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizarPreferencias } from '../src/ajustes.js';
+import { completarPath, instrucaoClaude } from '../src/provedores.js';
 
 import { subir, RAIZ } from './apoio/servidor-de-teste.js';
 
@@ -103,4 +104,28 @@ test('comando muvuca: versão, ajuda e porta inválida', () => {
   assert.equal(h.status, 0); assert.match(h.stdout, /--porta/); assert.match(h.stdout, /--dados/);
   const p = rodar('--porta', 'abc');
   assert.equal(p.status, 2); assert.match(p.stderr, /Porta inválida/);
+});
+
+test('máquina recém-preparada: o PATH ganha as pastas onde o Claude Code é instalado, sem repetir nem passar na frente', () => {
+  const w = { Path: String.raw`C:\Windows;C:\Users\ana\.local\bin` + '/', APPDATA: String.raw`C:\Users\ana\AppData\Roaming` };
+  const pw = completarPath(w, 'win32', String.raw`C:\Users\ana`).split(';');
+  assert.equal(pw[0], String.raw`C:\Windows`, 'o que a pessoa configurou vem primeiro');
+  assert.equal(pw.filter((x) => x.toLowerCase().startsWith(String.raw`c:\users\ana\.local\bin`)).length, 1, 'a pasta que já estava não se repete, nem com barra no fim');
+  assert.ok(pw.includes(String.raw`C:\Users\ana\AppData\Roaming\npm`));
+  assert.ok('Path' in w && !('PATH' in w), 'no Windows a variável mantém o nome que tinha');
+  const u = { PATH: '/usr/bin' };
+  const uma = completarPath(u, 'linux', '/home/ana');
+  assert.ok(uma.split(':').includes('/home/ana/.local/bin'));
+  assert.equal(completarPath(u, 'linux', '/home/ana'), uma, 'chamar de novo não muda nada');
+  assert.match(instrucaoClaude('win32').comando, /install\.ps1/);
+  assert.match(instrucaoClaude('darwin').comando, /install\.sh/);
+  assert.equal(instrucaoClaude('linux').onde, 'no Terminal');
+});
+
+test('comando "muvuca" com Node antigo explica o que fazer em vez de quebrar', async () => {
+  const texto = await fs.readFile(path.join(RAIZ, 'bin', 'muvuca.js'), 'utf8');
+  const i = texto.indexOf('if (maior < 22)'), j = texto.indexOf("await import(");
+  assert.ok(i > 0 && (j < 0 || i < j), 'a conferência vem antes de carregar o servidor');
+  assert.match(texto, /precisa do Node 22 ou mais novo/);
+  assert.match(texto, /releases\/latest/);
 });

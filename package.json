@@ -78,27 +78,31 @@
       "target": [
         "nsis"
       ],
-      "icon": "electron/recursos/icon.png"
+      "icon": "electron/recursos/icon.png",
+      "artifactName": "Muvuca-Windows.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "Muvuca"
+      "shortcutName": "Muvuca",
+      "artifactName": "Muvuca-Windows.${ext}"
     },
     "mac": {
       "target": [
         "dmg"
       ],
       "category": "public.app-category.developer-tools",
-      "icon": "electron/recursos/icon.png"
+      "icon": "electron/recursos/icon.png",
+      "artifactName": "Muvuca-macOS-${arch}.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
       "category": "Development",
-      "icon": "electron/recursos/icon.png"
+      "icon": "electron/recursos/icon.png",
+      "artifactName": "Muvuca-Linux.${ext}"
     }
   },
   "devDependencies": {

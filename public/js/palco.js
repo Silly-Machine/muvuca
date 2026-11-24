@@ -1,8 +1,9 @@
 // O palco e o grafo de setas (usado também pela prévia do construtor).
 import { compartilhado } from './estado.js';
 import { depois } from './tardias.js';
-import { $, ESTADOS, el } from './base.js';
+import { $, ESTADOS, avisar, el, pedir } from './base.js';
 import { PERSONAGENS, mascote } from './personagens.js';
+import * as Regras from './regras/indice.js';
 
 /* ---------- palco ---------- */
 PERSONAGENS.salsicha = PERSONAGENS.regente;   // a Buzina só tem versão em imagem (public/bonecos/salsicha-*.webp)
@@ -13,7 +14,7 @@ const NOME_ARQ = { unico: 'agente único', centralizada: 'supervisor', hierarqui
 const SEM_LIDER = ['unico', 'sequencial', 'rede'];
 compartilhado.liderId = null; compartilhado.arquitetura = 'centralizada'; compartilhado.nomeTime = ''; compartilhado.arquiteturas = {}; compartilhado.provedores = [];
 // Relação de cada agente com quem está acima dele, escrita na aresta do grafo.
-const relacao = (a) => (a.funcao === 'revisor' ? 'revisa' : a.funcao === 'sublider' ? 'coordena' : (a.ferramentas || []).includes('escrever') ? 'executa' : 'consulta');
+const { relacao } = Regras.desenho;
 const ROTULO_NIVEL = { baixa: 'simples', media: 'comum', alta: 'difícil' };
 const modeloDoNivel = (a, n) => a.modelos?.[n] || a.modelo || a.provedor;
 // nível que vale para o agente: o escolhido nele, senão o padrão do papel; "auto" desliga os dois
@@ -28,87 +29,64 @@ function rotuloModelo(id, modelo, cx) {
 }
 
 /* ---------- grafo: serve ao palco e à prévia do construtor ---------- */
-// A quem o agente responde. Esteira não tem chefia; sem "chefe", responde ao líder.
-function chefeDe(lista, a, arq) {
-  if (!a || SEM_LIDER.includes(arq) || a.funcao === 'lider') return null;
-  const lider = lista.find((x) => x.funcao === 'lider');
-  if (a.chefe && a.chefe !== a.id && lista.some((x) => x.id === a.chefe && (x.funcao === 'lider' || x.funcao === 'sublider'))) return a.chefe;
-  return lider && lider.id !== a.id ? lider.id : null;
-}
-// Linhas do grafo: o líder no topo, e cada linha seguinte com quem responde à linha de cima.
-function camadas(lista, arq) {
-  if (arq === 'sequencial' || arq === 'unico') return [[...lista.filter((a) => a.funcao !== 'revisor'), ...lista.filter((a) => a.funcao === 'revisor')]];
-  if (arq === 'rede') return [lista.filter((a) => a.funcao !== 'revisor'), lista.filter((a) => a.funcao === 'revisor')].filter((l) => l.length);
-  const peso = { coordena: 0, executa: 1, consulta: 2, revisa: 3 };
-  const topo = lista.find((a) => a.funcao === 'lider') || lista[0]; if (!topo) return [];
-  const linhas = [[topo]], vistos = new Set([topo.id]);
-  while (linhas.length < 6) {
-    const prox = linhas.at(-1).flatMap((p) => lista.filter((a) => !vistos.has(a.id) && chefeDe(lista, a, arq) === p.id).sort((x, y) => peso[relacao(x)] - peso[relacao(y)]));
-    if (!prox.length) break;
-    prox.forEach((a) => vistos.add(a.id)); linhas.push(prox);
-  }
-  const soltos = lista.filter((a) => !vistos.has(a.id));   // sem chefe válido: aparecem embaixo, sem aresta
-  if (soltos.length) linhas.push(soltos);
-  return linhas;
-}
-function montarGrafo(raiz, lista, arq, sufixo = '') {
+// Quem fica onde vem de js/regras/desenho.js (com testes): cada agente tem uma posição em unidades de desenho,
+// e cada vista converte unidades em pixels com a sua escala. Aqui, só a tela.
+const { chefeDe, vizinhosDe, fila, rotaDaSeta, retaDaRede, estiloDaSeta } = Regras.desenho;
+// Escala de cada vista: pixels por unidade (ux, uy), largura do agente, altura do maior agente e margem.
+const ESCALA = { p: { ux: 98, uy: 124, larg: 86, alt: 92, margem: 16 }, '': { ux: 190, uy: 262, larg: 168, alt: 232, margem: 24 } };
+// Tamanho do boneco pela função: o líder maior, o sub-líder um pouco menor, os outros iguais entre si.
+const nivelVisual = (a, arq) => (a.funcao === 'lider' ? '0' : a.funcao === 'sublider' ? '1' : SEM_LIDER.includes(arq) ? 's' : arq === 'hierarquica' ? '2' : '1');
+function montarGrafo(raiz, lista, arq, sufixo = '', desenho = null) {
+  const E = ESCALA[sufixo] || ESCALA[''];
+  const pos = Regras.desenho.completar({ arquitetura: arq, agentes: lista, desenho });
+  const c = Regras.desenho.caixa(pos) || { x0: 0, y0: 0, x1: 0, y1: 0 };
   raiz.innerHTML = `<svg class="arestas" aria-hidden="true"><defs><marker id="seta${sufixo}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs></svg>`;
-  raiz._lista = lista; raiz._arq = arq; raiz._sufixo = sufixo;
-  camadas(lista, arq).forEach((linha, n) => {
-    const anel = arq === 'rede' && n === 0 && linha.length > 1;
-    const l = el('div', 'nivel' + (arq === 'sequencial' || arq === 'unico' || (arq === 'rede' && !anel) ? ' seq' : '') + (anel ? ' anel' : '') + (!anel && linha.length > 4 ? ' cheia' : '')); l.dataset.nivel = Math.min(n, 2);
-    for (const a of linha) {
-      const i = lista.indexOf(a);
-      const d = el('div', 'agente' + (lista.some((x) => x.chefe === a.id) ? ' chefe' : '')); d.dataset.ag = a.id; d.dataset.estado = 'disponivel'; d.style.setProperty('--cor', a.cor); d.style.setProperty('--i', i);
-      d.innerHTML = `<div class="foco"></div><div class="chao"></div><div class="balao"></div>${mascote(a, i, sufixo)}<div class="nome"></div><div class="prov"></div><div class="pilula"><i></i><span>Disponível</span></div>`;
-      d.querySelector('.nome').textContent = a.nome || '(sem nome)';
-      l.append(d);
-    }
-    raiz.append(l);
-    if (anel) dispor(l);
+  raiz._lista = lista; raiz._arq = arq; raiz._sufixo = sufixo; raiz._escala = E; raiz._origem = c; raiz._setas = estiloDaSeta(desenho);
+  raiz.style.width = ((c.x1 - c.x0) * E.ux + E.larg + 2 * E.margem) + 'px';
+  raiz.style.height = ((c.y1 - c.y0) * E.uy + E.alt + 2 * E.margem) + 'px';
+  raiz.style.setProperty('--larg', E.larg + 'px');
+  lista.forEach((a, i) => {
+    const d = el('div', 'agente' + (lista.some((x) => x.chefe === a.id) ? ' chefe' : '')); d.dataset.ag = a.id; d.dataset.estado = 'disponivel'; d.dataset.nivel = nivelVisual(a, arq);
+    d.style.setProperty('--cor', a.cor); d.style.setProperty('--i', i);
+    d.innerHTML = `<div class="foco"></div><div class="chao"></div><div class="balao"></div>${mascote(a, i, sufixo)}<div class="nome"></div><div class="prov"></div><div class="pilula"><i></i><span>Disponível</span></div>`;
+    d.querySelector('.nome').textContent = a.nome || '(sem nome)';
+    colocar(raiz, d, pos[a.id]);
+    raiz.append(d);
   });
   // desenha no próximo quadro; o temporizador cobre a aba em segundo plano, onde o navegador segura os quadros
   let feito = false; const desenhar = () => { if (feito || !raiz.isConnected) return; feito = true; desenharArestas(raiz); };
   requestAnimationFrame(desenhar); setTimeout(desenhar, 120);
 }
-// Anel da rede: os membros em volta de um círculo, o primeiro (quem começa) no topo.
-function dispor(l) {
-  const nos = [...l.children], n = nos.length; if (!n) return;
-  const w = nos[0].offsetWidth || 140, h = nos[0].offsetHeight || 190;
-  // o raio acompanha o tamanho do boneco: o mesmo anel serve ao palco e à prévia pequena
-  const r = Math.max(w * (n <= 3 ? .85 : 1.05), n * w * .3), ry = r * (n <= 3 ? .8 : .9);
-  l.style.width = (2 * r + w) + 'px'; l.style.height = (2 * ry + h) + 'px';
-  nos.forEach((d, i) => {
-    const ang = -Math.PI / 2 + (i * 2 * Math.PI) / n;
-    d.style.left = (r + Math.cos(ang) * r) + 'px'; d.style.top = (ry + Math.sin(ang) * ry) + 'px';
-  });
+// Põe o agente na posição (em unidades): o centro do boneco em x, o topo dele em y.
+function colocar(raiz, d, [x, y]) {
+  const E = raiz._escala, c = raiz._origem;
+  d.style.left = ((x - c.x0) * E.ux + E.larg / 2 + E.margem) + 'px';
+  d.style.top = ((y - c.y0) * E.uy + E.margem) + 'px';
 }
-// Na rede, sem "conexoes" o agente passa para todos os outros membros.
-const vizinhosDe = (lista, a) => (a.funcao === 'revisor' ? [] : lista).filter((x) => x.id !== a.id && x.funcao !== 'revisor' && (!Array.isArray(a.conexoes) || a.conexoes.includes(x.id)));
-// Linha reta entre dois membros do anel, recuada para não entrar no boneco.
-function reta(A, B, recuo = .84) {
-  const dx = B.x - A.x, dy = B.meio - A.meio, d = Math.hypot(dx, dy) || 1, ka = A.raio * recuo / d, kb = B.raio * recuo / d;
-  return `M${A.x + dx * ka} ${A.meio + dy * ka}L${B.x - dx * kb} ${B.meio - dy * kb}`;
-}
+// O contrário: de pixels dentro da raiz para unidades.
+const paraUnidades = (raiz, px, py) => [(px - raiz._escala.larg / 2 - raiz._escala.margem) / raiz._escala.ux + raiz._origem.x0, (py - raiz._escala.margem) / raiz._escala.uy + raiz._origem.y0];
 const ns = (tag, at) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
 // Posição dentro da raiz pela soma de offsets: ignora as animações de entrada e de respiração.
 function posicao(raiz, id) {
   const d = noAg(raiz, id); if (!d || !d.offsetWidth) return null;
   let x = 0, y = 0, n = d; while (n && n !== raiz) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+  // na prévia, o agente é uma miniatura (um cartão): a seta encosta na borda do cartão
+  if (raiz.closest('#previa')) return { x: x + d.offsetWidth / 2, topo: y, base: y + d.offsetHeight, meio: y + d.offsetHeight / 2, raio: d.offsetWidth / 2 + 2 };
   let p = d.querySelector('.pilula'); if (!p.offsetHeight) p = d.querySelector('.nome');
   const tam = d.querySelector('.mascote').clientWidth || 100;
   return { x: x + d.offsetWidth / 2, topo: y + 6, base: y + p.offsetTop + p.offsetHeight + 6, meio: y + tam * .62, raio: tam / 2 };
 }
-// Do pé do chefe até a cabeça de quem responde a ele, em cotovelo de cantos arredondados.
-function cotovelo(a, b) {
-  const ym = (a.base + b.topo) / 2, dx = b.x - a.x, s = Math.sign(dx), r = Math.max(0, Math.min(10, Math.abs(dx) / 2, (b.topo - a.base) / 2));
-  if (Math.abs(dx) < 1) return `M${a.x} ${a.base}V${b.topo}`;
-  return `M${a.x} ${a.base}V${ym - r}Q${a.x} ${ym} ${a.x + s * r} ${ym}H${b.x - s * r}Q${b.x} ${ym} ${b.x} ${ym + r}V${b.topo}`;
-}
+// O traço das setas (quadradas ou arredondadas) vem de js/regras/desenho.js, com testes; o estilo é o do time.
+const rota = (raiz, A, B) => rotaDaSeta(A, B, raiz._setas);
+const reta = (raiz, A, B) => retaDaRede(A, B, raiz._setas);
 const arco = (a, b) => `M${a.x} ${a.topo}Q${(a.x + b.x) / 2} ${Math.min(a.topo, b.topo) - 70} ${b.x} ${b.topo}`;
-const seta = (a, b) => `M${a.x + a.raio - 2} ${a.meio}H${b.x - b.raio + 2}`;
+// Rótulo da relação: em cima do trecho que chega em B quando B está embaixo; senão, no meio do caminho.
+function lugarDoRotulo(p, A, B) {
+  if (B.topo >= A.base + 8) return { x: B.x, y: (A.base + B.topo) / 2 - 6, ancora: 'middle' };
+  const m = p.getPointAtLength(p.getTotalLength() / 2); return { x: m.x, y: m.y - 6, ancora: 'middle' };
+}
 function desenharArestas(raiz = palco()) {
-  const svg = raiz.querySelector('.arestas'), lista = raiz._lista; if (!svg || !lista) return;
+  const svg = raiz?.querySelector('.arestas'), lista = raiz?._lista; if (!svg || !lista) return;
   svg.querySelectorAll('.aresta, .rel').forEach((e) => e.remove());
   const defs = svg.querySelector('defs'), por = (e) => svg.insertBefore(e, defs.nextSibling);
   if (raiz._arq === 'rede') {
@@ -117,31 +95,33 @@ function desenharArestas(raiz = palco()) {
       const chave = [a.id, b.id].sort().join('|'); if (feitos.has(chave)) continue; feitos.add(chave);
       const A = posicao(raiz, a.id), B = posicao(raiz, b.id); if (!A || !B) continue;
       const volta = vizinhosDe(lista, b).some((x) => x.id === a.id);   // B também passa para A: ponta dos dois lados
-      const p = ns('path', { class: 'aresta rede', d: reta(A, B), 'data-de': a.id, 'data-para': b.id, ...(volta ? { 'data-volta': '1' } : {}), 'marker-end': `url(#seta${raiz._sufixo})`, ...(volta ? { 'marker-start': `url(#seta${raiz._sufixo})` } : {}) });
+      const p = ns('path', { class: 'aresta rede', d: reta(raiz, A, B), 'data-de': a.id, 'data-para': b.id, ...(volta ? { 'data-volta': '1' } : {}), 'marker-end': `url(#seta${raiz._sufixo})`, ...(volta ? { 'marker-start': `url(#seta${raiz._sufixo})` } : {}) });
       p.style.setProperty('--cor', b.cor); por(p);
     }
     const membros = lista.filter((x) => x.funcao !== 'revisor');
     const E = membros.length > 1 && posicao(raiz, membros[0].id);
     if (E) { const t = ns('text', { class: 'rel', x: E.x - E.raio - 6, y: E.meio, 'text-anchor': 'end' }); t.textContent = 'começa aqui →'; por(t); }
   } else if (raiz._arq === 'sequencial' || raiz._arq === 'unico') {
-    const fila = camadas(lista, 'sequencial')[0];
-    for (let i = 1; i < fila.length; i++) {
-      const A = posicao(raiz, fila[i - 1].id), B = posicao(raiz, fila[i].id); if (!A || !B) continue;
-      const p = ns('path', { class: 'aresta' + (fila[i].funcao === 'revisor' ? ' revisa' : ''), d: seta(A, B), 'data-de': fila[i - 1].id, 'data-para': fila[i].id, 'marker-end': `url(#seta${raiz._sufixo})` });
-      p.style.setProperty('--cor', fila[i].cor); por(p);
+    const f = fila(lista);
+    for (let i = 1; i < f.length; i++) {
+      const A = posicao(raiz, f[i - 1].id), B = posicao(raiz, f[i].id); if (!A || !B) continue;
+      const p = ns('path', { class: 'aresta' + (f[i].funcao === 'revisor' ? ' revisa' : ''), d: rota(raiz, A, B), 'data-de': f[i - 1].id, 'data-para': f[i].id, 'marker-end': `url(#seta${raiz._sufixo})` });
+      p.style.setProperty('--cor', f[i].cor); por(p);
     }
   } else {
     for (const x of lista) {
       const c = chefeDe(lista, x, raiz._arq); if (!c) continue;
       const A = posicao(raiz, c), B = posicao(raiz, x.id); if (!A || !B) continue;
-      const p = ns('path', { class: 'aresta' + (relacao(x) === 'revisa' ? ' revisa' : ''), d: cotovelo(A, B), 'data-de': c, 'data-para': x.id, 'marker-end': `url(#seta${raiz._sufixo})` }); p.style.setProperty('--cor', x.cor);
-      const t = ns('text', { class: 'rel', x: B.x, y: (A.base + B.topo) / 2 - 6, 'text-anchor': 'middle', 'data-para': x.id }); t.textContent = relacao(x);
-      por(t); por(p);
+      const p = ns('path', { class: 'aresta' + (relacao(x) === 'revisa' ? ' revisa' : ''), d: rota(raiz, A, B), 'data-de': c, 'data-para': x.id, 'marker-end': `url(#seta${raiz._sufixo})` }); p.style.setProperty('--cor', x.cor);
+      por(p);
+      const r = lugarDoRotulo(p, A, B);
+      const t = ns('text', { class: 'rel', x: r.x, y: r.y, 'text-anchor': r.ancora, 'data-para': x.id }); t.textContent = relacao(x);
+      por(t);
     }
   }
   if (raiz === palco()) lista.forEach((x) => marcarAresta(x.id));
   // na prévia do construtor, cada seta ganha uma área de clique larga (uma por sentido) e, quando dá para tirá-la, um botão "×"
-  if (raiz.id === 'previa') {
+  if (raiz.closest('#previa')) {
     svg.querySelectorAll('.toque, .tira').forEach((e) => e.remove());
     const de_ = (id) => lista.find((x) => x.id === id);
     const removivel = (a, b) => raiz._arq === 'rede' || (raiz._arq === 'hierarquica' && de_(a)?.funcao === 'sublider' && de_(b)?.funcao !== 'revisor');
@@ -179,10 +159,11 @@ function viagem(de, para, { ruim = false, atraso = 0 } = {}) {
   const A = posicao(raiz, de), B = posicao(raiz, para); if (!svg || !A || !B || de === para) return;
   const achar = (id) => lista.find((x) => x.id === id);
   let d, volta = false;
-  if (chefeDe(lista, achar(para), raiz._arq) === de) d = cotovelo(A, B);
-  else if (chefeDe(lista, achar(de), raiz._arq) === para) { d = cotovelo(B, A); volta = true; }
-  else if (raiz._arq === 'rede' && vizinhosDe(lista, achar(de) || {}).some((x) => x.id === para)) d = reta(A, B);
-  else if (raiz._arq === 'sequencial' && A.x < B.x && Math.abs(lista.indexOf(achar(de)) - lista.indexOf(achar(para))) === 1) d = seta(A, B);
+  const f = fila(lista), vizinhosNaFila = Math.abs(f.indexOf(achar(de)) - f.indexOf(achar(para))) === 1;
+  if (chefeDe(lista, achar(para), raiz._arq) === de) d = rota(raiz, A, B);
+  else if (chefeDe(lista, achar(de), raiz._arq) === para) { d = rota(raiz, B, A); volta = true; }
+  else if (raiz._arq === 'rede' && vizinhosDe(lista, achar(de) || {}).some((x) => x.id === para)) d = reta(raiz, A, B);
+  else if (raiz._arq === 'sequencial' && vizinhosNaFila) { if (f.indexOf(achar(de)) < f.indexOf(achar(para))) d = rota(raiz, A, B); else { d = rota(raiz, B, A); volta = true; } }
   else d = arco(A, B);
   const cor = ruim ? '#ff7b96' : ag(de).cor;
   const p = ns('path', { class: 'viagem', d }); p.style.setProperty('--cor', cor);
@@ -206,21 +187,53 @@ function ajustarEscala() {
 new ResizeObserver(() => { ajustarEscala(); desenharArestas(); }).observe($('#time'));
 document.fonts?.ready.then(() => { ajustarEscala(); desenharArestas(); });
 
+// Mover os bonecos no palco: arrastar muda só o lugar no desenho (o time não muda), e o lugar fica guardado
+// no time em uso. Com o time parado, o palco se refaz para caber de novo; trabalhando, só as setas acompanham,
+// para não apagar o estado de cada um.
+function arrastarNoPalco(e, d) {
+  if (e.button !== 0) return;
+  const raiz = palco(), id = d.dataset.ag, x0 = e.clientX, y0 = e.clientY;
+  const left0 = parseFloat(d.style.left), top0 = parseFloat(d.style.top);
+  const escala = parseFloat(getComputedStyle(raiz).getPropertyValue('--escala')) || 1;
+  let moveu = false, quadro = 0;
+  const mover = (ev) => {
+    if (ev.pointerId !== e.pointerId) return;
+    if (!moveu && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+    if (!moveu) { moveu = true; d.classList.add('movendo'); }
+    d.style.left = (left0 + (ev.clientX - x0) / escala) + 'px'; d.style.top = (top0 + (ev.clientY - y0) / escala) + 'px';
+    cancelAnimationFrame(quadro); quadro = requestAnimationFrame(() => desenharArestas(raiz));
+  };
+  const fim = async (ev) => {
+    if (ev.pointerId !== e.pointerId) return;
+    document.removeEventListener('pointermove', mover); document.removeEventListener('pointerup', fim); document.removeEventListener('pointercancel', fim);
+    d.classList.remove('movendo'); if (!moveu) return;
+    const pos = paraUnidades(raiz, parseFloat(d.style.left), parseFloat(d.style.top)).map((v) => Math.round(v * 100) / 100);
+    const a = compartilhado.agentes.find((x) => x.id === id); if (a) a.pos = pos;
+    if (!compartilhado.rodando) montarTime(); else desenharArestas(raiz);
+    try {
+      const r = await pedir('/api/desenho', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pos: { [id]: pos } }) });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro || 'o servidor recusou');
+    } catch (erro) { avisar(`Não deu para guardar o lugar de ${a?.nome || id}: ${erro.message}. Ele volta ao lugar anterior quando a Muvuca reabrir.`); }
+  };
+  document.addEventListener('pointermove', mover); document.addEventListener('pointerup', fim); document.addEventListener('pointercancel', fim);
+}
+
 function montarTime() {
   compartilhado.liderId = SEM_LIDER.includes(compartilhado.arquitetura) ? null : (compartilhado.agentes.find((a) => a.funcao === 'lider') || compartilhado.agentes[0])?.id;
   $('#time').innerHTML = '<div class="grafo"></div>';
-  montarGrafo(palco(), compartilhado.agentes, compartilhado.arquitetura); requestAnimationFrame(ajustarEscala);
+  montarGrafo(palco(), compartilhado.agentes, compartilhado.arquitetura, '', compartilhado.desenho); requestAnimationFrame(ajustarEscala);
+  palco().querySelectorAll('.agente').forEach((d) => { d.title = 'Arraste para mudar o lugar no palco'; d.onpointerdown = (e) => arrastarNoPalco(e, d); });
   compartilhado.agentes.forEach((a) => rotuloModelo(a.id, modeloPadrao(a)));
   $('#fichas').innerHTML = '';
   const tituloTime = el('h2', 'sec', 'Time no palco'); tituloTime.append(el('small', '', `${compartilhado.nomeTime || 'sem nome'} · ${compartilhado.agentes.length} agente(s)`)); $('#fichas').append(tituloTime);
-  const fila = camadas(compartilhado.agentes, compartilhado.arquitetura)[0] || [];
+  const etapas = fila(compartilhado.agentes);
   compartilhado.agentes.forEach((a, i) => {
     const f = el('div', 'ficha'); f.innerHTML = mascote(a, i, 's');
     const subs = compartilhado.agentes.filter((x) => chefeDe(compartilhado.agentes, x, compartilhado.arquitetura) === a.id).map((x) => x.nome);
     const chefe = chefeDe(compartilhado.agentes, a, compartilhado.arquitetura);
     const lugar = compartilhado.arquitetura === 'rede' && a.funcao !== 'revisor' ? `${a.papel} (passa a vez para: ${vizinhosDe(compartilhado.agentes, a).map((x) => x.nome).join(', ') || 'ninguém'})`
       : compartilhado.arquitetura === 'unico' || (SEM_LIDER.includes(compartilhado.arquitetura) && a.funcao === 'revisor') ? a.papel
-      : compartilhado.arquitetura === 'sequencial' ? `${a.papel} (etapa ${fila.indexOf(a) + 1} de ${fila.length} da esteira)`
+      : compartilhado.arquitetura === 'sequencial' ? `${a.papel} (etapa ${etapas.indexOf(a) + 1} de ${etapas.length} da esteira)`
       : subs.length ? `coordena: ${subs.join(', ')}` + (chefe ? `; responde a ${ag(chefe).nome}` : '')
       : `${a.papel} (${relacao(a)} para ${ag(chefe).nome})`;
     const pr = el('p'); pr.append('Provedor ', el('code', '', a.provedor + (a.modeloFixo ? ' / ' + a.modeloFixo : '')));
@@ -259,4 +272,4 @@ const ag = (id) => compartilhado.agentes.find((a) => a.id === id) || { nome: id,
 function estado(id, e) { const d = noPalco(id); if (!d) return; d.dataset.estado = e; d.querySelector('.pilula span').textContent = ESTADOS[e] || e; atualizarResumo(); marcarAresta(id); if (compartilhado.rodando) depois.atualizarAndamento(); depois.atualizarBuzina(); }
 function balao(id, texto) { const d = noPalco(id); if (!d || !texto) return; const b = d.querySelector('.balao'); b.textContent = texto.length > 130 ? texto.slice(0, 128) + '…' : texto; b.classList.add('visivel'); clearTimeout(compartilhado.baloes[id]); compartilhado.baloes[id] = setTimeout(() => b.classList.remove('visivel'), 8000); }
 
-export { NOME_ARQ, NOME_CX, NOME_FORMA, NOME_FUNCAO, ROTULO_NIVEL, SEM_LIDER, ag, ajustarEscala, alarme, balao, camadas, chefeDe, desenharArestas, estado, modeloDoNivel, modeloPadrao, montarDestinos, montarGrafo, montarTime, noPalco, ns, rotuloModelo, viagem, vizinhosDe };
+export { NOME_ARQ, NOME_CX, NOME_FORMA, NOME_FUNCAO, ROTULO_NIVEL, SEM_LIDER, ag, ajustarEscala, alarme, balao, desenharArestas, estado, modeloDoNivel, modeloPadrao, montarDestinos, montarGrafo, montarTime, noPalco, ns, paraUnidades, rotuloModelo, viagem };

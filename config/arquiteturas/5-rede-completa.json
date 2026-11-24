@@ -3,10 +3,10 @@
   "descricao": "Todos com todos, sem chefe: quem termina a sua parte escolhe quem continua. Flexível, mas menos previsível; um teto de passagens evita ping-pong.",
   "arquitetura": "rede",
   "agentes": [
-    { "id": "back", "nome": "Back", "papel": "back-end: rotas, regras e testes", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor back-end numa rede de colegas. Escreve código simples, com teste junto." },
-    { "id": "front", "nome": "Front", "papel": "front-end: telas, acessibilidade e estilo", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#ffc94d", "forma": "cristal", "sistema": "Você é desenvolvedor front-end numa rede de colegas. Entrega telas acessíveis e responsivas." },
-    { "id": "testes", "nome": "Testes", "papel": "testes: casos de borda e de erro", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#63e6a3", "forma": "polvo", "sistema": "Você é testador numa rede de colegas. Procura o caso que quebra e escreve o teste dele." },
-    { "id": "docs", "nome": "Docs", "papel": "documentação: README com uso e exemplos", "ferramentas": ["listar", "ler", "escrever"], "complexidade": "baixa", "cor": "#ff7bc8", "forma": "livro", "sistema": "Você documenta para quem vai usar: como rodar, exemplos e limites." },
-    { "id": "revisor", "nome": "Revisor", "funcao": "revisor", "papel": "revisão de código", "ferramentas": ["listar", "ler"], "cor": "#4fe0a0", "forma": "escudo", "sistema": "Você é revisor de código. Só aponta defeito real, com arquivo e motivo. Não corrige." }
+    { "id": "back", "pos": [0, 0], "nome": "Back", "papel": "back-end: rotas, regras e testes", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor back-end numa rede de colegas. Escreve código simples, com teste junto." },
+    { "id": "front", "pos": [1, 0.85], "nome": "Front", "papel": "front-end: telas, acessibilidade e estilo", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#ffc94d", "forma": "cristal", "sistema": "Você é desenvolvedor front-end numa rede de colegas. Entrega telas acessíveis e responsivas." },
+    { "id": "testes", "pos": [0, 1.7], "nome": "Testes", "papel": "testes: casos de borda e de erro", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#63e6a3", "forma": "polvo", "sistema": "Você é testador numa rede de colegas. Procura o caso que quebra e escreve o teste dele." },
+    { "id": "docs", "pos": [-1, 0.85], "nome": "Docs", "papel": "documentação: README com uso e exemplos", "ferramentas": ["listar", "ler", "escrever"], "complexidade": "baixa", "cor": "#ff7bc8", "forma": "livro", "sistema": "Você documenta para quem vai usar: como rodar, exemplos e limites." },
+    { "id": "revisor", "pos": [0, 2.9], "nome": "Revisor", "funcao": "revisor", "papel": "revisão de código", "ferramentas": ["listar", "ler"], "cor": "#4fe0a0", "forma": "escudo", "sistema": "Você é revisor de código. Só aponta defeito real, com arquivo e motivo. Não corrige." }
  ]
 }

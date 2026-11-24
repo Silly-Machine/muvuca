@@ -2,6 +2,8 @@
 //   openai : qualquer API compatível com OpenAI (Groq, Ollama, gateway da empresa, OpenRouter...)
 //   cli    : aplicativo de linha de comando logado na assinatura (claude, codex, gemini)
 //   demo   : roteiro fixo, sem rede, para testar a orquestração e a tela
+import os from 'node:os';
+import path from 'node:path';
 import { rodar, ESQUEMAS } from './ferramentas.js';
 import { demo } from './demo.js';
 
@@ -151,3 +153,28 @@ export async function chamar(prov, pedido) {
   if (prov.tipo === 'demo') { await dormir(Number(process.env.DEMO_ATRASO ?? 700), pedido.sinal); return demo(pedido); }
   throw new Error(`tipo de provedor desconhecido: ${prov.tipo}`);
 }
+
+// ---------- achar o "claude" numa máquina recém-preparada ----------
+// Onde os instaladores costumam pôr os aplicativos de linha de comando. Quem abre a Muvuca pelo ícone, ou já estava
+// com ela aberta quando instalou o Claude Code, não tem essas pastas no PATH: sem isto, o "claude" não seria achado.
+export function pastasDeAplicativos(plataforma = process.platform, casa = os.homedir(), env = process.env) {
+  const p = plataforma === 'win32' ? path.win32 : path.posix;
+  const lista = [p.join(casa, '.local', 'bin'), p.join(casa, '.claude', 'local')];
+  if (plataforma === 'win32') { if (env.APPDATA) lista.push(p.join(env.APPDATA, 'npm')); }
+  else lista.push(p.join(casa, '.npm-global', 'bin'), p.join(casa, '.bun', 'bin'), p.join(casa, '.volta', 'bin'), '/opt/homebrew/bin', '/usr/local/bin');
+  return lista;
+}
+// Acrescenta ao PATH as pastas acima que ainda não estão nele (no fim: o que a pessoa configurou vem primeiro).
+export function completarPath(env = process.env, plataforma = process.platform, casa = os.homedir()) {
+  const sep = plataforma === 'win32' ? ';' : ':';
+  const chave = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') || 'PATH';
+  const atual = String(env[chave] || '').split(sep).filter(Boolean);
+  const igual = (x) => (plataforma === 'win32' ? x.toLowerCase() : x).replace(/[\\/]+$/, '');
+  const ja = new Set(atual.map(igual));
+  env[chave] = [...atual, ...pastasDeAplicativos(plataforma, casa, env).filter((x) => !ja.has(igual(x)))].join(sep);
+  return env[chave];
+}
+// Como instalar o Claude Code em cada sistema: o instalador oficial, sem precisar de Node.
+export const instrucaoClaude = (plataforma = process.platform) => (plataforma === 'win32'
+  ? { onde: 'no PowerShell', comando: 'irm https://claude.ai/install.ps1 | iex' }
+  : { onde: 'no Terminal', comando: 'curl -fsSL https://claude.ai/install.sh | bash' });

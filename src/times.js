@@ -14,6 +14,8 @@ export const ARQUITETURAS = {
 };
 const SEM_LIDER = ['unico', 'sequencial', 'rede'];
 
+// Posição no desenho, em unidades (veja public/js/regras/desenho.js). Inválida é descartada: o desenho nunca impede o time.
+export const posicao = (p) => (Array.isArray(p) && p.length === 2 && p.every((v) => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 200) ? p.map((v) => Math.round(v * 100) / 100 || 0) : null);
 const texto = (v, max) => String(v ?? '').trim().slice(0, max);
 export const fatiar = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 
@@ -49,6 +51,7 @@ export function validarTime(t, provedores, provedorPadrao) {
     if (texto(a.modelo, 60)) ag.modelo = texto(a.modelo, 60);
     if (a.complexidade === 'auto') ag.complexidade = 'auto'; else if (nivel(a.complexidade)) ag.complexidade = nivel(a.complexidade);
     if (texto(a.chefe, 24)) ag.chefe = texto(a.chefe, 24).toLowerCase();
+    if (posicao(a.pos)) ag.pos = posicao(a.pos);
     if (Array.isArray(a.conexoes)) ag.conexoes = [...new Set(a.conexoes.map((c) => texto(c, 24).toLowerCase()).filter(Boolean))];
     return ag;
   });
@@ -105,5 +108,12 @@ export function validarTime(t, provedores, provedorPadrao) {
     if (!agentes.some((a) => a.chefe === lider.id && a.funcao !== 'revisor')) erro(`o líder ${lider.nome} não tem ninguém para quem delegar`);
   }
 
-  return { nome: texto(t.nome, 40) || 'Time sem nome', descricao: texto(t.descricao, 200), arquitetura, agentes };
+  const time = { nome: texto(t.nome, 40) || 'Time sem nome', descricao: texto(t.descricao, 200), arquitetura, agentes };
+  if (texto(t.modelo, 40)) time.modelo = texto(t.modelo, 40);
+  // desenho do time: como a rede se reorganiza (só na rede) e o estilo das setas (quadradas é o padrão e não se grava)
+  const desenho = {};
+  if (arquitetura === 'rede' && ['anel', 'camadas'].includes(t.desenho?.rede)) desenho.rede = t.desenho.rede;
+  if (t.desenho?.setas === 'arredondadas') desenho.setas = 'arredondadas';
+  if (Object.keys(desenho).length) time.desenho = desenho;
+  return time;
 }

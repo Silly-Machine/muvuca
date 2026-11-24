@@ -37,8 +37,14 @@ async function subirServidor() {
   completarPath();
   // Já há uma Muvuca aberta com esta pasta de dados (pelo terminal, por exemplo)? A janela mostra essa, em vez de subir outra.
   if (!process.env.MUVUCA_CAPTURA) {
-    const { muvucaAberta } = await import(pathToFileURL(path.join(RAIZ, 'src', 'aberta.js')).href);
+    const { muvucaAberta, versaoDiferente } = await import(pathToFileURL(path.join(RAIZ, 'src', 'aberta.js')).href);
     const ja = await muvucaAberta();
+    // versão diferente aberta (pelo terminal, por exemplo): não mostra a tela de uma versão dentro do aplicativo de outra
+    const outra = versaoDiferente(ja, app.getVersion());
+    if (outra) {
+      const r = await dialog.showMessageBox({ type: 'warning', buttons: ['Fechar', `Usar a ${ja.versao} mesmo assim`], defaultId: 0, cancelId: 0, message: 'Outra versão da Muvuca já está aberta.', detail: outra });
+      if (r.response !== 1) { app.exit(0); return new Promise(() => {}); }
+    }
     if (ja) { token = ja.token; return ja.porta; }
   }
   if (!process.env.MUVUCA_PORTA) process.env.MUVUCA_PORTA = String(await portaDoApp());
