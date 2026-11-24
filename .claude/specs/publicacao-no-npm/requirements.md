@@ -1,4 +1,4 @@
-Estado: em execução (24/11/2026)
+Estado: suspensa (24/11/2026). Veja "Pendência" em tasks.md.
 
 # Requisitos: publicação automática no npm
 

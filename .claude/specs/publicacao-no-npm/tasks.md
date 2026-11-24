@@ -1,6 +1,17 @@
 # Tarefas: publicação automática no npm
 
-Aprovada em 24/11/2026.
+Aprovada em 24/11/2026. Suspensa no mesmo dia, a pedido, para voltar depois.
+
+## Pendência (24/11/2026)
+
+O primeiro lançamento pelo fluxo (v1.0.3) gerou os instaladores e a Release, mas o trabalho "Publicar no npm" falhou com `E404 Not Found - PUT https://registry.npmjs.org/muvuca`: o npm não aceitou a identidade do fluxo. Ambiente: Node 24.22.3, npm 11.19.1. O npm continua na 1.0.0.
+
+Para retomar, nesta ordem:
+
+1. Conferir o cadastro em npmjs.com (pacote `muvuca` → Settings → Trusted Publisher): `Silly-Machine`, `muvuca`, `instaladores.yml`, ambiente vazio, e se foi salvo.
+2. Reexecutar só o trabalho que falhou na execução da tag v1.0.3 (`gh run rerun <id> --failed`).
+3. Se falhar de novo com o cadastro certo: suspeita seguinte é o `NODE_AUTH_TOKEN` de enfeite que o `setup-node` põe no ambiente quando recebe `registry-url`. Tirar o `registry-url` (ou limpar a variável) e provar na versão seguinte.
+4. Alternativa imediata: `npm publish` à mão, pelo dono do pacote.
 
 - [x] 1. Acrescentar o trabalho `npm` ao fluxo de instaladores
   - conforme o desenho; conferir a sintaxe do arquivo
