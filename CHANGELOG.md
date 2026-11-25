@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: desenho livre e personagens com 10 poses
+## 1.1.0 (25/11/2026): desenho livre e personagens com 10 poses
 
 - **Cinco poses novas para cada personagem.** Além de disponível, pensando, trabalhando, concluído e aguardando você, os 17 bonecos agora mostram quando esperam a vez (divagando), leem o projeto (livro), conferem (o revisor, de lupa), aguardam o veredito do portão e do revisor (ampulheta) e quando o trabalho volta (falhou). O palco passa a contar a história do pedido: dá para ver quem está parado esperando e quem errou.
 - **Personagens do time de fábrica com nomes próprios da Muvuca.** Maestro, Chevron, Pixel e Scout agora são Batuta, Catraca, Vitral e Farol; o Revisor continua. Os bonecos e as funções são os mesmos. Times que você salvou continuam com os nomes que tinham, e as notas de memória ligadas aos nomes antigos do time de fábrica não acompanham os novos.
