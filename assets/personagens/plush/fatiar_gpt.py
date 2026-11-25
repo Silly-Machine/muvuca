@@ -1,24 +1,34 @@
-# Fatia as faixas geradas pelo ChatGPT (um personagem, 5 estados lado a lado, PNG transparente)
-# em 80 imagens public/bonecos/<forma>-<estado>.webp, todas do mesmo tamanho e alinhadas pelo pé.
-# Uso, na pasta da Muvuca:  python assets/personagens/plush/fatiar_gpt.py [pasta-das-faixas]
+# Fatia as faixas geradas pelo ChatGPT (um personagem, 5 poses lado a lado, PNG transparente)
+# em imagens public/bonecos/<forma>-<estado>.webp, todas do mesmo tamanho e alinhadas pelo pé.
+# Cada personagem tem duas faixas: gpt/<nome>_5_estados.png (os 5 estados originais) e
+# gpt-poses/<nome>_5_poses.png (as 5 poses acrescentadas depois).
+# Uso, na pasta da Muvuca:
+#   python assets/personagens/plush/fatiar_gpt.py            # os 5 estados originais
+#   python assets/personagens/plush/fatiar_gpt.py --poses    # as 5 poses novas
 import sys, os
 from PIL import Image, ImageFilter, ImageChops
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(AQUI)))
-ORIGEM = sys.argv[1] if len(sys.argv) > 1 else os.path.join(AQUI, 'gpt')
+POSES = '--poses' in sys.argv
+args = [a for a in sys.argv[1:] if not a.startswith('--')]
+ORIGEM = args[0] if args else os.path.join(AQUI, 'gpt-poses' if POSES else 'gpt')
 SAIDA = os.path.join(RAIZ, 'public', 'bonecos')
 os.makedirs(SAIDA, exist_ok=True)
 
 ARQUIVOS = {
-    'cartola': 'maestro_sinal', 'regente': 'relay_coordenacao', 'engrenagem': 'engrenagem',
+    'cartola': 'batuta_sinal', 'regente': 'relay_coordenacao', 'engrenagem': 'engrenagem',
     'cristal': 'cristal_frontend', 'pilha': 'banco_dados', 'polvo': 'polvo_testes',
     'livro': 'livro_docs', 'nuvem': 'nuvem_ux', 'cogumelo': 'cogumelo_produto',
     'foguete': 'foguete_devops', 'gato': 'sentinela_seguranca', 'lente': 'esfera_lente_pesquisa',
     'planta': 'camaleao_generalista', 'escudo': 'escudo_oculos_revisor', 'tela': 'monitor_antena',
     'gota': 'gota', 'salsicha': 'buzina_mascote',
 }
-ESTADOS = ['disponivel', 'pensando', 'trabalhando', 'concluido', 'aguardando']
+ESTADOS = ['divagando', 'falhou', 'bloqueado', 'lendo', 'conferindo'] if POSES else ['disponivel', 'pensando', 'trabalhando', 'concluido', 'aguardando']
+SUFIXO = '_5_poses' if POSES else '_5_estados'
+# Qual pose dá o tamanho do corpo: a primeira dos estados originais (disponível); nas poses novas, a "lendo",
+# que não tem nuvem, X nem ampulheta em cima da cabeça. Assim o boneco fica do mesmo tamanho nas duas faixas.
+REF = 3 if POSES else 0
 LARG, ALT = 320, 328          # 2x a área do boneco na Muvuca (160 x 164)
 CHAO = ALT - 6                # onde fica o pé
 CORPO = 0.74                  # altura do corpo (estado disponível) em relação à imagem
@@ -111,6 +121,41 @@ def separar_por_componente(im, d):
         pecas.append(peca.crop((x0, 0, x1, im.height)))
     return pecas
 
+def baixar_acessorios(peca, excesso):
+    """Nas poses novas, a nuvem, o X e a ampulheta ficam altos e fariam o boneco inteiro encolher para caber.
+    Em vez disso, o que está solto acima do corpo desce "excesso" pixels. Devolve None se não há nada solto."""
+    k = 4
+    a = peca.getchannel('A')
+    w, h = (a.width + k - 1) // k, (a.height + k - 1) // k
+    m = a.resize((w, h), Image.BOX).load()
+    rot = [[-1] * w for _ in range(h)]
+    comps = []
+    for y in range(h):
+        for x in range(w):
+            if m[x, y] <= 24 or rot[y][x] >= 0: continue
+            n = len(comps); pilha = [(x, y)]; rot[y][x] = n; pts = []
+            while pilha:
+                cx, cy = pilha.pop(); pts.append((cx, cy))
+                for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and rot[ny][nx] < 0 and m[nx, ny] > 24:
+                        rot[ny][nx] = n; pilha.append((nx, ny))
+            comps.append(pts)
+    if len(comps) < 2: return None
+    corpo = max(range(len(comps)), key=lambda i: len(comps[i]))
+    topo = min(y for _, y in comps[corpo]); base = max(y for _, y in comps[corpo])
+    soltos = [i for i in range(len(comps)) if i != corpo and sum(y for _, y in comps[i]) / len(comps[i]) < topo + (base - topo) * 0.3]
+    if not soltos: return None
+    masc = Image.new('L', (w, h), 0); mp = masc.load()
+    for i in soltos:
+        for x, y in comps[i]: mp[x, y] = 255
+    cheia = masc.resize((w * k, h * k), Image.NEAREST).crop((0, 0, peca.width, peca.height)).filter(ImageFilter.MaxFilter(9))
+    em_cima = peca.copy(); em_cima.putalpha(ImageChops.multiply(a, cheia))
+    resto = peca.copy(); resto.putalpha(ImageChops.multiply(a, ImageChops.invert(cheia)))
+    nova = Image.new('RGBA', peca.size, (0, 0, 0, 0))
+    nova.alpha_composite(resto)
+    nova.alpha_composite(em_cima.crop((0, 0, peca.width, peca.height - excesso)), (0, excesso))
+    return nova
+
 def centro_corpo(peca):
     """Centro horizontal do corpo: média das colunas opacas na metade de baixo (ignora bolha e estrelas)."""
     a = peca.getchannel('A')
@@ -122,9 +167,16 @@ def centro_corpo(peca):
             if px[x, y] > 128: tot += x; n += 1
     return tot / n if n else (x0 + x1) / 2
 
+# As faixas não ficam no repositório (83 MB): ficam na versão "fontes-dos-personagens" do GitHub.
+if not os.path.isdir(ORIGEM):
+    print(f'Não achei a pasta {ORIGEM}.\nBaixe fontes-dos-personagens.zip em '
+          'https://github.com/Silly-Machine/muvuca/releases/tag/fontes-dos-personagens '
+          'e descompacte dentro de assets/personagens/plush/.')
+    sys.exit(1)
+
 faltando = []
 for forma, nome in ARQUIVOS.items():
-    caminho = os.path.join(ORIGEM, f'{nome}_5_estados.png')
+    caminho = os.path.join(ORIGEM, f'{nome}{SUFIXO}.png')
     if not os.path.exists(caminho):
         faltando.append(nome); continue
     im = Image.open(caminho).convert('RGBA')
@@ -137,8 +189,17 @@ for forma, nome in ARQUIVOS.items():
     if not pecas: pecas = [limpar_bordas(im.crop((d[i], 0, d[i + 1], im.height))) for i in range(5)]
     caixas = [p.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox() for p in pecas]
     # escala: o corpo do estado disponível ocupa CORPO da altura; nenhum estado pode passar do topo
-    h_disp = caixas[0][3] - caixas[0][1]
+    h_disp = caixas[REF][3] - caixas[REF][1]
     escala = CORPO * ALT / h_disp
+    caixa_de = lambda p: p.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox()
+    if POSES:
+        # o tamanho do corpo manda; o que está solto em cima (nuvem, X, ampulheta) desce o quanto precisar
+        for p, c in zip(pecas, caixas): escala = min(escala, (LARG - 6) / (c[2] - c[0]))
+        for i, (p, c) in enumerate(zip(pecas, caixas)):
+            excesso = round((c[3] - c[1]) - (CHAO - 4) / escala)
+            if excesso <= 0: continue
+            nova = baixar_acessorios(p, excesso + 2)
+            if nova: pecas[i] = nova; caixas[i] = caixa_de(nova)
     for p, c in zip(pecas, caixas):
         escala = min(escala, (CHAO - 4) / (c[3] - c[1]), (LARG - 6) / (c[2] - c[0]))
     for estado, p, c in zip(ESTADOS, pecas, caixas):

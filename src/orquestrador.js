@@ -40,6 +40,7 @@ const maior = (lista) => lista.reduce((a, b) => (NIVEIS.indexOf(b) > NIVEIS.inde
 
 export class Muvuca {
   constructor(cfg) {
+    this.pausaDaFalha = 900;   // ms em que o agente fica na pose "falhou" quando o trabalho volta (0 nos testes)
     this.cfg = cfg;
     this.ouvintes = new Set();
     this.eventos = [];
@@ -141,6 +142,11 @@ export class Muvuca {
   }
   emitir(ev) { ev.n = ++this.seq; ev.hora = Date.now(); this.eventos.push(ev); for (const f of this.ouvintes) f(ev); return ev; }
   status(agente, estado, extra) { this.emitir({ tipo: 'status', agente, estado, ...extra }); }
+  // A pose de quem está no meio de uma chamada: o revisor confere; ler e listar é leitura; o resto é trabalho.
+  poseDe(ag, ferramenta, padrao = 'trabalhando') {
+    if (ag.funcao === 'revisor') return 'conferindo';
+    return ['ler', 'listar'].includes(ferramenta) ? 'lendo' : padrao;
+  }
 
   nova() {
     if (this.rodando) throw new Error('há um pedido em andamento');
@@ -178,7 +184,7 @@ export class Muvuca {
   // Uma rodada de um agente: laço de ferramentas (API) ou uma chamada única (CLI, que tem o próprio laço).
   async executar(ag, tarefa, { somenteTexto = false, contexto = '', complexidade = null } = {}) {
     const prov = this.provedor(ag, complexidade);
-    this.status(ag.id, 'pensando', { modelo: prov.modelo || prov.nome, complexidade: nivel(complexidade) });
+    this.status(ag.id, this.poseDe(ag, '', 'pensando'), { modelo: prov.modelo || prov.nome, complexidade: nivel(complexidade) });
     const ferramentas = somenteTexto ? [] : (ag.ferramentas || []);
     const sistema = `${ag.sistema}\nVocê é ${ag.nome}. Responda em português, em frases curtas.` +
       (ferramentas.length ? '\nTrabalhe na pasta do projeto usando as ferramentas. Ao terminar, responda com uma frase dizendo o que fez.' : '') +
@@ -207,9 +213,9 @@ export class Muvuca {
     const base = { sistema: comMemoria + (isolamento ? '\nOs testes rodam isolados: só leem e escrevem dentro da pasta do projeto e da pasta temporária (os.tmpdir()), e não conseguem abrir outros processos. Escreva os testes de acordo: servidor no mesmo processo, arquivos temporários com os.tmpdir(). Para rodar os testes use exatamente "node --test": "npm test" e qualquer opção a mais na linha de comando são negados.' : ''), ferramentas, sinal: this.abort.signal, cwd: this.projeto, agente: ag, mcp, isolamento };
     try {
       for (let volta = 0; volta < this.maxPassos; volta++) {
-        this.status(ag.id, volta === 0 ? 'pensando' : 'trabalhando');   // depois da primeira ferramenta ele está no meio do trabalho
+        this.status(ag.id, this.poseDe(ag, '', volta === 0 ? 'pensando' : 'trabalhando'));   // depois da primeira ferramenta ele está no meio do trabalho
         const r = await chamar(prov, { ...base, mensagens, aoPasso: (p) => {
-          this.status(ag.id, 'trabalhando');
+          this.status(ag.id, this.poseDe(ag, p.ferramenta));
           // uso de uma conexão aparece na conversa com nome próprio; não conta como passo de trabalho
           if (p.ferramenta === 'conexao') return this.emitir({ tipo: 'conexao', agente: ag.id, servidor: p.servidor, ferramenta: p.alvo });
           passos++; this.emitir({ tipo: 'passo', agente: ag.id, ...p });
@@ -218,9 +224,9 @@ export class Muvuca {
         mensagens.push(r.msg);
         if (r.passos) passos = Math.max(passos, r.passos);
         if (!r.chamadas.length) return { texto: r.texto.trim(), passos, segundos: (Date.now() - inicio) / 1000, modelo: prov.modelo || prov.nome };
-        this.status(ag.id, 'trabalhando');
         for (const c of r.chamadas) {
           passos++;
+          this.status(ag.id, this.poseDe(ag, c.nome));
           const permitido = ferramentas.includes(c.nome);
           this.emitir({ tipo: 'passo', agente: ag.id, ferramenta: c.nome, alvo: c.args.caminho || c.args.comando || '' });
           const saida = permitido
@@ -255,7 +261,13 @@ export class Muvuca {
     r.fala = r.texto.replace(/\{\s*"proximo"[\s\S]*\}\s*$/, '').replace(/```(?:json)?\s*$/i, '').trim() || '(sem comentário)';
     this.emitir({ tipo: 'fala', agente: id, texto: r.fala });
     this.status(id, 'concluido');
-    setTimeout(() => { if (this.rodando) this.status(id, 'disponivel'); }, 1500).unref?.();
+    // Depois do pulinho de "concluído": quem entregou e espera o portão e o revisor fica aguardando o veredito.
+    // Se nesse meio-tempo ele já pegou outra tarefa, o estado dela vale e este aviso não sai.
+    setTimeout(() => {
+      if (!this.rodando || this.tarefaDe.get(id) !== idT) return;
+      const e = this.quadro.get(idT)?.estado;
+      if (e === 'revisao') this.status(id, 'bloqueado'); else if (e !== 'trabalhando') this.status(id, 'disponivel');
+    }, 1500).unref?.();
     return r;
   }
 
@@ -328,7 +340,7 @@ export class Muvuca {
   // Executa as etapas em ordem. Etapa entregue a um sub-líder vira um plano dele, executado aqui mesmo.
   async rodarEtapas(etapas, texto, rastro, profundidade = 0) {
     const delega = (e) => profundidade < 4 && this.subordinados(e.agente).length > 0;
-    for (const e of etapas) if (!delega(e)) e.idTarefa = this.novaTarefa(e.agente, e.titulo || e.tarefa, 'afazer', { complexidade: e.complexidade });
+    for (const e of etapas) if (!delega(e)) { e.idTarefa = this.novaTarefa(e.agente, e.titulo || e.tarefa, 'afazer', { complexidade: e.complexidade }); this.status(e.agente, 'divagando'); }
     for (const e of etapas) {
       if (delega(e)) {   // o limite protege de chefia em ciclo num arquivo editado à mão
         await this.rodarEtapas(await this.planejar(e.tarefa, e.agente), texto, rastro, profundidade + 1);
@@ -384,6 +396,12 @@ export class Muvuca {
     if (/reconhecido como um comando|not recognized|command not found|Cannot find (module|package)|ERR_MODULE_NOT_FOUND/i.test(saida) && this.autores.has('package.json')) return this.autores.get('package.json');
     for (const [arq, id] of this.autores) if (saida.includes(path.basename(arq))) return id;
     return [...this.autores.values()].pop() || reserva;
+  }
+
+  // O trabalho voltou: o agente fica um instante em "falhou" antes de recomeçar, para dar tempo de ver.
+  async mostrarFalha(id) {
+    this.status(id, 'falhou');
+    if (this.pausaDaFalha > 0) await new Promise((ok) => setTimeout(ok, this.pausaDaFalha));
   }
 
   async revisar() {
@@ -473,6 +491,7 @@ export class Muvuca {
         // Quem errou tenta de novo um nível acima: se o modelo leve não deu conta, o próximo é mais forte.
         const nv = subir(this.niveis.get(alvo));
         this.emitir({ tipo: 'devolucao', de: 'portao', para: alvo, texto: 'Os testes não passaram. Volta para quem fez.', complexidade: nv });
+        await this.mostrarFalha(alvo);
         await this.etapa(alvo, `TESTES FALHARAM (comando: ${g.comando || 'nenhum'}). Corrija o código ou crie os testes que faltam.\nSaída:\n${g.saida}`, `Pedido original: ${texto}`, nv, { titulo: 'Correção: os testes não passaram' });
         continue;
       }
@@ -487,6 +506,7 @@ export class Muvuca {
       for (const [id, achados] of porAgente) {
         const nv = subir(this.niveis.get(id));
         this.emitir({ tipo: 'devolucao', de: this.idRevisor, para: id, texto: 'Reprovado. Volta para quem fez.', complexidade: nv });
+        await this.mostrarFalha(id);
         // o que o revisor apontou vira nota: da próxima vez o agente já começa sabendo
         for (const a of achados) await this.lembrar(id, `O revisor já reprovou (${a.arquivo || '?'}): ${a.problema}`);
         await this.etapa(id, `REVISOR REPROVOU. Corrija:\n${achados.map((a) => `- ${a.arquivo}: ${a.problema}`).join('\n')}`, `Pedido original: ${texto}`, nv,

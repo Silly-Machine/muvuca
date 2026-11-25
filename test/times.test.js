@@ -85,16 +85,16 @@ test('hierárquica: a diretora divide, cada sub-líder planeja para o próprio t
   const e = comTime(await pronto('2-hierarquica.json'));
   await e.pedido({ texto: PEDIDO, projeto });
   const planos = e.eventos.filter((x) => x.tipo === 'plano').map((p) => [p.agente, p.etapas.map((s) => s.agente)]);
-  assert.deepStrictEqual(planos, [['diretora', ['torre', 'prisma']], ['torre', ['chevron', 'dados']], ['prisma', ['pixel', 'tinta']]]);
+  assert.deepStrictEqual(planos, [['diretora', ['torre', 'prisma']], ['torre', ['catraca', 'dados']], ['prisma', ['vitral', 'tinta']]]);
   const quem = e.eventos.filter((x) => x.tipo === 'concluiu').map((x) => x.agente);
-  assert.deepStrictEqual(quem.slice(0, 4), ['chevron', 'dados', 'pixel', 'tinta'], 'executores trabalham na ordem das frentes');
+  assert.deepStrictEqual(quem.slice(0, 4), ['catraca', 'dados', 'vitral', 'tinta'], 'executores trabalham na ordem das frentes');
   assert.ok(!quem.includes('torre') && !quem.includes('diretora'), 'líderes não executam');
   assert.strictEqual(e.eventos.find((x) => x.tipo === 'concluiu' && x.agente === 'tinta').complexidade, 'baixa', 'nível fixo do agente vence o do sub-líder');
   const final = e.eventos.find((x) => x.tipo === 'final');
   assert.strictEqual(final.aprovado, true);
   const dif = e.eventos.find((x) => x.tipo === 'diff');
   assert.strictEqual(dif.autores['notas/dados.md'], 'dados');
-  assert.strictEqual(dif.autores['public/status.html'], 'pixel');
+  assert.strictEqual(dif.autores['public/status.html'], 'vitral');
   await e.decidir('descartar');
   assert.deepStrictEqual(await fs.readdir(projeto), []);
 });
@@ -105,9 +105,9 @@ test('esteira: sem líder, na ordem da lista, cada etapa no seu nível', async (
   await e.pedido({ texto: PEDIDO, projeto });
   assert.ok(!e.eventos.some((x) => x.tipo === 'plano'), 'esteira não tem plano de líder');
   assert.deepStrictEqual(e.eventos.find((x) => x.tipo === 'esteira').etapas.map((s) => [s.agente, s.complexidade]),
-    [['analista', 'media'], ['chevron', 'alta'], ['testador', 'media'], ['documentador', 'baixa']]);
+    [['analista', 'media'], ['catraca', 'alta'], ['testador', 'media'], ['documentador', 'baixa']]);
   assert.deepStrictEqual(e.eventos.filter((x) => x.tipo === 'passagem').slice(0, 3).map((p) => [p.de, p.para]),
-    [['analista', 'chevron'], ['chevron', 'testador'], ['testador', 'documentador']]);
+    [['analista', 'catraca'], ['catraca', 'testador'], ['testador', 'documentador']]);
   assert.strictEqual(e.eventos.find((x) => x.tipo === 'final').aprovado, true);
   assert.deepStrictEqual(e.lider, [], 'esteira não mexe na sessão de líder');
   await e.decidir('descartar');

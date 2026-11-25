@@ -39,7 +39,7 @@ export function normalizarPreferencias(p, { raiz, cfg = {}, padrao } = {}) {
     for (const n of ['baixa', 'media', 'alta']) if (texto(m?.[n], 80)) limpo[n] = texto(m[n], 80);
     if (Object.keys(limpo).length) modelos[texto(prov, 60)] = limpo;
   }
-  // escolha de modelo por agente: { chevron: 'alta', scout: 'auto' }
+  // escolha de modelo por agente: { catraca: 'alta', farol: 'auto' }
   const niveis = {};
   for (const [id, v] of Object.entries(p.niveis && typeof p.niveis === 'object' ? p.niveis : {}).slice(0, 60)) {
     if (/^[a-z][a-z0-9-]*$/.test(id) && ['auto', 'baixa', 'media', 'alta'].includes(v)) niveis[id] = v;

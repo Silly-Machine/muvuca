@@ -59,7 +59,7 @@ test('login vencido no meio de um pedido: vira erro de login com nome, não resp
   c.provedores.cli = prov;
   for (const a of c.agentes) a.provedor = 'cli';
   const e = new Muvuca(c);
-  await e.pedido({ texto: 'Crie o arquivo', projeto: await pasta('muvuca-'), para: 'chevron' });
+  await e.pedido({ texto: 'Crie o arquivo', projeto: await pasta('muvuca-'), para: 'catraca' });
   const erro = e.eventos.find((x) => x.tipo === 'erro');
   assert.equal(erro?.codigo, 'login', JSON.stringify(e.eventos.map((x) => x.tipo)));
   assert.match(erro.texto, /Entre de novo/);

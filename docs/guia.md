@@ -71,10 +71,10 @@ Da conta do Claude, a Muvuca só pergunta se há login; e-mail e organização n
 
 O roteiro erra de propósito duas vezes, para exercitar o fluxo inteiro:
 
-1. O líder (Maestro) consulta o Scout antes de decidir.
-2. Plano: Chevron faz a rota e o teste, Pixel faz a página.
-3. **Portão de testes falha** (falta o `uptime`). O trabalho volta para o Chevron.
-4. Portão passa. **Revisor reprova** (falta `Cache-Control: no-store`). Volta para o Chevron.
+1. O líder (Batuta) consulta o Farol antes de decidir.
+2. Plano: Catraca faz a rota e o teste, Vitral faz a página.
+3. **Portão de testes falha** (falta o `uptime`). O trabalho volta para o Catraca.
+4. Portão passa. **Revisor reprova** (falta `Cache-Control: no-store`). Volta para o Catraca.
 5. Portão passa de novo, revisor aprova.
 6. Diff linha a linha, com o autor de cada arquivo. O humano fica com tudo ou descarta tudo.
 
@@ -88,7 +88,7 @@ Cada agente aponta para um provedor em `config/agentes.json`. Três tipos:
 | `cli` | aplicativo de linha de comando logado na assinatura | `claude`, `codex`, `gemini` |
 | `demo` | roteiro fixo | testes e demonstração |
 
-`config/agentes.exemplo-misto.json` traz um time misto (líder e Pixel no Groq, Chevron no Claude, Revisor no Codex). Para usar:
+`config/agentes.exemplo-misto.json` traz um time misto (líder e Vitral no Groq, Catraca no Claude, Revisor no Codex). Para usar:
 
 ```
 set GROQ_API_KEY=...            (PowerShell: $env:GROQ_API_KEY="...")
@@ -119,7 +119,7 @@ O líder marca cada etapa e cada consulta com `"complexidade": "baixa" | "media"
 "claude-cli": { "tipo": "cli", "modelo": "sonnet", "modelos": { "baixa": "haiku", "media": "sonnet", "alta": "fable" } }
 ```
 
-- **Ordem de escolha:** `agente.modelos[nível]`, depois `agente.modelo` (fixo), depois `provedor.modelos[nível]`, por fim `provedor.modelo`. Assim, um agente com `modelo` próprio (como o Scout em haiku) ignora o mapa do provedor.
+- **Ordem de escolha:** `agente.modelos[nível]`, depois `agente.modelo` (fixo), depois `provedor.modelos[nível]`, por fim `provedor.modelo`. Assim, um agente com `modelo` próprio (como o Farol em haiku) ignora o mapa do provedor.
 - **Consulta sem nível:** fica em `baixa`. **Etapa sem nível ou com nível inválido:** fica em `media`.
 - **Devolução sobe um nível.** Quando o portão ou o revisor devolve, quem errou tenta de novo um nível acima: se o haiku não deu conta, a correção vai com o sonnet.
 - **Revisão** roda no nível da parte mais difícil do pedido.
@@ -148,7 +148,7 @@ A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em
 | `public/fontes/` | 5 arquivos | Fredoka e Nunito, servidas daqui (licença OFL na mesma pasta) |
 | `public/js/` | ~1700 | um módulo por parte da tela, carregados em ordem por `principal.js`: base, personagens, palco, construtor, conversa, buzina, quadro, abas, conexoes, historico, abertas, entrar, inicio. `estado.js` guarda o que mais de uma parte altera; `tardias.js`, as chamadas a partes carregadas depois |
 | `public/js/regras/` | ~110 | lógica sem tela, com testes: regras das setas e histórico do desfazer |
-| `public/bonecos/` | 85 imagens | os personagens, 17 formas em 5 estados |
+| `public/bonecos/` | 170 imagens | os personagens, 17 formas em 10 poses |
 | `config/agentes.json` | | o time de fábrica e os provedores (demonstração e `claude-cli`) |
 | `config/catalogo-agentes.json` | | a biblioteca de agentes básicos do construtor |
 | `config/arquiteturas/` | 7 arquivos | os modelos prontos de time |
@@ -167,9 +167,9 @@ O terceiro ícone da barra lateral abre o construtor. Você parte de um modelo, 
 | Arquitetura | Como roda | Modelo pronto |
 |---|---|---|
 | agente único | Um agente com todas as ferramentas faz tudo; o portão ainda confere. Serve de linha de base para ver se a coordenação compensa. | Agente único (Solo) |
-| centralizada (supervisor) | Um líder planeja e distribui; todos respondem a ele. | Time centralizado (Maestro e os quatro) |
+| centralizada (supervisor) | Um líder planeja e distribui; todos respondem a ele. | Time centralizado (Batuta e os quatro) |
 | hierárquica | O líder divide o pedido entre sub-líderes. Cada sub-líder planeja para o próprio time, com sessão própria. | Estúdio hierárquico (Diretora → Torre e Prisma → quatro executores) |
-| sequencial (esteira) | Sem líder. Cada agente faz a sua etapa, na ordem da lista, sabendo quem vem antes e depois. | Esteira de produção (Analista → Chevron → Testador → Documentador); Dupla com revisão |
+| sequencial (esteira) | Sem líder. Cada agente faz a sua etapa, na ordem da lista, sabendo quem vem antes e depois. | Esteira de produção (Analista → Catraca → Testador → Documentador); Dupla com revisão |
 | rede | Sem chefe nem plano. O primeiro da lista começa. Cada um faz a sua parte e termina com `{"proximo":"id ou fim"}`, escolhendo entre os vizinhos dele quem continua. Passar para quem não é vizinho encerra a rede. Um teto de passagens (`maxPassagens`, padrão: o dobro de membros, no máximo 12) evita ping-pong. Na tela, começa em anel ou em camadas. | Rede completa (todos com todos); Rede personalizada (conexões escolhidas no editor, em "Pode passar a vez para") |
 
 Em todas, o portão de testes e o revisor fecham o ciclo, e a devolução sobe o nível de complexidade.
@@ -209,7 +209,7 @@ Em todas, o portão de testes e o revisor fecham o ciclo, e a devolução sobe o
 
 **Galeria:** cada modelo mostra o desenho do próprio time, encolhido para caber no cartão. O revisor aparece tracejado.
 
-**Bonecos:** 16 formas, todas em SVG, desenhadas por código e com as mesmas animações de estado: maestro de cartola (líder), engrenagem (back-end), cápsula de batuta (sub-líder), pilha de discos (dados), cristal, esfera de lente, escudo de óculos, monitor de antena, gota, nuvem, cogumelo, polvo, foguete, gato vigia, livro e vaso de planta.
+**Bonecos:** 16 formas, todas em SVG, desenhadas por código e com as mesmas animações de estado: líder de cartola, engrenagem (back-end), cápsula de batuta (sub-líder), pilha de discos (dados), cristal, esfera de lente, escudo de óculos, monitor de antena, gota, nuvem, cogumelo, polvo, foguete, gato vigia, livro e vaso de planta.
 
 **O que se edita em cada agente:**
 - nome, id, função (executor, líder, sub-líder, revisor) e a quem responde;
@@ -281,12 +281,12 @@ Os cinco primeiros apareceram de verdade enquanto eu construía. Os demais são 
 **Riscos que os alunos vão encontrar**
 
 6. **JSON do líder e do revisor.** Modelo pequeno devolve texto em volta do JSON, ou JSON inválido. O protótipo extrai com tolerância, tenta de novo uma vez e cai num plano de reserva (um agente faz tudo). Sem isso o pedido morre na primeira resposta torta. Veredito ilegível conta como reprovação.
-7. **Limite de tokens por minuto.** Um pedido completo faz de 10 a 15 chamadas. Com 8 mil tokens por minuto no Groq gratuito, um time inteiro numa chave só vai bater 429. O protótipo espera e tenta de novo (até 4 vezes), mas a aula fica lenta: uma chave por grupo e modelo pequeno para Scout e consultas.
+7. **Limite de tokens por minuto.** Um pedido completo faz de 10 a 15 chamadas. Com 8 mil tokens por minuto no Groq gratuito, um time inteiro numa chave só vai bater 429. O protótipo espera e tenta de novo (até 4 vezes), mas a aula fica lenta: uma chave por grupo e modelo pequeno para Farol e consultas.
 8. **CLIs no Windows.** Os aplicativos instalados pelo npm são arquivos `.cmd` e só rodam com shell. Passar o prompt como argumento com shell ligado é receita de quebra (aspas, acento, quebra de linha) e de injeção de comando. O protótipo manda o prompt pela entrada padrão. Falta confirmar que os três CLIs aceitam isso.
 9. **Parar de verdade.** No Windows, matar o processo do shell não mata o CLI filho; é preciso `taskkill /T`. Está no código, não foi testado.
 10. **Agente CLI não passa pelas nossas ferramentas.** Ele edita a pasta por conta própria: o confinamento, a proteção do `.env` e o pedido de aprovação do protótipo **não valem para ele**. A segurança depende das opções do próprio CLI (por isso o exemplo tira o Bash do Claude e usa sandbox de leitura no Codex para o revisor). É o assunto da quinta-feira.
 11. **Autoria por foto da pasta.** Para saber quem mexeu em quê, o protótipo compara a pasta antes e depois de cada etapa. Funciona em sequência; com dois agentes em paralelo na mesma pasta não dá para saber quem editou. Paralelo de verdade pede uma pasta por agente (worktree), como no plano da S6.
-12. **Para quem volta o erro.** O portão devolve para o autor do arquivo citado na saída do teste; se nenhum for citado, para o último que editou. É uma heurística e vai errar (por exemplo, teste do Chevron quebrando por causa da tela do Pixel).
+12. **Para quem volta o erro.** O portão devolve para o autor do arquivo citado na saída do teste; se nenhum for citado, para o último que editou. É uma heurística e vai errar (por exemplo, teste do Catraca quebrando por causa da tela do Vitral).
 13. **Sem teste, não passa.** Projeto sem nenhum teste é reprovado no portão e volta para o autor escrever um. Com modelo fraco isso pode consumir os 3 ciclos e terminar "não aprovado". É o comportamento certo, mas a turma vai estranhar.
 14. **O líder acumula contexto.** A sessão contínua guarda todos os pedidos e resultados; não há compactação. Em conversa longa estoura a janela (gancho com a S2).
 15. **Custo.** Cada devolução é mais uma rodada de agente, mais um portão e mais uma revisão. O limite de 3 ciclos existe para isso.
@@ -299,13 +299,25 @@ Mascotes 3D e escritório, voz, copiloto de tela, criação de agente pelo paine
 
 ## Personagens e tela
 
-Os cinco personagens são originais (não são os mascotes de marca do vídeo): Maestro é um líder de cartola com gravata-borboleta e batuta, Chevron é uma engrenagem (os dentes giram, mais rápido quando trabalha), Pixel é um cristal lapidado, Scout é uma esfera com olho de lente e Revisor é um escudo de óculos. São SVG desenhados por código em `public/index.html` (objeto `PERSONAGENS`), coloridos a partir do campo `cor` de cada agente; o campo `forma` escolhe o personagem.
+Os cinco personagens são originais (não são os mascotes de marca do vídeo): Batuta é um líder de cartola com gravata-borboleta e batuta, Catraca é uma engrenagem (os dentes giram, mais rápido quando trabalha), Vitral é um cristal lapidado, Farol é uma esfera com olho de lente e Revisor é um escudo de óculos. São SVG desenhados por código em `public/index.html` (objeto `PERSONAGENS`), coloridos a partir do campo `cor` de cada agente; o campo `forma` escolhe o personagem.
 
 Cada estado tem expressão e animação próprias: disponível (respira e pisca), pensando (inclina, olha para cima, bolha de três pontos), trabalhando (olhos de foco, notebook, mãos e pés batucando), concluído (pulo, olhos felizes, estrelinhas) e aguardando aprovação (olhos arregalados, tremida, alerta). O holofote acende em quem está ativo e os demais escurecem.
 
 **Mover no palco:** arraste qualquer boneco do palco para onde quiser. Muda só o lugar dele no desenho (`POST /api/desenho`), nunca o time, e vale até durante um pedido. O lugar fica no time em uso (`time-em-uso.json`) e volta quando a Muvuca reabre. Com o time parado, o palco se refaz para caber de novo; trabalhando, só as setas acompanham.
 
-Para ver os estados sem rodar nada: `http://localhost:4317/?vitrine=disponivel,pensando,trabalhando,concluido,aguardando`.
+**As dez poses.** Às cinco de sempre (disponível, pensando, trabalhando, concluído e aguardando você) somam-se cinco, cada uma ligada a um momento do pedido:
+
+| Pose | Como aparece | Quando |
+|---|---|---|
+| Espera a vez (`divagando`) | olhar distraído, nuvenzinha de devaneio | recebeu uma tarefa do plano, mas outro agente trabalha antes dele |
+| Lendo (`lendo`) | livro aberto | está lendo ou listando arquivos do projeto |
+| Conferindo (`conferindo`) | lupa no olho | é o revisor, do começo ao fim da revisão |
+| Aguarda o veredito (`bloqueado`) | braços cruzados, ampulheta | entregou a parte dele e espera o portão de testes e o revisor |
+| Falhou (`falhou`) | cabisbaixo, X vermelho | o portão ou o revisor devolveu o trabalho; fica um instante assim e recomeça |
+
+Quem espera a vez ou o veredito não conta como "trabalhando" no resumo do palco. No fim do pedido, todos voltam a "disponível". As poses novas vieram de uma segunda faixa por personagem, recortada por `fatiar_gpt.py --poses`. As faixas originais (as dos 5 estados e as das 5 poses, 83 MB) não ficam no repositório: estão na versão [fontes-dos-personagens](https://github.com/Silly-Machine/muvuca/releases/tag/fontes-dos-personagens). A Buzina, que é um cachorro, faz todas de quatro patas: o livro e a lupa ficam no chão.
+
+Para ver os estados sem rodar nada: `http://localhost:4317/?vitrine=disponivel,pensando,trabalhando,concluido,aguardando` (valem também `divagando`, `falhou`, `bloqueado`, `lendo` e `conferindo`).
 
 O time aparece como grafo de hierarquia. O líder fica em cima; embaixo vêm quem executa, quem só é consultado e o revisor, ligados ao líder por arestas com a relação escrita ("executa", "consulta", "revisa", esta tracejada). A aresta de quem está ativo acende na cor do agente e corre. Cada passagem vira uma bolinha na cor de quem manda:
 
@@ -422,7 +434,7 @@ A aba **Conexões** (ícone de tomada) dá aos agentes acesso a coisas fora da p
 - **Só agentes que não escrevem arquivos** (líder, pesquisa, revisor). O que um agente faz por uma conexão acontece fora da pasta e **não é desfeito pelo "Descartar"**; por isso quem escreve código fica sem. Na tela, esses agentes aparecem bloqueados, com o motivo.
 - **Só com o Claude Code.** O provedor precisa declarar como recebe conexões (campo `argsMcp` em `config/agentes.json`; o `claude-cli` já traz). Em demonstração e nos provedores por API, as conexões não são usadas.
 - **Nenhum token é gravado.** Servidor que precisa de chave recebe só o **nome** de uma variável de ambiente; o valor você define no sistema antes de abrir a Muvuca. A tela recusa o que parece ser um valor. Conexão com variável faltando fica de fora do pedido, e a lista avisa qual falta.
-- **Na conversa**, cada uso aparece como "Scout usou a conexão cofre: senha_do_dia".
+- **Na conversa**, cada uso aparece como "Farol usou a conexão cofre: senha_do_dia".
 - As conexões ficam em `conexoes.json`, na pasta de dados. A configuração que cada agente recebe é gravada em `.mcp/`, na mesma pasta, só com referências às variáveis.
 
 Um comando de conexão roda neste computador com as suas permissões. Crie conexões só com servidores em que você confia.
@@ -438,7 +450,7 @@ A Muvuca tem uma mascote escondida: a Buzina, uma salsicha astronauta. Para solt
 - Ela fica no canto de cima, ao lado do título, e acompanha o humor do time: pensa, trabalha, comemora a entrega aprovada e fica alerta quando algo espera você.
 - Clicar nela abre uma conversa sobre o funcionamento da própria Muvuca. Com um provedor de verdade no time, quem responde é o modelo leve dele, usando este guia como guia. No modo demonstração (ou se o modelo falhar), responde o guia embutido em `buzina.js`, sem rede. Ela só explica: não executa nada nem mexe em arquivos.
 - No construtor, ela aparece na biblioteca como um agente faz-tudo que pode entrar em qualquer time.
-- As imagens estão em `public/bonecos/salsicha-*.webp`, recortadas de `assets/personagens/plush/gpt/buzina_mascote_5_estados.png`.
+- As imagens estão em `public/bonecos/salsicha-*.webp`, recortadas das faixas `buzina_mascote_5_estados.png` e `buzina_mascote_5_poses.png`, que ficam na versão [fontes-dos-personagens](https://github.com/Silly-Machine/muvuca/releases/tag/fontes-dos-personagens).
 
 ## Escolha de modelos pela tela
 

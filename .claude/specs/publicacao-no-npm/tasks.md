@@ -6,6 +6,8 @@ Aprovada em 24/11/2026. Suspensa no mesmo dia, a pedido, para voltar depois.
 
 O primeiro lançamento pelo fluxo (v1.0.3) gerou os instaladores e a Release, mas o trabalho "Publicar no npm" falhou com `E404 Not Found - PUT https://registry.npmjs.org/muvuca`: o npm não aceitou a identidade do fluxo. Ambiente: Node 24.22.3, npm 11.19.1. O npm continua na 1.0.0.
 
+Retomada em 24/11/2026. Diagnóstico pelo log: não há nenhuma linha de procedência ("Signed provenance"), então a troca de identidade com o npm nem aconteceu; o npm caiu no token de enfeite do `setup-node` (`NODE_AUTH_TOKEN: XXXXX-...`) e recebeu o 404. Decidido manter o nome `muvuca`. O fluxo perdeu o `registry-url`, para a próxima falha aparecer como falta de autenticação.
+
 Para retomar, nesta ordem:
 
 1. Conferir o cadastro em npmjs.com (pacote `muvuca` → Settings → Trusted Publisher): `Silly-Machine`, `muvuca`, `instaladores.yml`, ambiente vazio, e se foi salvo.

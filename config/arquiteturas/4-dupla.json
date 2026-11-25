@@ -3,7 +3,7 @@
   "descricao": "O mínimo que ainda tem controle de qualidade: um executor e um revisor. Barato e rápido para pedidos pequenos.",
   "arquitetura": "sequencial",
   "agentes": [
-    { "id": "chevron", "pos": [-0.5, 0], "nome": "Chevron", "papel": "faz o pedido inteiro, com teste junto", "ferramentas": ["listar", "ler", "escrever", "rodar"], "complexidade": "media", "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor full-stack. Faz o pedido inteiro, simples e com teste." },
+    { "id": "catraca", "pos": [-0.5, 0], "nome": "Catraca", "papel": "faz o pedido inteiro, com teste junto", "ferramentas": ["listar", "ler", "escrever", "rodar"], "complexidade": "media", "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor full-stack. Faz o pedido inteiro, simples e com teste." },
     { "id": "revisor", "pos": [0.5, 0], "nome": "Revisor", "funcao": "revisor", "papel": "revisão de código", "ferramentas": ["listar", "ler"], "cor": "#4fe0a0", "forma": "escudo", "sistema": "Você é revisor de código. Só aponta defeito real, com arquivo e motivo. Não corrige." }
  ]
 }

@@ -9,7 +9,7 @@ const pedir = (url, opcoes = {}) => fetch(url, String(url).startsWith('/api/') ?
 // a pasta de projeto escolhida é lembrada por conversa: duas conversas não trabalham na mesma pasta
 const chaveProjeto = CONVERSA === '1' ? 'muvuca.projeto' : `muvuca.projeto.${CONVERSA}`;
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
-const ESTADOS = { disponivel:'Disponível', pensando:'Pensando', trabalhando:'Trabalhando', concluido:'Concluído', aguardando:'Aguarda você' };
+const ESTADOS = { disponivel:'Disponível', pensando:'Pensando', trabalhando:'Trabalhando', concluido:'Concluído', aguardando:'Aguarda você', divagando:'Espera a vez', falhou:'Falhou', bloqueado:'Aguarda o veredito', lendo:'Lendo', conferindo:'Conferindo' };
 compartilhado.agentes = []; compartilhado.destino = 'time'; compartilhado.rodando = false; compartilhado.baloes = {};
 
 // Lê JSON do servidor conferindo a resposta. Antes, uma resposta de erro era lida como se fosse o dado, e a tela

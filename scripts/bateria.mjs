@@ -149,7 +149,7 @@ await post('/api/nova');
 await post('/api/pedido', { texto: PEDIDO, projeto: PROJETO }); await esperarParar();
 ok('manter funciona', (await post('/api/decidir', { acao: 'aceitar' })).s === 200);
 ok('os arquivos ficam depois de manter', !(await vazia(PROJETO)) && !(await eventos())[0].pendente);
-{ await post('/api/pedido', { texto: 'Explique o que você faz', projeto: PROJETO, para: 'scout' }); await esperarParar();
+{ await post('/api/pedido', { texto: 'Explique o que você faz', projeto: PROJETO, para: 'farol' }); await esperarParar();
   const ev = await eventos(); const fim = ev.filter((e) => e.tipo === 'final').at(-1);
   ok('pedido direto a um agente não passa por testes nem revisão', fim?.aprovado === null && /pedido direto/.test(fim.motivo || ''), JSON.stringify(fim)); }
 if ((await eventos())[0].pendente) await post('/api/decidir', { acao: 'descartar' });
@@ -225,7 +225,7 @@ for (const t of times0.times.filter((x) => x.origem === 'pronto' && !x.erro)) ok
   ok('arrastar no palco não muda o time', JSON.stringify(depois.agentes.map(({ pos, ...x }) => x)) === JSON.stringify(antes.agentes.map(({ pos, ...x }) => x)));
   ok('agente que não está no palco é recusado com uma frase', (await post('/api/desenho', { pos: { fantasma: [0, 0] } })).s === 400);
   ok('lugar fora do limite é recusado', (await post('/api/desenho', { pos: { [id]: [0, 999] } })).s === 400);
-  if (anterior) await post('/api/desenho', { pos: { [id]: anterior } });   // devolve o lugar como achou
+  await post('/api/time', { time: timeArquivo, salvar: false });   // devolve o time como achou, sem o lugar de teste
 }
 { const js = await get('/js/regras/desenho.js'); ok('regras do desenho servidas à tela como módulo', js.s === 200 && /javascript/.test(js.tipo) && /export function completar/.test(js.t), js.s + ' ' + js.tipo); }
 
@@ -261,12 +261,12 @@ ok('pasta vazia depois da rotina', await vazia(PROJETO));
 // ---------- 10. memória
 secao('Memória dos agentes');
 { const antes = (await get('/api/memoria?projeto=' + encodeURIComponent(PROJETO))).j.notas;
-  ok('a reprovação do revisor virou nota do Chevron', (antes.chevron || []).some((n) => /O revisor já reprovou/.test(n)), JSON.stringify(antes.chevron));
-  ok('a mesma reprovação em vários pedidos não duplicou a nota', (antes.chevron || []).filter((n) => /Cache-Control/.test(n)).length === 1, JSON.stringify(antes.chevron));
-  const g = await post('/api/memoria', { projeto: PROJETO, agente: 'pixel', notas: ['  nota de teste  ', 'NOTA DE TESTE', ''] }); ok('gravar notas limpa espaços e repetidas', JSON.stringify(g.j?.notas) === '["nota de teste"]', JSON.stringify(g.j));
+  ok('a reprovação do revisor virou nota do Catraca', (antes.catraca || []).some((n) => /O revisor já reprovou/.test(n)), JSON.stringify(antes.catraca));
+  ok('a mesma reprovação em vários pedidos não duplicou a nota', (antes.catraca || []).filter((n) => /Cache-Control/.test(n)).length === 1, JSON.stringify(antes.catraca));
+  const g = await post('/api/memoria', { projeto: PROJETO, agente: 'vitral', notas: ['  nota de teste  ', 'NOTA DE TESTE', ''] }); ok('gravar notas limpa espaços e repetidas', JSON.stringify(g.j?.notas) === '["nota de teste"]', JSON.stringify(g.j));
   ok('id de agente malicioso é recusado', (await post('/api/memoria', { projeto: PROJETO, agente: '../../fora', notas: ['x'] })).s === 400);
-  await post('/api/memoria', { projeto: PROJETO, agente: 'pixel', notas: antes.pixel || [] });
-  ok('memória do Pixel restaurada', JSON.stringify((await get('/api/memoria?projeto=' + encodeURIComponent(PROJETO))).j.notas.pixel) === JSON.stringify(antes.pixel || []));
+  await post('/api/memoria', { projeto: PROJETO, agente: 'vitral', notas: antes.vitral || [] });
+  ok('memória do Vitral restaurada', JSON.stringify((await get('/api/memoria?projeto=' + encodeURIComponent(PROJETO))).j.notas.vitral) === JSON.stringify(antes.vitral || []));
   ok('a memória fica fora da pasta do projeto', await vazia(PROJETO)); }
 
 // ---------- 11. provedores e modelo por agente
@@ -277,17 +277,17 @@ secao('Modelos e provedores');
   ok('provedor inexistente dá 404', (await post('/api/provedores/usar', { nome: 'nao-existe' })).s === 404);
   ok('depois das recusas, o time segue em demonstração', (await config()).agentes.every((a) => a.provedor === 'demo')); }
 { const cc = await config(); const papel = Object.fromEntries(cc.agentes.map((a) => [a.id, a.nivelPadrao]));
-  ok('modelo padrão por papel: líder comum, revisor difícil, consulta simples, executor livre', papel.maestro === 'media' && papel.revisor === 'alta' && papel.scout === 'baixa' && papel.chevron === '' && papel.pixel === '', JSON.stringify(papel));
-  ok('escolher modelo de um agente', (await post('/api/agentes/nivel', { id: 'chevron', nivel: 'alta' })).s === 200 && (await config()).agentes.find((a) => a.id === 'chevron').complexidade === 'alta');
-  ok('a escolha fica salva', (await get('/api/preferencias')).j.preferencias.niveis.chevron === 'alta');
-  ok('nível inválido é recusado', (await post('/api/agentes/nivel', { id: 'chevron', nivel: 'enorme' })).s === 400);
+  ok('modelo padrão por papel: líder comum, revisor difícil, consulta simples, executor livre', papel.batuta === 'media' && papel.revisor === 'alta' && papel.farol === 'baixa' && papel.catraca === '' && papel.vitral === '', JSON.stringify(papel));
+  ok('escolher modelo de um agente', (await post('/api/agentes/nivel', { id: 'catraca', nivel: 'alta' })).s === 200 && (await config()).agentes.find((a) => a.id === 'catraca').complexidade === 'alta');
+  ok('a escolha fica salva', (await get('/api/preferencias')).j.preferencias.niveis.catraca === 'alta');
+  ok('nível inválido é recusado', (await post('/api/agentes/nivel', { id: 'catraca', nivel: 'enorme' })).s === 400);
   ok('agente inexistente é recusado', (await post('/api/agentes/nivel', { id: 'fantasma', nivel: 'alta' })).s === 400);
   await post('/api/nova'); await post('/api/pedido', { texto: PEDIDO, projeto: PROJETO }); await esperarParar();
   const ev = await eventos(); const plano = ev.find((e) => e.tipo === 'plano');
-  ok('o agente usa o modelo escolhido, não o que o líder classificou', plano?.etapas.find((s) => s.agente === 'chevron')?.complexidade === 'alta' && ev.find((e) => e.tipo === 'concluiu' && e.agente === 'chevron')?.modelo === 'fable (simulado)', JSON.stringify(plano?.etapas));
-  ok('o líder planeja no modelo comum', ev.find((e) => e.tipo === 'status' && e.agente === 'maestro' && e.modelo)?.modelo === 'sonnet (simulado)');
+  ok('o agente usa o modelo escolhido, não o que o líder classificou', plano?.etapas.find((s) => s.agente === 'catraca')?.complexidade === 'alta' && ev.find((e) => e.tipo === 'concluiu' && e.agente === 'catraca')?.modelo === 'fable (simulado)', JSON.stringify(plano?.etapas));
+  ok('o líder planeja no modelo comum', ev.find((e) => e.tipo === 'status' && e.agente === 'batuta' && e.modelo)?.modelo === 'sonnet (simulado)');
   await post('/api/decidir', { acao: 'descartar' });
-  ok('voltar ao padrão do papel', (await post('/api/agentes/nivel', { id: 'chevron', nivel: '' })).s === 200 && (await config()).agentes.find((a) => a.id === 'chevron').complexidade === '' && (await get('/api/preferencias')).j.preferencias.niveis.chevron === undefined); }
+  ok('voltar ao padrão do papel', (await post('/api/agentes/nivel', { id: 'catraca', nivel: '' })).s === 200 && (await config()).agentes.find((a) => a.id === 'catraca').complexidade === '' && (await get('/api/preferencias')).j.preferencias.niveis.catraca === undefined); }
 
 // ---------- 12. Buzina
 secao('Buzina');
@@ -376,7 +376,7 @@ secao('Conexões');
     ['senha no endereço', { nome: 'A', tipo: 'http', url: 'https://u:senha@x.com/mcp' }, /usuário e senha/], ['valor de token no lugar do nome', { nome: 'A', comando: 'node x', variaveis: 'TOKEN=abc' }, /só o nome/]]) {
     const r = await post('/api/conexoes', { conexoes: [...guardadas.conexoes, c] }); ok(`recusa conexão: ${nome}`, r.s === 400 && re.test(r.j?.erro || ''), JSON.stringify(r.j)); }
   ok('recusa não grava nada', (await get('/api/conexoes')).j.conexoes.length === c0x.conexoes.length);
-  const criada = await post('/api/conexoes', { conexoes: [...guardadas.conexoes, cofre], agentes: { ...guardadas.agentes, [c0.agentes.find((a) => !a.ferramentas?.includes('escrever'))?.id || 'scout']: ['cofre_da_bateria', 'nao_existe'] } });
+  const criada = await post('/api/conexoes', { conexoes: [...guardadas.conexoes, cofre], agentes: { ...guardadas.agentes, [c0.agentes.find((a) => !a.ferramentas?.includes('escrever'))?.id || 'farol']: ['cofre_da_bateria', 'nao_existe'] } });
   const nova = criada.j?.conexoes?.find((c) => c.id === 'cofre_da_bateria');
   ok('cria a conexão com identificador tirado do nome', criada.s === 200 && !!nova && nova.args.length === 1 && nova.faltam.length === 0, JSON.stringify(criada.j).slice(0, 300));
   ok('ligação só guarda conexões que existem', Object.values(criada.j?.agentes || {}).flat().includes('cofre_da_bateria') && !Object.values(criada.j?.agentes || {}).flat().includes('nao_existe'));
@@ -385,7 +385,7 @@ secao('Conexões');
   const comVar = await post('/api/conexoes', { conexoes: [...guardadas.conexoes, { nome: 'Com chave', comando: 'node x', variaveis: 'VARIAVEL_QUE_NAO_EXISTE_NA_BATERIA' }] });
   ok('variável de ambiente que falta aparece na lista', comVar.j?.conexoes?.find((c) => c.id === 'com_chave')?.faltam.join() === 'VARIAVEL_QUE_NAO_EXISTE_NA_BATERIA', JSON.stringify(comVar.j).slice(0, 300));
   ok('teste com variável faltando explica', /falta definir a variável/.test((await post('/api/conexoes/testar', { id: 'com_chave' })).j?.erro || ''));
-  ok('arquivo de conexões não é servido pela web', (await get('/conexoes.json')).s === 404 && (await get('/.mcp/scout.json')).s === 404);
+  ok('arquivo de conexões não é servido pela web', (await get('/conexoes.json')).s === 404 && (await get('/.mcp/farol.json')).s === 404);
   const volta = await post('/api/conexoes', guardadas);
   ok('conexões voltam ao estado do começo', volta.s === 200 && JSON.stringify(volta.j.conexoes.map(({ faltam, ...c }) => c)) === JSON.stringify(guardadas.conexoes) && JSON.stringify(volta.j.agentes) === JSON.stringify(guardadas.agentes)); }
 

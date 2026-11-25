@@ -9,7 +9,7 @@ import * as Regras from './regras/indice.js';
 PERSONAGENS.salsicha = PERSONAGENS.regente;   // a Buzina só tem versão em imagem (public/bonecos/salsicha-*.webp)
 const NOME_CX = { baixa: 'baixa', media: 'média', alta: 'alta' };
 const NOME_FUNCAO = { '': 'executor', lider: 'líder', sublider: 'sub-líder', revisor: 'revisor' };
-const NOME_FORMA = { salsicha: 'Buzina, a salsicha astronauta', cartola: 'Maestro de cartola', engrenagem: 'Engrenagem', regente: 'Cápsula de batuta', pilha: 'Pilha de discos', cristal: 'Cristal lapidado', lente: 'Esfera de lente', escudo: 'Escudo de óculos', tela: 'Monitor de antena', gota: 'Gota', nuvem: 'Nuvem', cogumelo: 'Cogumelo', polvo: 'Polvo', foguete: 'Foguete', gato: 'Gato vigia', livro: 'Livro', planta: 'Vaso de planta' };
+const NOME_FORMA = { salsicha: 'Buzina, a salsicha astronauta', cartola: 'Líder de cartola', engrenagem: 'Engrenagem', regente: 'Cápsula de batuta', pilha: 'Pilha de discos', cristal: 'Cristal lapidado', lente: 'Esfera de lente', escudo: 'Escudo de óculos', tela: 'Monitor de antena', gota: 'Gota', nuvem: 'Nuvem', cogumelo: 'Cogumelo', polvo: 'Polvo', foguete: 'Foguete', gato: 'Gato vigia', livro: 'Livro', planta: 'Vaso de planta' };
 const NOME_ARQ = { unico: 'agente único', centralizada: 'supervisor', hierarquica: 'hierárquica', sequencial: 'esteira', rede: 'rede' };
 const SEM_LIDER = ['unico', 'sequencial', 'rede'];
 compartilhado.liderId = null; compartilhado.arquitetura = 'centralizada'; compartilhado.nomeTime = ''; compartilhado.arquiteturas = {}; compartilhado.provedores = [];
@@ -146,7 +146,7 @@ function desenharArestas(raiz = palco()) {
   }
 }
 function marcarAresta(id) {
-  const d = noPalco(id); const ativo = !!d && !['disponivel', 'concluido'].includes(d.dataset.estado);
+  const d = noPalco(id); const ativo = !!d && !['disponivel', 'concluido', 'divagando', 'bloqueado'].includes(d.dataset.estado);
   palco().querySelectorAll(`.arestas [data-para="${CSS.escape(id)}"]`).forEach((e) => e.classList.toggle('ativa', ativo));
 }
 function alarme(id) {
@@ -261,7 +261,7 @@ function montarDestinos() {
 }
 function atualizarResumo() {
   const nos = [...document.querySelectorAll('#time .agente')];
-  const ocupados = nos.filter((d) => !['disponivel', 'concluido'].includes(d.dataset.estado)).length;
+  const ocupados = nos.filter((d) => !['disponivel', 'concluido', 'divagando', 'bloqueado'].includes(d.dataset.estado)).length;
   $('#time').classList.toggle('ocupado', ocupados > 0);
   const demo = compartilhado.agentes.every((a) => a.tipo === 'demo');
   { const provs = [...new Set(compartilhado.agentes.map((a) => a.provedor))]; const chip = $('#chipModelo');

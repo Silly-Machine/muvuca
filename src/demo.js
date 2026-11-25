@@ -131,30 +131,30 @@ export function demo({ agente, mensagens, sistema = '' }) {
     return fala(JSON.stringify({ etapas }));
   }
 
-  if (agente.id !== 'maestro' && (agente.funcao === 'lider' || agente.funcao === 'sublider')) return liderGenerico(sistema, ultimoUsuario);
+  if (agente.id !== 'batuta' && (agente.funcao === 'lider' || agente.funcao === 'sublider')) return liderGenerico(sistema, ultimoUsuario);
 
-  if (agente.id === 'maestro') {
+  if (agente.id === 'batuta') {
     // Pedido sem verbo de trabalho ("oi", "tudo bem?") é conversa: o líder responde e não monta plano.
     const pedido = ultimoUsuario.match(/^PEDIDO DO USUÁRIO:\n([\s\S]*)/)?.[1];
     if (pedido !== undefined && !/\b(cri|fa[çc]|fiz|adicion|implement|corrij|corrig|escrev|mont|ger[ae]|constru|ajust|mud|alter|refator|test|cons(e|i)rt)/i.test(pedido)) {
-      return fala(JSON.stringify({ fala: 'Oi! Sou o Maestro. Diga o que o time deve fazer, por exemplo: "Crie uma página de status com um endpoint /health".', consultas: [], etapas: [] }));
+      return fala(JSON.stringify({ fala: 'Oi! Sou o Batuta. Diga o que o time deve fazer, por exemplo: "Crie uma página de status com um endpoint /health".', consultas: [], etapas: [] }));
     }
     if (!ultimoUsuario.includes('RESPOSTAS DAS CONSULTAS')) {
-      return fala(JSON.stringify({ fala: 'Antes de decidir, quero uma referência do Scout.', consultas: [{ agente: 'scout', pergunta: 'O que um endpoint /health deve devolver?', complexidade: 'baixa' }], etapas: [] }));
+      return fala(JSON.stringify({ fala: 'Antes de decidir, quero uma referência do Farol.', consultas: [{ agente: 'farol', pergunta: 'O que um endpoint /health deve devolver?', complexidade: 'baixa' }], etapas: [] }));
     }
     return fala(JSON.stringify({
-      fala: 'Fica com Chevron e Pixel. Revisor confere no final.',
+      fala: 'Fica com Catraca e Vitral. Revisor confere no final.',
       consultas: [],
       etapas: [
-        { agente: 'chevron', tarefa: 'Crie src/health.js com a rota /health e um teste em test/health.test.js.', complexidade: 'media' },
-        { agente: 'pixel', tarefa: 'Crie public/status.html, uma página que consulta /health e mostra o estado.', complexidade: 'baixa' },
+        { agente: 'catraca', tarefa: 'Crie src/health.js com a rota /health e um teste em test/health.test.js.', complexidade: 'media' },
+        { agente: 'vitral', tarefa: 'Crie public/status.html, uma página que consulta /health e mostra o estado.', complexidade: 'baixa' },
       ],
     }));
   }
 
-  if (agente.id === 'scout') return fala('Referência: /health devolve JSON com status e uptime, e não deve ficar em cache.');
+  if (agente.id === 'farol') return fala('Referência: /health devolve JSON com status e uptime, e não deve ficar em cache.');
 
-  if (agente.id === 'chevron') {
+  if (agente.id === 'catraca') {
     if (primeira.includes('TESTES FALHARAM')) {
       if (feitas === 0) return chamada('ler', { caminho: 'src/health.js' });
       if (feitas === 1) return chamada('escrever', { caminho: 'src/health.js', conteudo: HEALTH_V2 });
@@ -170,7 +170,7 @@ export function demo({ agente, mensagens, sistema = '' }) {
     return fala('Rota criada. Sem firula.');
   }
 
-  if (agente.id === 'pixel') {
+  if (agente.id === 'vitral') {
     if (feitas === 0) return chamada('escrever', { caminho: 'public/status.html', conteudo: PAGINA });
     return fala('Página pronta: responsiva, com foco visível e tema escuro.');
   }
@@ -184,7 +184,7 @@ export function demo({ agente, mensagens, sistema = '' }) {
   if (agente.id === 'revisor') {
     if (feitas === 0) return chamada('ler', { caminho: 'src/health.js' });
     if (!ultimaFerramenta.includes('no-store')) {
-      return fala(JSON.stringify({ aprovado: false, fala: 'Um problema real. O resto passa.', achados: [{ agente: 'chevron', arquivo: 'src/health.js', problema: 'A resposta de /health não tem Cache-Control: no-store; um proxy pode servir um status antigo.' }] }));
+      return fala(JSON.stringify({ aprovado: false, fala: 'Um problema real. O resto passa.', achados: [{ agente: 'catraca', arquivo: 'src/health.js', problema: 'A resposta de /health não tem Cache-Control: no-store; um proxy pode servir um status antigo.' }] }));
     }
     return fala(JSON.stringify({ aprovado: true, fala: 'Agora passa.', achados: [] }));
   }

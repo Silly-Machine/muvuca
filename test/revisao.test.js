@@ -94,7 +94,7 @@ test('conexão por ferramenta: a permissão sai só para as ferramentas escolhid
   const d = normalizarConexoes({ conexoes: [{ nome: 'Rea', comando: 'rea --mcp', ferramentas: 'decompile, analyze decompile;binary_session' }, { nome: 'Docs', comando: 'x' }] });
   assert.deepEqual(d.conexoes[0].ferramentas, ['decompile', 'analyze', 'binary_session']);
   assert.deepEqual(d.conexoes[1].ferramentas, []);
-  const m = await prepararMcp(await pasta('muvuca-mcp-'), 'scout', d.conexoes);
+  const m = await prepararMcp(await pasta('muvuca-mcp-'), 'farol', d.conexoes);
   assert.equal(m.permissoes, 'mcp__rea__decompile,mcp__rea__analyze,mcp__rea__binary_session,mcp__docs');
   assert.throws(() => normalizarConexoes({ conexoes: [{ nome: 'A', comando: 'x', ferramentas: 'boa, "ruim' }] }), /não é nome de ferramenta/);
 });

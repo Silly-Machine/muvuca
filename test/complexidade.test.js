@@ -35,20 +35,20 @@ test('o plano carrega a complexidade e cada devolução sobe um nível', async (
   const e = new Muvuca(structuredClone(cfg));
   await e.pedido({ texto: 'Crie uma página de status com um endpoint /health', projeto });
   const plano = e.eventos.find((x) => x.tipo === 'plano');
-  assert.deepStrictEqual(plano.etapas.map((s) => [s.agente, s.complexidade]), [['chevron', 'media'], ['pixel', 'baixa']]);
+  assert.deepStrictEqual(plano.etapas.map((s) => [s.agente, s.complexidade]), [['catraca', 'media'], ['vitral', 'baixa']]);
 
   const feitos = e.eventos.filter((x) => x.tipo === 'concluiu').map((x) => [x.agente, x.complexidade, x.modelo]);
   assert.deepStrictEqual(feitos, [
-    ['chevron', 'media', 'sonnet (simulado)'],
-    ['pixel', 'baixa', 'haiku (simulado)'],
-    ['chevron', 'alta', 'fable (simulado)'],    // portão reprovou: média sobe para alta
+    ['catraca', 'media', 'sonnet (simulado)'],
+    ['vitral', 'baixa', 'haiku (simulado)'],
+    ['catraca', 'alta', 'fable (simulado)'],    // portão reprovou: média sobe para alta
     ['revisor', 'alta', 'fable (simulado)'],    // revisa no nível da parte mais difícil
-    ['chevron', 'alta', 'fable (simulado)'],    // já estava no topo: fica em alta
+    ['catraca', 'alta', 'fable (simulado)'],    // já estava no topo: fica em alta
     ['revisor', 'alta', 'fable (simulado)'],
   ]);
   assert.deepStrictEqual(e.eventos.filter((x) => x.tipo === 'devolucao').map((d) => d.complexidade), ['alta', 'alta']);
   const consulta = e.eventos.find((x) => x.tipo === 'consulta');
   assert.deepStrictEqual([consulta.complexidade, consulta.modelo], ['baixa', 'haiku (simulado)']);
-  assert.ok(e.eventos.some((x) => x.tipo === 'status' && x.agente === 'chevron' && x.modelo === 'fable (simulado)' && x.complexidade === 'alta'), 'a tela recebe o modelo em uso');
+  assert.ok(e.eventos.some((x) => x.tipo === 'status' && x.agente === 'catraca' && x.modelo === 'fable (simulado)' && x.complexidade === 'alta'), 'a tela recebe o modelo em uso');
   await e.decidir('descartar');
 });

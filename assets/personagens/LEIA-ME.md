@@ -16,7 +16,7 @@ São 16 personagens desenhados em SVG por código, cada um com 5 estados animado
 
 | Arquivo | Personagem | Agente |
 |---|---|---|
-| `cartola` | Maestro de cartola | líder |
+| `cartola` | Líder de cartola | líder |
 | `regente` | Cápsula de batuta | sub-líder |
 | `engrenagem` | Engrenagem (os dentes giram) | back-end |
 | `cristal` | Cristal lapidado | front-end |

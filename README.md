@@ -13,7 +13,7 @@
 ![Dependências](https://img.shields.io/badge/depend%C3%AAncias%20do%20servidor-0-5f565c)
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-MIT-f28a2e)](LICENSE)
 
-<img src="docs/img/palco.png" alt="Tela da Muvuca: o líder Maestro no topo e quatro especialistas abaixo, ligados por setas" width="880">
+<img src="docs/img/palco.png" alt="Tela da Muvuca: o líder Batuta no topo e quatro especialistas abaixo, ligados por setas" width="880">
 
 </div>
 
@@ -201,7 +201,7 @@ Os testes automáticos rodam no GitHub Actions em Windows, macOS e Linux a cada 
 - [x] Especificação em etapas, vigias e lições do time
 - [ ] Tela para celular e testes automáticos da tela
 - [x] Publicação no npm (`npx muvuca`), automática a cada versão
-- [ ] Tirar do repositório as imagens-fonte dos personagens (`assets/personagens/plush/gpt/`, 41 MB dos 48 MB) e guardá-las como anexo de uma versão
+- [x] Tirar do repositório as imagens-fonte dos personagens: agora ficam na versão [fontes-dos-personagens](https://github.com/Silly-Machine/muvuca/releases/tag/fontes-dos-personagens)
 - [ ] Celular como controle remoto da Muvuca do computador (PWA com pareamento)
 
 ## Contribuir

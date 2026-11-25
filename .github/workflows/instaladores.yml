@@ -123,12 +123,15 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      # Sem "registry-url" de propósito: com ele, o setup-node põe um token de enfeite (NODE_AUTH_TOKEN) no
+      # ambiente, e quando a troca de identidade falha o npm usa esse enfeite e responde um 404 enganoso
+      # (foi o que aconteceu na v1.0.3). Sem ele, a falha aparece como falta de autenticação, que é o que ela é.
       - uses: actions/setup-node@v4
         with:
           node-version: 24   # a publicação confiável pede npm 11.5.1 ou mais novo
-          registry-url: https://registry.npmjs.org
       - name: Publicar, se a versão ainda não está lá
         run: |
+          echo "npm $(npm --version)"
           VERSAO="${GITHUB_REF_NAME#v}"
           if npm view "muvuca@$VERSAO" version > /dev/null 2>&1; then
             echo "muvuca@$VERSAO já está no npm."

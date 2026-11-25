@@ -37,7 +37,7 @@ function lerZip(buf) {
 test('relações do time: o mesmo grafo que a tela desenha, em cada arquitetura', async () => {
   assert.deepEqual(setas(await pronto('1-centralizada.json')).filter((s) => s.endsWith(':revisa')).length, 1);
   const h = setas(await pronto('2-hierarquica.json'));
-  assert.deepEqual(h, ['diretora>torre:delega', 'diretora>prisma:delega', 'torre>chevron:executa', 'torre>dados:executa', 'prisma>pixel:executa', 'prisma>tinta:executa', 'diretora>revisor:revisa']);
+  assert.deepEqual(h, ['diretora>torre:delega', 'diretora>prisma:delega', 'torre>catraca:executa', 'torre>dados:executa', 'prisma>vitral:executa', 'prisma>tinta:executa', 'diretora>revisor:revisa']);
   const e = await pronto('3-esteira.json'); const ids = e.agentes.map((a) => a.id);
   assert.deepEqual(setas(e).map((s) => s.split(':')[0]), ids.slice(1).map((id, i) => `${ids[i]}>${id}`), 'esteira: cada um passa para o seguinte, na ordem');
   assert.equal(setas(e).at(-1).endsWith(':revisa'), true);
@@ -56,9 +56,9 @@ test('AGENTS.md: descreve arquitetura, quem é quem, como o trabalho anda e as i
   for (const s of ['## Quem é quem', '## Como o trabalho anda', '## Regras que valem para todos', '## Os agentes', '## Como usar este time fora da Muvuca']) assert.ok(md.includes(s), s);
   for (const a of t.agentes) { assert.ok(md.includes(`### ${a.nome} (\`${a.id}\`)`), a.id); assert.ok(md.includes(`> ${a.sistema.split('\n')[0]}`), `instruções de ${a.id}`); }
   assert.match(md, /No máximo 2 devoluções/);
-  assert.match(md, /a_torre -->\|executa\| a_chevron/);
+  assert.match(md, /a_torre -->\|executa\| a_catraca/);
   assert.match(md, /- \*\*Recebe trabalho de:\*\* Torre \(executa\)/);
-  assert.match(md, /- \*\*Passa trabalho para:\*\* Chevron \(executa\), Dados \(executa\)/);
+  assert.match(md, /- \*\*Passa trabalho para:\*\* Catraca \(executa\), Dados \(executa\)/);
   assert.match(md, /Líder e sub-líderes não viram subagentes/);
   // nada de provedor desta máquina nem de caminho local no texto
   assert.equal(/claude-cli|\bdemo\b|C:\\\\|\/Users\//.test(md), false);
@@ -99,7 +99,7 @@ test('subagente do Claude Code: cabeçalho com nome, descrição, ferramentas e 
   assert.match(revisor, /\nmodel: opus\n/); assert.match(revisor, /Não corrija/);
   assert.equal(/Edit|Write|Bash/.test(/\ntools: (.*)\n/.exec(revisor)[1]), false);
   // sem tabela de modelos, ou com nível decidido por tarefa, o subagente herda o modelo da conversa
-  assert.match(subagenteClaude(ag('chevron'), t, { modelos }), /\nmodel: inherit\n/);
+  assert.match(subagenteClaude(ag('catraca'), t, { modelos }), /\nmodel: inherit\n/);
   assert.match(subagenteClaude(ag('revisor'), t), /\nmodel: inherit\n/);
 });
 

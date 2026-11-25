@@ -37,18 +37,18 @@ test('rotinas: valida, e só dispara no dia certo, dentro da janela e uma vez po
 test('memória: anota sem repetir, limita o tamanho e separa por projeto e por agente', async () => {
   const m = criarMemoria(await pastaNova('muvuca-mem-'));
   const a = path.resolve('/proj/a'), b = path.resolve('/proj/b');
-  assert.equal(await m.anotar(a, 'chevron', '  Testes com node:test  '), true);
-  assert.equal(await m.anotar(a, 'chevron', 'testes com NODE:TEST'), false, 'mesma nota, outra caixa');
-  assert.equal(await m.anotar(a, 'chevron', '   '), false);
-  assert.deepEqual(await m.ler(a, 'chevron'), ['Testes com node:test']);
-  assert.deepEqual(await m.ler(b, 'chevron'), [], 'outro projeto');
-  assert.deepEqual(await m.ler(a, 'pixel'), [], 'outro agente');
-  for (let i = 0; i < MAX_NOTAS + 5; i++) await m.anotar(a, 'pixel', `nota ${i}`);
-  const notas = await m.ler(a, 'pixel');
+  assert.equal(await m.anotar(a, 'catraca', '  Testes com node:test  '), true);
+  assert.equal(await m.anotar(a, 'catraca', 'testes com NODE:TEST'), false, 'mesma nota, outra caixa');
+  assert.equal(await m.anotar(a, 'catraca', '   '), false);
+  assert.deepEqual(await m.ler(a, 'catraca'), ['Testes com node:test']);
+  assert.deepEqual(await m.ler(b, 'catraca'), [], 'outro projeto');
+  assert.deepEqual(await m.ler(a, 'vitral'), [], 'outro agente');
+  for (let i = 0; i < MAX_NOTAS + 5; i++) await m.anotar(a, 'vitral', `nota ${i}`);
+  const notas = await m.ler(a, 'vitral');
   assert.equal(notas.length, MAX_NOTAS);
   assert.equal(notas.at(-1), `nota ${MAX_NOTAS + 4}`, 'ficam as mais recentes');
-  assert.deepEqual(await m.gravar(a, 'pixel', []), []);
-  assert.deepEqual(await m.ler(a, 'pixel'), []);
+  assert.deepEqual(await m.gravar(a, 'vitral', []), []);
+  assert.deepEqual(await m.ler(a, 'vitral'), []);
   await assert.rejects(m.anotar(a, '../fora', 'x'), /id de agente inválido/);
 });
 
@@ -58,10 +58,10 @@ test('quadro: cada etapa vira cartão, passa pelos estados e fecha com o resulta
   await e.pedido({ texto: PEDIDO, projeto });
   const tarefas = e.eventos.filter((x) => x.tipo === 'tarefa');
   const historia = (id) => tarefas.filter((t) => t.id === id).map((t) => t.estado);
-  // t1 e t2 são as etapas do plano (Chevron e Pixel): nascem "a fazer" antes de alguém começar
+  // t1 e t2 são as etapas do plano (Catraca e Vitral): nascem "a fazer" antes de alguém começar
   assert.deepEqual([tarefas[0].estado, tarefas[1].estado], ['afazer', 'afazer']);
   assert.deepEqual(historia('t1'), ['afazer', 'trabalhando', 'revisao', 'pronto']);
-  assert.equal(tarefas.find((t) => t.id === 't1').agente, 'chevron');
+  assert.equal(tarefas.find((t) => t.id === 't1').agente, 'catraca');
   assert.ok(tarefas.find((t) => t.id === 't1' && t.estado === 'revisao').arquivos > 0, 'conta os arquivos mexidos');
   const finais = [...e.quadro.values()];
   assert.ok(finais.some((t) => /^Correção:/.test(t.titulo)), 'a devolução do revisor vira um cartão de correção');
@@ -89,28 +89,28 @@ test('memória no fluxo: o que o revisor reprovou vira nota e volta no pedido se
   await e.pedido({ texto: PEDIDO, projeto });
   const anotou = e.eventos.filter((x) => x.tipo === 'memoria');
   assert.equal(anotou.length, 1);
-  assert.equal(anotou[0].agente, 'chevron');
+  assert.equal(anotou[0].agente, 'catraca');
   assert.match(anotou[0].nota, /O revisor já reprovou \(src\/health\.js\)/);
-  assert.equal((await e.memoria.ler(chaveMemoria(projeto, true), 'chevron')).length, 1);
-  assert.deepEqual(await e.memoria.ler(projeto, 'chevron'), [], 'nota da demonstração não entra na memória do trabalho real');
+  assert.equal((await e.memoria.ler(chaveMemoria(projeto, true), 'catraca')).length, 1);
+  assert.deepEqual(await e.memoria.ler(projeto, 'catraca'), [], 'nota da demonstração não entra na memória do trabalho real');
   await e.decidir('descartar');
   // segundo pedido: a mesma reprovação não duplica a nota
   await e.pedido({ texto: PEDIDO, projeto });
-  assert.equal((await e.memoria.ler(chaveMemoria(projeto, true), 'chevron')).length, 1);
+  assert.equal((await e.memoria.ler(chaveMemoria(projeto, true), 'catraca')).length, 1);
   await e.decidir('descartar');
 });
 
 test('trocar o provedor do time: todos mudam, modelos por nível valem, e modelo fixo de outro provedor sai', async () => {
   const c = structuredClone(cfg);
   c.provedores.outro = { tipo: 'demo', modelo: 'padrao' };
-  c.agentes.find((a) => a.id === 'scout').modelo = 'fixo-do-antigo';
+  c.agentes.find((a) => a.id === 'farol').modelo = 'fixo-do-antigo';
   const e = new Muvuca(c);
   e.usarProvedor('outro', { baixa: ' leve ', alta: 'forte', media: '' });
   assert.ok(e.cfg.agentes.every((a) => a.provedor === 'outro'));
-  assert.equal(e.agente('scout').modelo, undefined, 'o modelo fixo era do provedor antigo');
-  assert.equal(e.provedor(e.agente('chevron'), 'baixa').modelo, 'leve');
-  assert.equal(e.provedor(e.agente('chevron'), 'alta').modelo, 'forte');
-  assert.equal(e.provedor(e.agente('chevron'), 'media').modelo, 'padrao', 'nível em branco cai no padrão do provedor');
+  assert.equal(e.agente('farol').modelo, undefined, 'o modelo fixo era do provedor antigo');
+  assert.equal(e.provedor(e.agente('catraca'), 'baixa').modelo, 'leve');
+  assert.equal(e.provedor(e.agente('catraca'), 'alta').modelo, 'forte');
+  assert.equal(e.provedor(e.agente('catraca'), 'media').modelo, 'padrao', 'nível em branco cai no padrão do provedor');
   assert.equal(e.eventos.at(-1).tipo, 'provedor');
   assert.throws(() => e.usarProvedor('nao-existe'), /não existe/);
   // o time continua funcionando no provedor novo
@@ -130,18 +130,18 @@ test('modelo padrão por papel, e a escolha por agente vence o padrão', async (
   assert.equal(nivelFixo({ funcao: 'revisor', complexidade: 'baixa' }), 'baixa');
 
   const e = new Muvuca(structuredClone(cfg));
-  e.definirNivel('chevron', 'alta');     // executor fixado no modelo forte
+  e.definirNivel('catraca', 'alta');     // executor fixado no modelo forte
   e.definirNivel('revisor', 'baixa');    // revisor no modelo leve
   assert.throws(() => e.definirNivel('fantasma', 'alta'), /não existe/);
-  assert.throws(() => e.definirNivel('pixel', 'enorme'), /nível desconhecido/);
+  assert.throws(() => e.definirNivel('vitral', 'enorme'), /nível desconhecido/);
   await e.pedido({ texto: PEDIDO, projeto: await pastaNova() });
   const plano = e.eventos.find((x) => x.tipo === 'plano');
-  assert.deepEqual(plano.etapas.map((s) => [s.agente, s.complexidade]), [['chevron', 'alta'], ['pixel', 'baixa']], 'a escolha no agente vence a classificação do líder');
+  assert.deepEqual(plano.etapas.map((s) => [s.agente, s.complexidade]), [['catraca', 'alta'], ['vitral', 'baixa']], 'a escolha no agente vence a classificação do líder');
   const revisoes = e.eventos.filter((x) => x.tipo === 'concluiu' && x.agente === 'revisor').map((x) => [x.complexidade, x.modelo]);
   assert.ok(revisoes.length && revisoes.every(([c, m]) => c === 'baixa' && m === 'haiku (simulado)'));
   await e.decidir('descartar');
-  e.definirNivel('chevron', '');         // volta ao padrão do papel
-  assert.equal(e.agente('chevron').complexidade, undefined);
+  e.definirNivel('catraca', '');         // volta ao padrão do papel
+  assert.equal(e.agente('catraca').complexidade, undefined);
 });
 
 test('Buzina sem rede: acha o tema certo do guia, com ou sem acento, e admite quando não sabe', async () => {
@@ -171,17 +171,17 @@ test('memória com um provedor de verdade (CLI falso): o agente anota com LEMBRA
   const { fileURLToPath } = await import('node:url');
   const c = structuredClone(cfg);
   c.provedores.cli = { tipo: 'cli', comando: process.execPath, args: [fileURLToPath(new URL('./apoio/falso-cli-memoria.js', import.meta.url))] };
-  c.agentes.find((a) => a.id === 'chevron').provedor = 'cli';
+  c.agentes.find((a) => a.id === 'catraca').provedor = 'cli';
   const projeto = await pastaNova();
   const e = new Muvuca(c);
   e.memoria = criarMemoria(await pastaNova('muvuca-mem-'));
-  await e.pedido({ texto: 'Arrume o projeto', projeto, para: 'chevron' });
+  await e.pedido({ texto: 'Arrume o projeto', projeto, para: 'catraca' });
   assert.equal(await fs.readFile(path.join(projeto, 'visto.txt'), 'utf8'), 'sem notas', 'na primeira vez não há nota para entregar');
-  assert.deepEqual(e.eventos.filter((x) => x.tipo === 'memoria').map((x) => [x.agente, x.nota]), [['chevron', 'neste projeto os testes rodam com node --test']]);
+  assert.deepEqual(e.eventos.filter((x) => x.tipo === 'memoria').map((x) => [x.agente, x.nota]), [['catraca', 'neste projeto os testes rodam com node --test']]);
   assert.equal(e.eventos.find((x) => x.tipo === 'fala').texto, 'Feito. Primeira vez aqui.', 'a linha LEMBRAR sai do texto mostrado');
   await e.decidir('aceitar');
-  await e.pedido({ texto: 'Arrume de novo', projeto, para: 'chevron' });
+  await e.pedido({ texto: 'Arrume de novo', projeto, para: 'catraca' });
   assert.equal(await fs.readFile(path.join(projeto, 'visto.txt'), 'utf8'), '- neste projeto os testes rodam com node --test', 'a nota chega no prompt do pedido seguinte');
-  assert.equal((await e.memoria.ler(projeto, 'chevron')).length, 1, 'a mesma nota não entra duas vezes');
+  assert.equal((await e.memoria.ler(projeto, 'catraca')).length, 1, 'a mesma nota não entra duas vezes');
   if (e.foto) await e.decidir('aceitar');
 });

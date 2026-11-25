@@ -13,10 +13,10 @@
     "gemini-cli": { "tipo": "cli", "comando": "gemini", "args": ["--output-format", "json", "--yolo"], "argsLeitura": ["--output-format", "json"], "argModelo": "-m", "limiteSegundos": 600 }
   },
   "agentes": [
-    { "id": "maestro", "nome": "Maestro", "funcao": "lider", "papel": "coordena o time e monta o plano", "provedor": "groq", "ferramentas": [], "cor": "#ff8e6b", "forma": "cartola", "sistema": "Você é o líder técnico de um time pequeno. É direto e decide rápido." },
-    { "id": "chevron", "nome": "Chevron", "papel": "back-end: rotas, regras, banco e testes", "provedor": "claude-cli", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor back-end. Escreve código simples, com teste automatizado junto." },
-    { "id": "pixel", "nome": "Pixel", "papel": "front-end: telas, acessibilidade, estilo", "provedor": "groq", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#ffc94d", "forma": "cristal", "sistema": "Você é desenvolvedor front-end. Entrega telas acessíveis e responsivas." },
-    { "id": "scout", "nome": "Scout", "papel": "pesquisa: referência, documentação, boas práticas", "provedor": "groq-pequeno", "ferramentas": ["listar", "ler"], "cor": "#a48bff", "forma": "lente", "sistema": "Você pesquisa e responde com a referência mais curta e útil possível." },
+    { "id": "batuta", "nome": "Batuta", "funcao": "lider", "papel": "coordena o time e monta o plano", "provedor": "groq", "ferramentas": [], "cor": "#ff8e6b", "forma": "cartola", "sistema": "Você é o líder técnico de um time pequeno. É direto e decide rápido." },
+    { "id": "catraca", "nome": "Catraca", "papel": "back-end: rotas, regras, banco e testes", "provedor": "claude-cli", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#4fb3ff", "forma": "engrenagem", "sistema": "Você é desenvolvedor back-end. Escreve código simples, com teste automatizado junto." },
+    { "id": "vitral", "nome": "Vitral", "papel": "front-end: telas, acessibilidade, estilo", "provedor": "groq", "ferramentas": ["listar", "ler", "escrever", "rodar"], "cor": "#ffc94d", "forma": "cristal", "sistema": "Você é desenvolvedor front-end. Entrega telas acessíveis e responsivas." },
+    { "id": "farol", "nome": "Farol", "papel": "pesquisa: referência, documentação, boas práticas", "provedor": "groq-pequeno", "ferramentas": ["listar", "ler"], "cor": "#a48bff", "forma": "lente", "sistema": "Você pesquisa e responde com a referência mais curta e útil possível." },
     { "id": "revisor", "nome": "Revisor", "funcao": "revisor", "papel": "revisão de código", "provedor": "codex-cli", "ferramentas": ["listar", "ler"], "cor": "#4fe0a0", "forma": "escudo", "sistema": "Você é revisor de código. Só aponta defeito real, com arquivo e motivo. Não corrige." }
   ]
 }

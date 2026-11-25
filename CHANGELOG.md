@@ -2,8 +2,10 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento
+## Em andamento: desenho livre e personagens com 10 poses
 
+- **Cinco poses novas para cada personagem.** Além de disponível, pensando, trabalhando, concluído e aguardando você, os 17 bonecos agora mostram quando esperam a vez (divagando), leem o projeto (livro), conferem (o revisor, de lupa), aguardam o veredito do portão e do revisor (ampulheta) e quando o trabalho volta (falhou). O palco passa a contar a história do pedido: dá para ver quem está parado esperando e quem errou.
+- **Personagens do time de fábrica com nomes próprios da Muvuca.** Maestro, Chevron, Pixel e Scout agora são Batuta, Catraca, Vitral e Farol; o Revisor continua. Os bonecos e as funções são os mesmos. Times que você salvou continuam com os nomes que tinham, e as notas de memória ligadas aos nomes antigos do time de fábrica não acompanham os novos.
 - **Instalar em outro computador ficou mais simples.** Os instaladores têm nomes fixos (`Muvuca-Windows.exe`, `Muvuca-macOS-arm64.dmg`, `Muvuca-macOS-x64.dmg`, `Muvuca-Linux.AppImage`), e o README tem um link direto para a versão mais nova de cada sistema, com o passo a passo da primeira abertura e uma tabela do que fazer quando algo não funciona. Na boas-vindas, sem o Claude Code, a tela mostra o comando para instalar com um botão de copiar, e "Conferir de novo" acha o Claude Code instalado com a Muvuca aberta, sem reiniciar. O comando `muvuca` com Node antigo explica o que fazer.
 - **Mover os bonecos no palco.** Arraste qualquer agente do palco para onde quiser: o lugar fica guardado no time em uso e volta quando a Muvuca reabre. O time não muda, e dá para arrastar até durante um pedido.
 - **Quadro de desenho em tela grande.** "Abrir quadro de desenho", no topo do construtor (ou clique duplo no fundo da prévia), abre uma tela grande só para desenhar, com a biblioteca dentro. "Fechar" ou Esc volta.
@@ -11,6 +13,7 @@ As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O 
 - **Zoom e deslocamento na prévia.** Ctrl + roda (ou a pinça) aproxima em volta do ponteiro, de 25% a 300%. Arrastar o fundo (ou espaço + arrastar) move a vista, e dois dedos funcionam na tela de toque. "Caber na tela" (Shift+1) enquadra tudo.
 - **Miniaturas e setas.** Os agentes da prévia viraram miniaturas que dá para selecionar: Shift + clique soma, Shift + arrastar o fundo seleciona por caixa, e a seleção se move ou sai do time de uma vez (um Ctrl+Z desfaz). As setas podem ser quadradas ou arredondadas, e a escolha vai junto para o palco e para o time salvo.
 - **Aplicativo, comando e tela sempre na mesma versão.** Se uma Muvuca de outra versão já estiver aberta com a mesma pasta de dados, o aplicativo de mesa e o comando `muvuca` avisam qual é e pedem para fechá-la, em vez de mostrar a versão antiga como se fosse a nova. E a tela aberta avisa quando o servidor volta numa versão diferente, com um botão para recarregar.
+- **Publicação no npm consertada.** A 1.0.3 não chegou sozinha ao npm: faltava o cadastro da publicação confiável, e o fluxo mostrava um "404" enganoso. O cadastro foi feito, e uma falha futura aparece como falta de autenticação, que é o que ela é. Esta é a primeira versão publicada pelo fluxo.
 
 ## 1.0.3 (24/11/2026): o npm acompanha as versões
 

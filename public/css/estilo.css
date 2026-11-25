@@ -83,7 +83,10 @@ header h1 { margin:0; font:600 24px/1.1 var(--titulo); letter-spacing:.01em; }
 .mascote .img { display:none; } .mascote .img-disponivel { display:inline; }
 [data-estado]:not([data-estado=disponivel]) .mascote .img-disponivel { display:none; }
 [data-estado=pensando] .mascote .img-pensando, [data-estado=trabalhando] .mascote .img-trabalhando,
-[data-estado=concluido] .mascote .img-concluido, [data-estado=aguardando] .mascote .img-aguardando { display:inline; }
+[data-estado=concluido] .mascote .img-concluido, [data-estado=aguardando] .mascote .img-aguardando,
+[data-estado=divagando] .mascote .img-divagando, [data-estado=falhou] .mascote .img-falhou, [data-estado=bloqueado] .mascote .img-bloqueado,
+[data-estado=lendo] .mascote .img-lendo, [data-estado=conferindo] .mascote .img-conferindo { display:inline; }
+[data-estado=falhou] .pilula { border-color:#c2506a; } [data-estado=falhou] .pilula i { background:#ff7b96; }
 .mascote .corpo { transform-origin:50% 95%; }
 /* pensando: inclina, olha para cima, bolha de três pontos */
 [data-estado=pensando] .corpo { animation:pensar 1.6s ease-in-out infinite; }

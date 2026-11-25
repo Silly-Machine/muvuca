@@ -23,10 +23,10 @@ test('fluxo v3 completo em modo demonstração', async () => {
   const final = e.eventos.find((x) => x.tipo === 'final');
 
   assert.ok(tipos.includes('consulta'), 'o líder consultou alguém');
-  assert.deepStrictEqual(e.eventos.find((x) => x.tipo === 'plano').etapas.map((s) => s.agente), ['chevron', 'pixel']);
+  assert.deepStrictEqual(e.eventos.find((x) => x.tipo === 'plano').etapas.map((s) => s.agente), ['catraca', 'vitral']);
   assert.deepStrictEqual(portoes.map((p) => p.ok), [false, true, true], 'portão: falha, passa, passa de novo após a correção do revisor');
   assert.deepStrictEqual(vereditos.map((v) => v.aprovado), [false, true]);
-  assert.deepStrictEqual(e.eventos.filter((x) => x.tipo === 'devolucao').map((d) => [d.de, d.para]), [['portao', 'chevron'], ['revisor', 'chevron']]);
+  assert.deepStrictEqual(e.eventos.filter((x) => x.tipo === 'devolucao').map((d) => [d.de, d.para]), [['portao', 'catraca'], ['revisor', 'catraca']]);
   assert.strictEqual(final.aprovado, true);
   assert.strictEqual(final.ciclos, 2);
 
@@ -34,7 +34,7 @@ test('fluxo v3 completo em modo demonstração', async () => {
   assert.match(health, /uptime/); assert.match(health, /no-store/);
   const dif = e.eventos.find((x) => x.tipo === 'diff');
   assert.deepStrictEqual(dif.arquivos.map((a) => a.arquivo), ['public/status.html', 'src/health.js', 'test/health.test.js']);
-  assert.strictEqual(dif.autores['public/status.html'], 'pixel');
+  assert.strictEqual(dif.autores['public/status.html'], 'vitral');
 
   // sessão contínua do líder: o resultado fica registrado para o próximo pedido
   assert.ok(e.lider.some((m) => /RESULTADO DO PEDIDO ANTERIOR: aprovado/.test(m.content)));
@@ -58,7 +58,7 @@ test('descartar restaura arquivo que já existia', async () => {
 test('pedido direto a um agente não passa por portão nem revisão', async () => {
   const projeto = await pastaNova();
   const e = new Muvuca(structuredClone(cfg));
-  await e.pedido({ texto: 'Crie a página', projeto, para: 'pixel' });
+  await e.pedido({ texto: 'Crie a página', projeto, para: 'vitral' });
   assert.ok(!e.eventos.some((x) => x.tipo === 'portao'));
   await fs.access(path.join(projeto, 'public/status.html'));
 });
@@ -96,9 +96,9 @@ test('ferramentas: confinamento, arquivo protegido e aprovação', async () => {
 test('agente sem a ferramenta não consegue usá-la', async () => {
   const projeto = await pastaNova();
   const c = structuredClone(cfg);
-  c.agentes.find((a) => a.id === 'pixel').ferramentas = ['ler'];
+  c.agentes.find((a) => a.id === 'vitral').ferramentas = ['ler'];
   const e = new Muvuca(c);
-  await e.pedido({ texto: 'Crie a página', projeto, para: 'pixel' });
+  await e.pedido({ texto: 'Crie a página', projeto, para: 'vitral' });
   await assert.rejects(fs.access(path.join(projeto, 'public/status.html')));
 });
 
@@ -127,10 +127,10 @@ test('provedor compatível com OpenAI: ferramentas, chave e nova tentativa após
   process.env.CHAVE_FALSA = 'segredo';
   const c = structuredClone(cfg);
   c.provedores.falso = { tipo: 'openai', baseUrl: `http://127.0.0.1:${srv.address().port}/v1`, chaveEnv: 'CHAVE_FALSA', modelo: 'm' };
-  c.agentes.find((a) => a.id === 'pixel').provedor = 'falso';
+  c.agentes.find((a) => a.id === 'vitral').provedor = 'falso';
   const projeto = await pastaNova();
   const e = new Muvuca(c);
-  await e.pedido({ texto: 'Crie api.txt', projeto, para: 'pixel' });
+  await e.pedido({ texto: 'Crie api.txt', projeto, para: 'vitral' });
   srv.close();
   assert.strictEqual(await fs.readFile(path.join(projeto, 'api.txt'), 'utf8'), 'pela api');
   assert.strictEqual(recebidos.length, 3);
@@ -143,10 +143,10 @@ test('provedor compatível com OpenAI: ferramentas, chave e nova tentativa após
 test('provedor de linha de comando: prompt pela entrada padrão, arquivo na pasta do projeto', async () => {
   const c = structuredClone(cfg);
   c.provedores.cli = { tipo: 'cli', comando: process.execPath, args: [FALSO_CLI] };
-  c.agentes.find((a) => a.id === 'chevron').provedor = 'cli';
+  c.agentes.find((a) => a.id === 'catraca').provedor = 'cli';
   const projeto = await pastaNova();
   const e = new Muvuca(c);
-  await e.pedido({ texto: 'Crie o arquivo', projeto, para: 'chevron' });
+  await e.pedido({ texto: 'Crie o arquivo', projeto, para: 'catraca' });
   assert.strictEqual(await fs.readFile(path.join(projeto, 'do-cli.txt'), 'utf8'), 'feito pelo cli\n');
   const fim = e.eventos.find((x) => x.tipo === 'concluiu');
   assert.deepStrictEqual([fim.passos, fim.arquivos], [1, ['do-cli.txt']]);
@@ -156,10 +156,50 @@ test('provedor de linha de comando: prompt pela entrada padrão, arquivo na past
 test('time misto: demonstração + API + CLI no mesmo pedido', async () => {
   const c = structuredClone(cfg);
   c.provedores.cli = { tipo: 'cli', comando: process.execPath, args: [FALSO_CLI] };
-  c.agentes.find((a) => a.id === 'pixel').provedor = 'cli';
+  c.agentes.find((a) => a.id === 'vitral').provedor = 'cli';
   const projeto = await pastaNova();
   const e = new Muvuca(c);
   await e.pedido({ texto: 'Crie uma página de status com um endpoint /health', projeto });
   assert.strictEqual(e.eventos.find((x) => x.tipo === 'final').aprovado, true);
-  assert.strictEqual(e.eventos.find((x) => x.tipo === 'diff').autores['do-cli.txt'], 'pixel');
+  assert.strictEqual(e.eventos.find((x) => x.tipo === 'diff').autores['do-cli.txt'], 'vitral');
+});
+
+test('poses do pedido: quem espera a vez divaga, quem lê está lendo, o revisor confere, quem entregou aguarda o veredito e quem errou falha', async () => {
+  const projeto = await pastaNova();
+  try {
+    const e = new Muvuca(structuredClone(cfg));
+    e.pausaDaFalha = 0;
+    await e.pedido({ texto: 'Crie uma página de status com um endpoint /health', projeto });
+    const de = (id) => e.eventos.filter((x) => x.tipo === 'status' && x.agente === id).map((x) => x.estado);
+    const vitral = de('vitral'), catraca = de('catraca'), revisor = de('revisor');
+    // o Vitral recebe a tarefa junto com o Catraca, mas trabalha depois: enquanto espera, divaga
+    assert.ok(vitral.indexOf('divagando') >= 0 && vitral.indexOf('divagando') < vitral.indexOf('pensando'), vitral.join(' '));
+    // o revisor não "pensa" nem "trabalha": ele confere
+    assert.ok(revisor.includes('conferindo'), revisor.join(' '));
+    assert.ok(!revisor.includes('pensando') && !revisor.includes('trabalhando'), revisor.join(' '));
+    // o Catraca errou duas vezes (portão e revisor): mostra a falha antes de recomeçar
+    assert.strictEqual(catraca.filter((s) => s === 'falhou').length, 2, catraca.join(' '));
+    for (let i = 0; i < catraca.length; i++) if (catraca[i] === 'falhou') assert.notStrictEqual(catraca[i + 1], 'falhou');
+    // todo estado emitido é um que a tela conhece, e no fim todo mundo volta a ficar disponível
+    const conhecidos = ['disponivel', 'pensando', 'trabalhando', 'concluido', 'aguardando', 'divagando', 'falhou', 'bloqueado', 'lendo', 'conferindo'];
+    for (const s of e.eventos.filter((x) => x.tipo === 'status')) assert.ok(conhecidos.includes(s.estado), s.estado);
+    for (const a of cfg.agentes) assert.strictEqual(de(a.id).pop(), 'disponivel', a.id);
+    // a pose pela ferramenta: ler e listar é leitura; escrever e rodar é trabalho; o revisor sempre confere
+    assert.strictEqual(e.poseDe({ funcao: '' }, 'ler'), 'lendo');
+    assert.strictEqual(e.poseDe({ funcao: '' }, 'listar'), 'lendo');
+    assert.strictEqual(e.poseDe({ funcao: '' }, 'escrever'), 'trabalhando');
+    assert.strictEqual(e.poseDe({ funcao: '' }, '', 'pensando'), 'pensando');
+    assert.strictEqual(e.poseDe({ funcao: 'revisor' }, 'ler'), 'conferindo');
+  } finally { await fs.rm(projeto, { recursive: true, force: true }); }
+});
+
+test('toda pose tem imagem: cada personagem tem os dez estados em public/bonecos', async () => {
+  const pasta = new URL('../public/bonecos/', import.meta.url);
+  const arquivos = new Set(await fs.readdir(pasta));
+  const fonte = await fs.readFile(new URL('../public/js/personagens.js', import.meta.url), 'utf8');
+  const estados = JSON.parse(fonte.match(/const ESTADOS_BONECO = (\[[^\]]+\])/)[1].replace(/'/g, '"'));
+  assert.strictEqual(estados.length, 10);
+  const formas = [...new Set([...arquivos].map((n) => n.replace(/-[a-z]+\.webp$/, '')))];
+  assert.ok(formas.length >= 17, String(formas.length));
+  for (const f of formas) for (const s of estados) assert.ok(arquivos.has(`${f}-${s}.webp`), `falta ${f}-${s}.webp`);
 });

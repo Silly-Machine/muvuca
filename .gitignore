@@ -22,3 +22,8 @@ node_modules/
 
 # aplicativo de mesa
 dist/
+
+# faixas originais dos personagens (83 MB): ficam na Release "fontes-dos-personagens", não no repositório
+assets/personagens/plush/gpt/
+assets/personagens/plush/gpt-poses/
+assets/personagens/plush/previas/

@@ -46,12 +46,12 @@ test('validação: recusa o que está errado dizendo o quê, e nunca aceita valo
 test('ligação por agente: só conexões que existem, e só as ligadas chegam ao agente', () => {
   const d = normalizarConexoes({
     conexoes: [{ nome: 'Docs', comando: 'npx -y servidor-docs', variaveis: 'CHAVE_A, CHAVE_B CHAVE_A' }, { nome: 'Issues', tipo: 'http', url: 'https://exemplo.com/mcp', variavelToken: 'MEU_TOKEN' }, { nome: 'Parada', comando: 'x', ativa: false }],
-    agentes: { scout: ['docs', 'nao_existe', 'docs', 'parada'], revisor: ['issues'], 'Id Ruim': ['docs'], maestro: 'docs', vazio: ['sumiu'] },
+    agentes: { farol: ['docs', 'nao_existe', 'docs', 'parada'], revisor: ['issues'], 'Id Ruim': ['docs'], batuta: 'docs', vazio: ['sumiu'] },
   });
   assert.deepEqual(d.conexoes[0], { id: 'docs', nome: 'Docs', tipo: 'comando', descricao: '', ativa: true, ferramentas: [], comando: 'npx', args: ['-y', 'servidor-docs'], variaveis: ['CHAVE_A', 'CHAVE_B'] });
-  assert.deepEqual(d.agentes, { scout: ['docs', 'parada'], revisor: ['issues'] });
-  assert.deepEqual(conexoesDoAgente(d, 'scout').map((c) => c.id), ['docs'], 'conexão desligada não chega');
-  assert.deepEqual(conexoesDoAgente(d, 'chevron'), []);
+  assert.deepEqual(d.agentes, { farol: ['docs', 'parada'], revisor: ['issues'] });
+  assert.deepEqual(conexoesDoAgente(d, 'farol').map((c) => c.id), ['docs'], 'conexão desligada não chega');
+  assert.deepEqual(conexoesDoAgente(d, 'catraca'), []);
   assert.deepEqual(variaveisQueFaltam(d.conexoes[0], { CHAVE_A: 'x' }), ['CHAVE_B']);
   assert.deepEqual(variaveisQueFaltam(d.conexoes[1], {}), ['MEU_TOKEN']);
   assert.deepEqual(variaveisQueFaltam(d.conexoes[1], { MEU_TOKEN: 't' }), []);
@@ -64,13 +64,13 @@ test('configuração entregue ao provedor: referência à variável, nunca o val
   assert.deepEqual(c.mcpServers.banco, { command: 'node', args: ['srv.js', '--ro'], env: { SEGREDO_DO_TESTE_MCP: '${SEGREDO_DO_TESTE_MCP}' } });
   assert.deepEqual(c.mcpServers.issues, { type: 'http', url: 'https://exemplo.com/mcp', headers: { Authorization: 'Bearer ${SEGREDO_DO_TESTE_MCP}' } });
   const pasta = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-mcp-'));
-  const m = await prepararMcp(pasta, 'scout', d.conexoes);
+  const m = await prepararMcp(pasta, 'farol', d.conexoes);
   assert.equal(m.permissoes, 'mcp__banco,mcp__issues');
   assert.deepEqual(m.servidores[1], { id: 'issues', nome: 'Issues', descricao: 'lê issues' });
   const gravado = await fs.readFile(m.arquivo, 'utf8');
   assert.equal(gravado.includes('valor-super-secreto-123'), false, 'o valor do segredo não vai para o arquivo');
   assert.deepEqual(JSON.parse(gravado), c);
-  assert.equal(await prepararMcp(pasta, 'pixel', []), null, 'sem conexões, nada é gravado nem entregue');
+  assert.equal(await prepararMcp(pasta, 'vitral', []), null, 'sem conexões, nada é gravado nem entregue');
   delete process.env.SEGREDO_DO_TESTE_MCP;
 });
 
@@ -125,7 +125,7 @@ test('testar conexão por endereço: resposta em JSON ou em fluxo de eventos, to
 
 test('provedor: quem só lê recebe a configuração e a permissão; quem escreve não recebe nada', async () => {
   const prov = { tipo: 'cli', comando: process.execPath, args: [CLI_FALSO, '--escreve'], argsLeitura: [CLI_FALSO, '--so-le'], argsMcp: ['--mcp-config', '{arquivo}', '--allowedTools', '{permissoes}'], argModelo: '--model', modelo: 'leve' };
-  const mcp = { arquivo: path.join(os.tmpdir(), 'pasta com espaço', 'scout.json'), permissoes: 'mcp__cofre,mcp__docs' };
+  const mcp = { arquivo: path.join(os.tmpdir(), 'pasta com espaço', 'farol.json'), permissoes: 'mcp__cofre,mcp__docs' };
   const pedido = (ferramentas, extra = {}) => chamar({ ...prov, ...extra.prov }, { sistema: 's', mensagens: [{ role: 'user', content: 'oi' }], ferramentas, cwd: os.tmpdir(), mcp: extra.semMcp ? null : mcp, aoPasso: extra.aoPasso });
   const passos = [];
   const leitor = JSON.parse((await pedido(['listar', 'ler'], { aoPasso: (p) => passos.push(p) })).texto);
@@ -144,23 +144,23 @@ test('orquestrador: o agente fica sabendo das conexões dele e o uso aparece na 
   const e = new Muvuca(c);
   const projeto = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-'));
   const pasta = await fs.mkdtemp(path.join(os.tmpdir(), 'muvuca-mcp-'));
-  const dados = normalizarConexoes({ conexoes: [{ nome: 'Cofre', descricao: 'guarda a senha do dia', comando: `"${process.execPath}" "${MCP_FALSO}"` }], agentes: { scout: ['cofre'], chevron: ['cofre'] } });
+  const dados = normalizarConexoes({ conexoes: [{ nome: 'Cofre', descricao: 'guarda a senha do dia', comando: `"${process.execPath}" "${MCP_FALSO}"` }], agentes: { farol: ['cofre'], catraca: ['cofre'] } });
   const pediram = [];
   e.conexoesDe = async (ag) => { pediram.push(ag.id); return (ag.ferramentas || []).includes('escrever') ? null : prepararMcp(pasta, ag.id, conexoesDoAgente(dados, ag.id)); };
 
-  await e.pedido({ texto: 'Qual é a senha do dia?', projeto, para: 'scout' });
+  await e.pedido({ texto: 'Qual é a senha do dia?', projeto, para: 'farol' });
   const fala = e.eventos.filter((x) => x.tipo === 'fala' || x.tipo === 'concluiu').map((x) => x.texto || x.resumo || '').join(' ');
   const visto = JSON.parse(/\{.*\}/s.exec(e.eventos.map((x) => x.texto || '').filter((t) => t.includes('falouDeConexoes')).pop() || fala)[0]);
   assert.equal(visto.falouDeConexoes, true);
   assert.match(visto.trecho, /Cofre \(ferramentas mcp__cofre__\*; guarda a senha do dia\)/);
   assert.equal(visto.args.includes('--mcp-config'), true);
   assert.equal(visto.args[visto.args.indexOf('--allowedTools') + 1], 'mcp__cofre');
-  assert.deepEqual(e.eventos.filter((x) => x.tipo === 'conexao').map(({ agente, servidor, ferramenta }) => ({ agente, servidor, ferramenta })), [{ agente: 'scout', servidor: 'cofre', ferramenta: 'senha_do_dia' }]);
-  assert.equal(pediram.includes('scout'), true);
+  assert.deepEqual(e.eventos.filter((x) => x.tipo === 'conexao').map(({ agente, servidor, ferramenta }) => ({ agente, servidor, ferramenta })), [{ agente: 'farol', servidor: 'cofre', ferramenta: 'senha_do_dia' }]);
+  assert.equal(pediram.includes('farol'), true);
 
   // o mesmo pedido para quem escreve: nenhuma conexão, nenhum evento
   const antes = e.eventos.length;
-  await e.pedido({ texto: 'Qual é a senha do dia?', projeto, para: 'chevron' });
+  await e.pedido({ texto: 'Qual é a senha do dia?', projeto, para: 'catraca' });
   const novos = e.eventos.slice(antes);
   assert.equal(novos.some((x) => x.tipo === 'conexao'), false);
   assert.equal(novos.map((x) => x.texto || '').some((t) => t.includes('--mcp-config')), false);

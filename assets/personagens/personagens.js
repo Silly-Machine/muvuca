@@ -25,7 +25,7 @@ const pes = (c, x1, x2, y) => `<ellipse class="pe-e" cx="${x1}" cy="${y}" rx="11
 const maos = (c, x1, x2, y) => `<circle class="mao-e" cx="${x1}" cy="${y}" r="7.5" fill="${c.cla}"/><circle class="mao-d" cx="${x2}" cy="${y}" r="7.5" fill="${c.cla}"/>`;
 
 const PERSONAGENS = {
-  // Maestro: cápsula de gravata-borboleta, com topete e batuta
+  // Batuta: cápsula de gravata-borboleta, com topete e batuta
   regente: (c) => `${pes(c, 64, 96, 150)}
     <g class="tufo"><path d="M80 34q-10 -16 -18 -10M80 34q0 -20 6 -22M80 34q12 -14 20 -6" fill="none" stroke="${c.esc}" stroke-width="5" stroke-linecap="round"/></g>
     <rect x="44" y="34" width="72" height="112" rx="36" fill="url(#${c.g})"/>
@@ -34,14 +34,14 @@ const PERSONAGENS = {
     <g fill="${TINTA}"><path d="M80 116l-15 -8v16zM80 116l15 -8v16z"/><circle cx="80" cy="116" r="4" fill="${c.cla}"/></g>
     <circle class="mao-e" cx="42" cy="110" r="7.5" fill="${c.cla}"/>
     <g class="antena" style="transform-origin:0% 100%"><path d="M118 106l20 -34" stroke="#f1ecdf" stroke-width="3.5" stroke-linecap="round"/><circle cx="138" cy="72" r="3.5" fill="#f1ecdf"/></g><circle class="mao-d" cx="118" cy="106" r="7.5" fill="${c.cla}"/>`,
-  // Chevron: três discos de servidor empilhados, com luzes
+  // Catraca: três discos de servidor empilhados, com luzes
   pilha: (c) => `${pes(c, 62, 98, 152)}
     ${[[118, 0], [90, 1]].map(([y]) => `<path d="M38 ${y}v20a42 12 0 0 0 84 0v-20z" fill="url(#${c.g}l)"/><ellipse cx="80" cy="${y}" rx="42" ry="12" fill="${c.cla}"/>
       <circle class="led" cx="52" cy="${y + 17}" r="2.8" fill="#63e6a3"/><circle class="led" cx="62" cy="${y + 20}" r="2.8" fill="#ffd27a"/><circle class="led" cx="72" cy="${y + 21.5}" r="2.8" fill="#63e6a3"/>`).join('')}
     <path d="M38 48v36a42 12 0 0 0 84 0v-36z" fill="url(#${c.g}l)"/><ellipse cx="80" cy="48" rx="42" ry="12" fill="${c.cla}"/>
     <ellipse cx="68" cy="46" rx="16" ry="4" fill="#fff" opacity=".3"/>
     ${rosto(68, 92, 68)}${maos(c, 32, 128, 112)}`,
-  // Pixel: cristal lapidado, cada face num tom
+  // Vitral: cristal lapidado, cada face num tom
   cristal: (c) => `${pes(c, 66, 94, 152)}
     <polygon points="80,26 124,56 80,80 36,56" fill="${c.cla}"/>
     <polygon points="36,56 80,80 80,148 44,120" fill="${c.cor}"/>
@@ -49,7 +49,7 @@ const PERSONAGENS = {
     <polygon class="faceta-brilho" points="80,26 102,41 80,54 58,41" fill="#fff"/>
     <g transform="translate(-18 6) skewY(14)">${rosto(64, 86, 86, 5.8)}</g>
     ${maos(c, 30, 130, 104)}`,
-  // Scout: esfera com um olho de lente e antena
+  // Farol: esfera com um olho de lente e antena
   lente: (c) => `${pes(c, 64, 96, 152)}
     <g class="antena"><path d="M80 44v-22" stroke="${c.esc}" stroke-width="4" stroke-linecap="round"/><circle cx="80" cy="20" r="6" fill="${c.cla}"/><circle class="led" cx="80" cy="20" r="2.5" fill="#fff"/></g>
     <circle cx="80" cy="96" r="54" fill="url(#${c.g})"/>

@@ -27,7 +27,7 @@ const css = linhas.slice(iCss, fCss + 1).join('\n')
 // 3. cor padrão de cada forma (a mesma da biblioteca de agentes)
 const catalogo = JSON.parse(fs.readFileSync(R + 'config/catalogo-agentes.json', 'utf8')).agentes;
 const cores = Object.fromEntries(catalogo.map((a) => [a.forma, a.cor]));
-const NOMES = { cartola: 'Maestro de cartola (líder)', engrenagem: 'Engrenagem (back-end)', regente: 'Cápsula de batuta (sub-líder)', pilha: 'Pilha de discos (dados)', cristal: 'Cristal lapidado (front-end)', lente: 'Esfera de lente (pesquisa)', escudo: 'Escudo de óculos (revisor)', tela: 'Monitor de antena', gota: 'Gota', nuvem: 'Nuvem (UX)', cogumelo: 'Cogumelo (produto)', polvo: 'Polvo (testes)', foguete: 'Foguete (DevOps)', gato: 'Gato vigia (segurança)', livro: 'Livro (docs)', planta: 'Vaso de planta (generalista)' };
+const NOMES = { cartola: 'Líder de cartola (líder)', engrenagem: 'Engrenagem (back-end)', regente: 'Cápsula de batuta (sub-líder)', pilha: 'Pilha de discos (dados)', cristal: 'Cristal lapidado (front-end)', lente: 'Esfera de lente (pesquisa)', escudo: 'Escudo de óculos (revisor)', tela: 'Monitor de antena', gota: 'Gota', nuvem: 'Nuvem (UX)', cogumelo: 'Cogumelo (produto)', polvo: 'Polvo (testes)', foguete: 'Foguete (DevOps)', gato: 'Gato vigia (segurança)', livro: 'Livro (docs)', planta: 'Vaso de planta (generalista)' };
 // ordem da biblioteca de agentes; as formas fora dela vão no fim
 const formas = [...new Set([...catalogo.map((a) => a.forma), ...Object.keys(ctx.PERSONAGENS)])].filter((f) => ctx.PERSONAGENS[f]);
 const extra = { tela: '#ff9f43', gota: '#5ad1ff', nuvem: '#9ad0ff' };

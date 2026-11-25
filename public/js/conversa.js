@@ -1,7 +1,7 @@
 // Conversa com o time: envio do pedido, eventos, anexos e painel retrátil.
 import { compartilhado } from './estado.js';
 import { depois } from './tardias.js';
-import { $, CONVERSA, chaveProjeto, el, pedir, textoDoUso } from './base.js';
+import { $, CONVERSA, chaveProjeto, el, pedir, textoDoUso, ESTADOS } from './base.js';
 import { NOME_ARQ, NOME_CX, ag, ajustarEscala, alarme, balao, desenharArestas, estado, modeloPadrao, montarDestinos, noPalco, rotuloModelo, viagem } from './palco.js';
 import { abrirConstrutor } from './construtor.js';
 
@@ -15,11 +15,13 @@ function msg(id, texto, hora) {
 function etiqueta(id) { const e = el('span', 'etiqueta', ag(id).nome); e.style.setProperty('--cor', ag(id).cor); return e; }
 function saida(titulo, texto) { const d = el('details'); d.append(el('summary', '', titulo), el('pre', '', texto)); return d; }
 let inicioPedido = 0, relogio = 0, terminouLonge = false;
+// estados em que o agente não está fazendo nada agora (esperar a vez ou o veredito não é trabalhar)
+const PARADOS = ['disponivel', 'concluido', 'divagando', 'bloqueado'];
 const mmss = (ms) => { const t = Math.max(0, Math.round(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 function atualizarAndamento() {
-  const ativos = compartilhado.agentes.map((a) => [a, noPalco(a.id)?.dataset.estado]).filter(([, e]) => e && e !== 'disponivel' && e !== 'concluido');
+  const ativos = compartilhado.agentes.map((a) => [a, noPalco(a.id)?.dataset.estado]).filter(([, e]) => e && !PARADOS.includes(e));
   const espera = ativos.some(([, e]) => e === 'aguardando');
-  $('#andTexto').textContent = ativos.length ? ativos.map(([a, e]) => a.nome + ' ' + (e === 'aguardando' ? 'aguarda você' : e)).join(' · ') : 'Time trabalhando…';
+  $('#andTexto').textContent = ativos.length ? ativos.map(([a, e]) => a.nome + ' ' + (e === 'aguardando' ? 'aguarda você' : (ESTADOS[e] || e).toLowerCase())).join(' · ') : 'Time trabalhando…';
   $('#andTempo').textContent = mmss(Date.now() - inicioPedido);
   document.title = (compartilhado.rodando ? (espera ? '⚠ ' : '● ') : terminouLonge ? '✓ ' : '') + 'Muvuca' + (CONVERSA !== '1' ? ` · conversa ${CONVERSA}` : '');
 }

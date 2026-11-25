@@ -40,10 +40,10 @@ test('setas na esteira: o destino passa a vir logo depois da origem', () => {
 });
 
 test('setas no supervisor: seta entre dois agentes cria um sub-líder e o time vira hierárquico', () => {
-  const t = time('centralizada', [ag('maestro', { funcao: 'lider', ferramentas: [] }), ag('back'), ag('front'), ag('revisor', { funcao: 'revisor' })]);
-  assert.match(ligarSeta(t, 'maestro', 'back').mensagem, /já responde a Maestro/);
+  const t = time('centralizada', [ag('batuta', { funcao: 'lider', ferramentas: [] }), ag('back'), ag('front'), ag('revisor', { funcao: 'revisor' })]);
+  assert.match(ligarSeta(t, 'batuta', 'back').mensagem, /já responde a Batuta/);
   assert.equal(t.arquitetura, 'centralizada', 'recusa não muda a arquitetura');
-  assert.match(desligarSeta(t, 'maestro', 'back').mensagem, /todos respondem ao líder/);
+  assert.match(desligarSeta(t, 'batuta', 'back').mensagem, /todos respondem ao líder/);
   const r = ligarSeta(t, 'back', 'front');
   assert.equal(r.mudou, true);
   assert.match(r.mensagem, /Front agora responde a Back\. Back virou sub-líder.*A arquitetura virou hierárquica\./);
