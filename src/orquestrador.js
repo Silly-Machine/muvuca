@@ -60,8 +60,27 @@ export class Muvuca {
   provedor(ag, complexidade) {
     const p = this.cfg.provedores[ag.provedor]; if (!p) throw new Error(`provedor "${ag.provedor}" não existe (agente ${ag.id})`);
     const c = nivel(complexidade);
-    const modelo = (c && ag.modelos?.[c]) || ag.modelo || (c && p.modelos?.[c]) || p.modelo;
+    const escolha = (n) => (n && ag.modelos?.[n]) || ag.modelo || (n && p.modelos?.[n]) || p.modelo;
+    let modelo = escolha(c);
+    // Modelo que já falhou por créditos ou acesso: desce de nível até achar um que a conta tenha.
+    const fora = this.indisponiveis?.get(ag.provedor);
+    if (modelo && fora?.has(modelo)) {
+      const abaixo = ['alta', 'media', 'baixa'].slice(['alta', 'media', 'baixa'].indexOf(c || 'media') + 1);
+      modelo = abaixo.map((n) => (ag.modelos?.[n]) || (p.modelos?.[n])).find((m) => m && !fora.has(m)) || modelo;
+    }
     return { nome: ag.provedor, ...p, ...(modelo ? { modelo } : {}), ...(this.limiteAgenteS ? { limiteSegundos: this.limiteAgenteS } : {}) };
+  }
+  // O modelo não está disponível na conta (créditos, limite, acesso): não insiste nele neste provedor.
+  // Devolve o modelo que vai no lugar, ou null se não houver outro.
+  marcarIndisponivel(ag, complexidade, modelo, motivo) {
+    (this.indisponiveis ||= new Map());
+    if (!this.indisponiveis.has(ag.provedor)) this.indisponiveis.set(ag.provedor, new Set());
+    this.indisponiveis.get(ag.provedor).add(modelo);
+    const novo = this.provedor(ag, complexidade).modelo;
+    if (!novo || novo === modelo) return null;
+    this.emitir({ tipo: 'aviso', texto: `O modelo ${modelo} não está disponível na sua conta (${motivo}). ${ag.nome} seguiu com ${novo}, e o time não usa mais o ${modelo} até você trocar em Configurações.` });
+    this.aoModeloIndisponivel?.(ag.provedor, modelo, novo);
+    return novo;
   }
   get idLider() { return (this.cfg.agentes.find((a) => a.funcao === 'lider') || this.cfg.agentes[0]).id; }
   get idRevisor() { return this.cfg.agentes.find((a) => a.funcao === 'revisor')?.id; }
@@ -214,7 +233,7 @@ export class Muvuca {
     try {
       for (let volta = 0; volta < this.maxPassos; volta++) {
         this.status(ag.id, this.poseDe(ag, '', volta === 0 ? 'pensando' : 'trabalhando'));   // depois da primeira ferramenta ele está no meio do trabalho
-        const r = await chamar(prov, { ...base, mensagens, aoPasso: (p) => {
+        const r = await this.chamarComTroca(ag, complexidade, prov, { ...base, mensagens, aoPasso: (p) => {
           this.status(ag.id, this.poseDe(ag, p.ferramenta));
           // uso de uma conexão aparece na conversa com nome próprio; não conta como passo de trabalho
           if (p.ferramenta === 'conexao') return this.emitir({ tipo: 'conexao', agente: ag.id, servidor: p.servidor, ferramenta: p.alvo });
@@ -291,7 +310,7 @@ export class Muvuca {
       const prov = this.provedor(lider, nivelFixo(lider));
       this.status(lider.id, 'pensando', { modelo: prov.modelo || prov.nome });
       for (let tentativa = 0; tentativa < 2; tentativa++) {
-        const r = await chamar(prov, { sistema: `${lider.sistema}\n${instrucao}${licoesDoTime}`, mensagens: sessao, ferramentas: [], sinal: this.abort.signal, cwd: this.projeto, agente: lider, mcp: this.conexoesDe ? await this.conexoesDe(lider).catch(() => null) : null });
+        const r = await this.chamarComTroca(lider, nivelFixo(lider), prov, { sistema: `${lider.sistema}\n${instrucao}${licoesDoTime}`, mensagens: sessao, ferramentas: [], sinal: this.abort.signal, cwd: this.projeto, agente: lider, mcp: this.conexoesDe ? await this.conexoesDe(lider).catch(() => null) : null });
         this.somarUso(r);
         const j = extrairJson(r.texto);
         if (j) { sessao.push(r.msg); return j; }
@@ -396,6 +415,20 @@ export class Muvuca {
     if (/reconhecido como um comando|not recognized|command not found|Cannot find (module|package)|ERR_MODULE_NOT_FOUND/i.test(saida) && this.autores.has('package.json')) return this.autores.get('package.json');
     for (const [arq, id] of this.autores) if (saida.includes(path.basename(arq))) return id;
     return [...this.autores.values()].pop() || reserva;
+  }
+
+  // Chama o provedor; se o modelo não estiver disponível na conta, troca pelo próximo abaixo e tenta de novo.
+  async chamarComTroca(ag, complexidade, prov, pedido) {
+    for (;;) {
+      try { return await chamar(prov, pedido); }
+      catch (e) {
+        if (e.codigo !== 'modelo' || !e.modelo) throw e;
+        const novo = this.marcarIndisponivel(ag, complexidade, e.modelo, e.motivo);
+        if (!novo) throw Object.assign(new Error(`${ag.nome} não tem modelo disponível na sua conta: ${e.motivo}. Troque os modelos do time em Configurações (por exemplo, sonnet) e mande o pedido de novo.`), { codigo: 'modelo' });
+        prov = { ...prov, modelo: novo };
+        this.status(ag.id, this.poseDe(ag, '', 'pensando'), { modelo: novo, complexidade: nivel(complexidade) });
+      }
+    }
   }
 
   // O trabalho voltou: o agente fica um instante em "falhou" antes de recomeçar, para dar tempo de ver.
@@ -539,7 +572,11 @@ export class Muvuca {
       else await this.fluxoTime(texto);
     } catch (e) {
       if (this.abort.signal.aborted) this.emitir({ tipo: 'parado' });
-      else this.emitir({ tipo: 'erro', texto: e.message, ...(e.codigo && { codigo: e.codigo }) });
+      else {
+        // quem estava trabalhando quando o erro veio mostra a falha, e a tarefa dele fica "falhou" com o motivo
+        for (const [id, idT] of this.tarefaDe || []) if (this.quadro.get(idT)?.estado === 'trabalhando') { this.tarefa(idT, { estado: 'falhou', motivo: e.message.slice(0, 300) }); this.status(id, 'falhou'); }
+        this.emitir({ tipo: 'erro', texto: e.message, ...(e.codigo && { codigo: e.codigo }) });
+      }
     } finally {
       // o que não chegou ao fim (parada, erro) não fica pendurado no quadro
       for (const t of this.quadro.values()) if (!['pronto', 'falhou'].includes(t.estado)) this.tarefa(t.id, { estado: 'parado', motivo: 'O pedido parou antes de esta tarefa terminar.' });

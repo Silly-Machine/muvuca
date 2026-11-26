@@ -7,7 +7,7 @@ Referência completa: como cada parte funciona, o que foi testado e o que ficou 
 | Forma | Como | Porta |
 |---|---|---|
 | Aplicativo de mesa | instalador de Windows, macOS ou Linux | 43170; se estiver ocupada, uma livre |
-| Comando `muvuca` | `npx github:Silly-Machine/muvuca` ou `npm start` no código-fonte | 4317 (`--porta` troca) |
+| Comando `muvuca` | `npx muvuca`, `npm install -g muvuca` ou `npm start` no código-fonte | 4317 (`--porta` troca) |
 | Só o servidor | `node src/servidor.js` | 4317 (`MUVUCA_PORTA` troca; 0 escolhe uma livre) |
 
 Nas três, o servidor atende só em `127.0.0.1`: outra máquina da rede não alcança. Se já houver uma Muvuca aberta com a mesma pasta de dados, o comando e o aplicativo mostram essa em vez de subir outra, desde que seja a mesma versão. Se for outra (o aplicativo instalado e o comando de uma versão mais nova, por exemplo), eles avisam qual está aberta e pedem para fechá-la, em vez de misturar as duas. E se o servidor voltar numa versão nova com a tela ainda aberta, a tela avisa e oferece recarregar.
@@ -124,6 +124,8 @@ O líder marca cada etapa e cada consulta com `"complexidade": "baixa" | "media"
 - **Devolução sobe um nível.** Quando o portão ou o revisor devolve, quem errou tenta de novo um nível acima: se o haiku não deu conta, a correção vai com o sonnet.
 - **Revisão** roda no nível da parte mais difícil do pedido.
 - **Líder** usa o modelo padrão do agente ou do provedor. Para planejar com o modelo forte, ponha `"modelo": "fable"` no agente líder.
+- **Modelo que a conta não tem.** Se o aplicativo recusa o modelo (exige créditos de uso, passou do limite ou a conta não tem acesso, como "Fable 5.2 requires usage credits"), o agente segue na hora com o próximo modelo abaixo (fable → sonnet → haiku) e a conversa avisa a troca. A troca fica nas preferências: os níveis que usavam aquele modelo passam a usar o que funcionou, até você mudar em Configurações. Se nenhum modelo abaixo servir, o pedido para e diz o que fazer, sem gastar devoluções.
+- **Erro do aplicativo é erro.** Quando o `claude` (ou outro aplicativo) sai com erro, a etapa falha à vista: o agente mostra a pose "falhou", a tarefa fica "falhou" com a mensagem do aplicativo, e o pedido para. Antes, um texto de erro passava como trabalho concluído e, no revisor, virava "veredito ilegível" e reprovação.
 
 A tela mostra o modelo em uso embaixo de cada personagem, o nível no plano e em cada devolução, e o modelo usado em cada "concluiu".
 

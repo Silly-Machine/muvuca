@@ -99,8 +99,12 @@ test('porta ocupada: o servidor avisa em português e sai, em vez de morrer com 
 test('comando muvuca: versão, ajuda e porta inválida', () => {
   const rodar = (...a) => spawnSync(process.execPath, [path.join(RAIZ, 'bin', 'muvuca.js'), ...a], { encoding: 'utf8', timeout: 30000 });
   const v = rodar('--versao');
-  assert.equal(v.status, 0); assert.match(v.stdout.trim(), /^\d+\.\d+\.\d+$/);
+  assert.equal(v.status, 0);
+  const [num, onde] = v.stdout.trim().split(/\r?\n/);
+  assert.match(num, /^\d+\.\d+\.\d+$/);
+  assert.equal(onde, `instalada em ${RAIZ}`, 'diz qual cópia respondeu');
   const h = rodar('--ajuda');
+  assert.match(h.stdout, /--encerrar/);
   assert.equal(h.status, 0); assert.match(h.stdout, /--porta/); assert.match(h.stdout, /--dados/);
   const p = rodar('--porta', 'abc');
   assert.equal(p.status, 2); assert.match(p.stderr, /Porta inválida/);

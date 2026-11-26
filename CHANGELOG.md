@@ -2,6 +2,16 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
+## Em andamento: o primeiro pedido de verdade não trava mais no modelo
+
+- **Modelo que a sua conta não tem não derruba mais o pedido.** O time de fábrica usa o Fable no nível difícil e no revisor, e numa assinatura sem créditos de uso o primeiro pedido terminava reprovado, com o código certo. Agora, quando o Claude recusa o modelo, o agente segue com o próximo abaixo (sonnet, depois haiku), a conversa avisa, e a troca fica guardada para os próximos pedidos.
+- **Erro do Claude aparece como erro.** Uma saída com erro do aplicativo passava como "✓ concluiu" e, no revisor, como "veredito ilegível", e a Muvuca gastava as devoluções repetindo o mesmo erro, subindo justamente para o modelo que falhava. Agora a etapa falha à vista, com a mensagem do Claude, e o pedido para.
+- **Diz qual Claude Code foi achado.** Quando o `claude` é antigo demais, a tela mostra o caminho e a versão dele, sugere `claude update` e lista os outros `claude` do PATH. Com várias instalações (nvm, npm, instalador oficial), dava para "atualizar o Claude" e continuar bloqueado sem saber por quê.
+- **`muvuca --encerrar` e troca de versão sem caçar processo.** A mensagem de outra versão aberta agora diz o processo e onde ela está instalada, e no terminal o comando novo pergunta se pode encerrá-la. `muvuca --encerrar` fecha a Muvuca aberta (no meio de um pedido, só com `--forcar`).
+- **O terminal diz a versão.** A linha de início mostra "Muvuca 1.1.1 em …" e como encerrar de outro terminal; `muvuca --versao` mostra também onde está instalada.
+- **Boas-vindas sem atraso.** Na primeira abertura, o diálogo aparece na hora, antes da conferência do Claude Code, em vez de surgir um segundo depois sobre uma tela ainda não configurada.
+- **README completo para o npm.** `npx muvuca` e `npm install -g muvuca`, como atualizar, como desinstalar (e quais pastas sobram), e o que fazer no erro EACCES do Linux sem usar `sudo`.
+
 ## 1.1.0 (25/11/2026): desenho livre e personagens com 10 poses
 
 - **Cinco poses novas para cada personagem.** Além de disponível, pensando, trabalhando, concluído e aguardando você, os 17 bonecos agora mostram quando esperam a vez (divagando), leem o projeto (livro), conferem (o revisor, de lupa), aguardam o veredito do portão e do revisor (ampulheta) e quando o trabalho volta (falhou). O palco passa a contar a história do pedido: dá para ver quem está parado esperando e quem errou.

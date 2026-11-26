@@ -91,4 +91,4 @@ node scripts/versao.mjs conferir        # package.json, package-lock.json e CHAN
 
 - Os instaladores não são assinados.
 - Não há atualização automática.
-- O pacote não está no npm; `npx github:Silly-Machine/muvuca` usa sempre o que está no ramo `main`. Para uma versão específica: `npx github:Silly-Machine/muvuca#v0.2.1`.
+- `npx muvuca` usa a versão mais nova publicada no npm; `npx muvuca@1.1.0`, uma específica. `npx github:Silly-Machine/muvuca` usa o que está no ramo `main`, ainda sem versão.

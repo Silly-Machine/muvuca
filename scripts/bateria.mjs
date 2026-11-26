@@ -429,6 +429,11 @@ secao('Lições, vigias e especificação em etapas');
   ok('pasta vazia depois da especificação', await vazia(PROJETO)); }
 
 // ---------- fim: estado igual ao do começo
+secao('Encerrar de fora');
+// a rota de verdade derruba o servidor da bateria: aqui só o que não encerra nada
+{ const r = await semChave(BASE + '/api/encerrar', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  ok('encerrar sem a chave é recusado (401), e a Muvuca continua de pé', r.status === 401 && (await get('/api/config')).s === 200, String(r.status)); }
+
 secao('Estado final');
 await post('/api/nova');
 { const cf = await config();

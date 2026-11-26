@@ -108,7 +108,16 @@ async function situacaoProvedor(nome, p) {
     }
     if (!comandoExiste.get(p.comando)) return { pronto: false, motivo: `o comando "${p.comando}" não está instalado` };
     const falta = await opcoesQueFaltam(p);
-    if (falta.length) return { pronto: false, motivo: `a versão instalada de "${p.comando}" não tem ${falta.length > 1 ? 'as opções' : 'a opção'} ${falta.join(', ')}: atualize o aplicativo` };
+    if (falta.length) {
+      // Diz qual aplicativo foi testado (caminho e versão) e se há outros no PATH: com várias instalações (nvm, npm,
+      // instalador oficial), quem vem primeiro no PATH de quem abriu a Muvuca pode não ser o que a pessoa atualizou.
+      const achados = await instalacoesDe(p.comando);
+      const [usado, ...outros] = achados;
+      const nome = p.comando === 'claude' ? 'Claude Code' : p.comando;
+      const quem = usado ? `o ${nome} em ${usado.caminho}${usado.versao ? ` (versão ${usado.versao})` : ''}` : `a versão instalada de "${p.comando}"`;
+      const mais = outros.length ? ` Há outros no PATH: ${outros.map((o) => `${o.caminho}${o.versao ? ` (${o.versao})` : ''}`).join('; ')}. A Muvuca usa o primeiro: abra-a por um terminal onde o mais novo venha antes, ou remova os antigos.` : '';
+      return { pronto: false, motivo: `${quem} é antigo demais: falta ${falta.length > 1 ? 'as opções' : 'a opção'} ${falta.join(', ')}. Atualize o ${nome} (rode "${p.comando} update").${mais}` };
+    }
     return { pronto: true, motivo: `usa o aplicativo "${p.comando}" logado neste computador` };
   }
   if (/TROQUE/i.test(`${p.baseUrl} ${p.modelo}`)) return { pronto: false, motivo: 'falta preencher endereço ou modelo no arquivo de agentes' };
@@ -128,6 +137,13 @@ async function opcoesQueFaltam(p) {
   if (!ajuda) return [];   // sem ajuda legível não dá para conferir: segue como antes
   const usadas = [...new Set([...(p.args || []), ...(p.argsLeitura || []), ...(p.argsMcp || []), p.argModelo].filter((a) => /^--[a-z]/.test(String(a))))];
   return usadas.filter((o) => !new RegExp(`(^|[\\s,])${o}([\\s,=<\\[]|$)`, 'm').test(ajuda));
+}
+// Todas as cópias de um aplicativo no PATH, na ordem em que o sistema as acha, com a versão de cada uma (até 4).
+async function instalacoesDe(comando) {
+  const r = await rodar(process.platform === 'win32' ? 'where' : 'which', { args: process.platform === 'win32' ? [String(comando)] : ['-a', String(comando)], limiteMs: 8000 });
+  if (r.codigo !== 0) return [];
+  const caminhos = [...new Set(r.saida.split(/\r?\n/).map((l) => l.trim()).filter(Boolean))].slice(0, 4);
+  return Promise.all(caminhos.map(async (caminho) => ({ caminho, versao: await versaoDe(caminho) })));
 }
 async function versaoDe(comando) {
   const r = await rodar(String(comando), { args: ['--version'], limiteMs: 15000 });
@@ -193,12 +209,23 @@ const aoArquivar = (eventos) => {
   })().catch(() => {});
 };
 muvuca.aoArquivar = aoArquivar;
+// Um modelo do time não está disponível na conta (créditos, limite, acesso): os níveis que usavam esse modelo passam a
+// usar o que funcionou no lugar, e isso fica nas preferências. O próximo pedido já começa com um modelo que a conta tem.
+async function aoModeloIndisponivel(nomeProv, modelo, novo) {
+  const p = cfg.provedores[nomeProv]; if (!p) return;
+  const atuais = { ...(p.modelos || {}), ...(prefs.modelos[nomeProv] || {}) };
+  const trocados = Object.fromEntries(Object.entries(atuais).map(([n, m]) => [n, m === modelo ? novo : m]));
+  p.modelos = { ...(p.modelos || {}), ...trocados };
+  prefs = normalizarPreferencias({ ...prefs, modelos: { ...prefs.modelos, [nomeProv]: trocados } }, opcoesPrefs);
+  await gravarJson(ARQ_PREFS, prefs).catch(() => {});
+}
+muvuca.aoModeloIndisponivel = aoModeloIndisponivel;
 // Abre uma conversa nova, com o time e o provedor de fábrica e as mesmas regras da principal.
 async function abrirConversa(id) {
   const m = new Muvuca({ ...cfg, agentes: structuredClone(cfg.agentes) });
   const sessao = { id, muvuca: m, anexos: [] };
   sessoes.set(id, sessao);
-  m.memoria = memoria; m.conexoesDe = conexoesDe; m.aoArquivar = aoArquivar;
+  m.memoria = memoria; m.conexoesDe = conexoesDe; m.aoArquivar = aoArquivar; m.aoModeloIndisponivel = aoModeloIndisponivel;
   m.aoMudarFoto = (foto, projeto) => salvarFoto(pastaPendente(id), projeto, foto);
   aplicarPrefs();
   if (provedorPadrao && cfg.provedores[provedorPadrao] && (await situacaoProvedor(provedorPadrao, cfg.provedores[provedorPadrao])).pronto) m.usarProvedor(provedorPadrao, prefs.modelos[provedorPadrao]);
@@ -438,7 +465,7 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/config') {
       const atual = muvuca.cfg;   // o construtor pode ter trocado o time
       return json(res, 200, {
-        versao: VERSAO, buzina: prefs.buzina, rodando: muvuca.rodando, config: path.basename(arquivoCfg), projetoPadrao: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || prefs.projetoPadrao,
+        versao: VERSAO, buzina: prefs.buzina, inicioFeito: prefs.inicioFeito === true, rodando: muvuca.rodando, config: path.basename(arquivoCfg), projetoPadrao: process.env.MUVUCA_PROJETO || process.env.ESTUDIO_PROJETO || prefs.projetoPadrao,
         nomeTime: atual.nomeTime || timeDoArquivo.nome, arquitetura: muvuca.arquitetura, arquiteturas: ARQUITETURAS, desenho: atual.desenho || null, modelo: atual.modelo || '',
         // provedores sem chave nem argumentos: a tela só precisa do nome e dos modelos
         provedores: Object.entries(cfg.provedores).map(([nome, p]) => ({ nome, tipo: p.tipo, modelo: p.modelo || '', modelos: p.modelos || null })),
@@ -539,6 +566,16 @@ const servidor = http.createServer(async (req, res) => {
     }
     // Mover os bonecos no palco: muda só o lugar de cada um no desenho, nunca o time. Vale até com um pedido
     // em andamento, porque o protocolo não olha o desenho. Na conversa 1, o lugar novo fica no time em uso.
+    // Encerrar esta Muvuca de fora (o comando "muvuca --encerrar", ou uma versão nova que vai abrir no lugar).
+    // Com um pedido em andamento, só com "forcar": o trabalho seria interrompido.
+    if (req.method === 'POST' && url.pathname === '/api/encerrar') {
+      const b = await corpo(req);
+      const trabalhando = [...sessoes.values()].filter((x) => x.muvuca.rodando).length + (muvuca.rodando ? 1 : 0);
+      if (trabalhando && b.forcar !== true) return json(res, 409, { erro: `a Muvuca está no meio de ${trabalhando > 1 ? `${trabalhando} pedidos` : 'um pedido'}: espere terminar ou encerre mesmo assim (muvuca --encerrar --forcar)` });
+      json(res, 200, { ok: true, versao: VERSAO, pid: process.pid });
+      setTimeout(() => process.exit(0), 150).unref?.();
+      return;
+    }
     if (req.method === 'POST' && url.pathname === '/api/desenho') {
       const b = await corpo(req);
       const pedidas = b.pos && typeof b.pos === 'object' && !Array.isArray(b.pos) ? Object.entries(b.pos) : null;
@@ -614,7 +651,7 @@ const servidor = http.createServer(async (req, res) => {
       return json(res, 200, {
         feito: prefs.inicioFeito, pasta: prefs.projetoPadrao, pastaExiste: !!(await infoProjeto(prefs.projetoPadrao)).existe, pastaDados: DADOS,
         provedorAtual: provedorPadrao,
-        claude: { provedor: cli?.[0] || '', instalado, logado, instalar: instrucaoClaude(), pronto: s.pronto && logado !== false, motivo: logado === false ? 'o aplicativo "claude" está instalado, mas sem login: rode "claude" num terminal e entre na sua conta' : s.motivo, versao: instalado ? await versaoDe('claude') : '' },
+        claude: { provedor: cli?.[0] || '', instalado, logado, instalar: instrucaoClaude(), caminho: instalado ? (await instalacoesDe('claude'))[0]?.caminho || '' : '', pronto: s.pronto && logado !== false, motivo: logado === false ? 'o aplicativo "claude" está instalado, mas sem login: rode "claude" num terminal e entre na sua conta' : s.motivo, versao: instalado ? await versaoDe('claude') : '' },
       });
     }
     if (req.method === 'POST' && url.pathname === '/api/inicio') {
@@ -867,8 +904,8 @@ export const pronto = new Promise((resolve, reject) => {
     // Se outra Muvuca viva já deixou o aviso, ele fica: esta é a segunda na mesma pasta e não toma o lugar da primeira.
     let outraViva = false;
     try { const a = JSON.parse(readFileSyncSeguro(ARQ_ABERTA)); if (a?.pid && a.pid !== process.pid) { try { process.kill(a.pid, 0); outraViva = true; } catch (e) { outraViva = e.code === 'EPERM'; } } } catch { /* aviso ilegível: vale como ausente */ }
-    if (!outraViva) try { writeFileSync(ARQ_ABERTA, JSON.stringify({ pid: process.pid, porta })); } catch { /* sem o aviso, só não há reaproveitamento */ }
-    console.log(`Muvuca em http://localhost:${porta}/?t=${TOKEN}  (dados em ${DADOS})`);
+    if (!outraViva) try { writeFileSync(ARQ_ABERTA, JSON.stringify({ pid: process.pid, porta, versao: VERSAO, raiz: RAIZ })); } catch { /* sem o aviso, só não há reaproveitamento */ }
+    console.log(`Muvuca ${VERSAO} em http://localhost:${porta}/?t=${TOKEN}  (dados em ${DADOS})`);
     resolve(porta);
   });
 });

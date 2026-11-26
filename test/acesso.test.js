@@ -122,7 +122,7 @@ test('Muvuca já aberta: quem chega depois acha a que está rodando, e o aviso s
   try {
     const achou = await muvucaAberta(dados);
     const versao = JSON.parse(await fs.readFile(path.join(RAIZ, 'package.json'), 'utf8')).version;
-    assert.deepEqual(achou, { porta: s.porta, token: s.token, endereco: `http://127.0.0.1:${s.porta}`, versao });
+    assert.deepEqual(achou, { porta: s.porta, token: s.token, endereco: `http://127.0.0.1:${s.porta}`, versao, pid: s.pid, raiz: RAIZ }, "a aberta diz quem é: processo e onde está instalada");
     // o comando "muvuca" na mesma pasta de dados não sobe outra: aponta para a que já existe e sai
     const r = spawnSync(process.execPath, [path.join(RAIZ, 'bin', 'muvuca.js'), '--sem-abrir', '--dados', dados], { encoding: 'utf8', timeout: 30000, env: { ...process.env, NODE_TEST_CONTEXT: '' } });
     assert.equal(r.status, 0, r.stderr);
@@ -132,7 +132,8 @@ test('Muvuca já aberta: quem chega depois acha a que está rodando, e o aviso s
   assert.equal(versaoDiferente(null, '1.1.0'), '', 'ninguém aberto: nada a avisar');
   assert.equal(versaoDiferente({ versao: '1.1.0' }, '1.1.0'), '', 'mesma versão: aproveita');
   const msg = versaoDiferente({ versao: '1.0.1' }, '1.1.0');
-  assert.match(msg, /1.0.1 aberta/); assert.match(msg, /esta é a 1.1.0/); assert.match(msg, /Feche a outra/);
+  assert.match(msg, /1.0.1 aberta/); assert.match(msg, /esta é a 1.1.0/); assert.match(msg, /feche a outra/); assert.match(msg, /muvuca --encerrar/);
+  assert.match(versaoDiferente({ versao: '1.0.0', pid: 5102, raiz: '/opt/muvuca' }, '1.1.0'), /processo 5102, instalada em \/opt\/muvuca/);
   // processo morto: mesmo que o aviso tenha ficado no disco, ninguém é dado como aberto
   await fs.writeFile(path.join(dados, 'aberta.json'), JSON.stringify({ pid: s.pid, porta: s.porta }));
   assert.equal(await muvucaAberta(dados), null);
@@ -158,6 +159,27 @@ test('comando "muvuca" com outra versão aberta na mesma pasta de dados: avisa e
     const r = { status: await new Promise((ok) => filho.on('close', ok)), stderr }; clearTimeout(prazo);
     assert.equal(r.status, 1, 'não sobe outra nem aponta para a de outra versão');
     assert.match(r.stderr, /Muvuca 0\.0\.1 aberta/);
-    assert.match(r.stderr, /Feche a outra/);
+    assert.match(r.stderr, /feche a outra/);
+    assert.match(r.stderr, /muvuca --encerrar/);
   } finally { await new Promise((ok) => falsa.close(ok)); }
+});
+
+test('comando "muvuca --encerrar": fecha a Muvuca aberta com a mesma pasta de dados, sem precisar caçar o processo', async () => {
+  const dados = await pastaDados();
+  const s = await subir(dados);
+  const rodarCmd = (...a) => new Promise((ok) => {
+    const filho = spawn(process.execPath, [path.join(RAIZ, 'bin', 'muvuca.js'), '--sem-abrir', '--dados', dados, ...a], { env: { ...process.env, NODE_TEST_CONTEXT: '' } });
+    let out = ''; filho.stdout.on('data', (d) => { out += d; }); filho.stderr.on('data', (d) => { out += d; });
+    filho.on('close', (status) => ok({ status, out }));
+  });
+  let saiu = false;
+  try {
+    assert.match(s.saida(), /^Muvuca \d+\.\d+\.\d+ em http:\/\/localhost:/m, 'a linha de início diz a versão');
+    const r = await rodarCmd('--encerrar');
+    assert.equal(r.status, 0, r.out); assert.ok(r.out.includes(`processo ${s.pid}) encerrada`), r.out);
+    saiu = true;
+    assert.equal(await muvucaAberta(dados), null, 'depois de encerrar, ninguém está aberto');
+    const de2 = await rodarCmd('--encerrar');
+    assert.equal(de2.status, 0); assert.match(de2.out, /Nenhuma Muvuca aberta/);
+  } finally { if (!saiu) await Promise.race([s.parar(), new Promise((r) => setTimeout(r, 3000))]); }
 });

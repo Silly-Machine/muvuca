@@ -203,3 +203,59 @@ test('toda pose tem imagem: cada personagem tem os dez estados em public/bonecos
   assert.ok(formas.length >= 17, String(formas.length));
   for (const f of formas) for (const s of estados) assert.ok(arquivos.has(`${f}-${s}.webp`), `falta ${f}-${s}.webp`);
 });
+
+test('modelo sem créditos: o agente segue com o próximo modelo abaixo, avisa e a troca é guardada', async () => {
+  const c = structuredClone(cfg);
+  const SEM_CREDITO = fileURLToPath(new URL('./apoio/falso-cli-sem-credito.js', import.meta.url));
+  c.provedores.cli = { tipo: 'cli', comando: process.execPath, args: [SEM_CREDITO], argModelo: '--model', modelo: 'fable', modelos: { baixa: 'haiku', media: 'sonnet', alta: 'fable' } };
+  c.agentes.find((a) => a.id === 'catraca').provedor = 'cli';
+  const projeto = await pastaNova();
+  try {
+    const e = new Muvuca(c);
+    const trocas = []; e.aoModeloIndisponivel = (...a) => trocas.push(a);
+    await e.pedido({ texto: 'Crie o arquivo', projeto, para: 'catraca' });
+    assert.ok(!e.eventos.some((x) => x.tipo === 'erro'), JSON.stringify(e.eventos.find((x) => x.tipo === 'erro')));
+    const aviso = e.eventos.find((x) => x.tipo === 'aviso' && /fable/.test(x.texto));
+    assert.match(aviso.texto, /não está disponível/); assert.match(aviso.texto, /requires usage credits/); assert.match(aviso.texto, /seguiu com haiku/);
+    assert.deepStrictEqual(trocas, [['cli', 'fable', 'haiku']]);
+    assert.strictEqual(e.eventos.find((x) => x.tipo === 'fala').texto, 'Feito com haiku.');
+    // depois da troca, o mesmo nível nem tenta o fable de novo
+    assert.strictEqual(e.provedor(e.agente('catraca'), 'alta').modelo, 'sonnet');
+    assert.strictEqual(e.provedor(e.agente('catraca'), 'media').modelo, 'sonnet');
+  } finally { await fs.rm(projeto, { recursive: true, force: true }); }
+});
+
+test('erro do aplicativo do provedor: a etapa falha à vista, com a mensagem dele, em vez de passar como concluída', async () => {
+  const c = structuredClone(cfg);
+  const SEM_CREDITO = fileURLToPath(new URL('./apoio/falso-cli-sem-credito.js', import.meta.url));
+  c.provedores.cli = { tipo: 'cli', comando: process.execPath, args: [SEM_CREDITO] };
+  c.agentes.find((a) => a.id === 'catraca').provedor = 'cli';
+  const projeto = await pastaNova();
+  try {
+    const e = new Muvuca(c);
+    await e.pedido({ texto: 'erro-generico', projeto, para: 'catraca' });
+    const erro = e.eventos.find((x) => x.tipo === 'erro');
+    assert.ok(erro, 'o pedido termina com erro');
+    assert.match(erro.texto, /saiu com erro \(código 2\)/); assert.match(erro.texto, /Algo deu errado/);
+    assert.ok(!e.eventos.some((x) => x.tipo === 'concluiu' && x.agente === 'catraca'), 'nada de "✓ concluiu" para um erro');
+    const estados = e.eventos.filter((x) => x.tipo === 'status' && x.agente === 'catraca').map((x) => x.estado);
+    assert.ok(estados.includes('falhou'), estados.join(' '));
+    const t = [...e.quadro.values()].find((x) => x.agente === 'catraca');
+    assert.strictEqual(t.estado, 'falhou'); assert.match(t.motivo, /Algo deu errado/);
+  } finally { await fs.rm(projeto, { recursive: true, force: true }); }
+});
+
+test('sem nenhum modelo disponível, o pedido para e diz o que fazer, sem gastar devoluções', async () => {
+  const c = structuredClone(cfg);
+  const SEM_CREDITO = fileURLToPath(new URL('./apoio/falso-cli-sem-credito.js', import.meta.url));
+  c.provedores.cli = { tipo: 'cli', comando: process.execPath, args: [SEM_CREDITO], argModelo: '--model', modelo: 'fable', modelos: { baixa: 'fable', media: 'fable', alta: 'fable' } };
+  c.agentes.find((a) => a.id === 'catraca').provedor = 'cli';
+  const projeto = await pastaNova();
+  try {
+    const e = new Muvuca(c);
+    await e.pedido({ texto: 'Crie o arquivo', projeto, para: 'catraca' });
+    const erro = e.eventos.find((x) => x.tipo === 'erro');
+    assert.match(erro.texto, /Catraca não tem modelo disponível/); assert.match(erro.texto, /Configurações/);
+    assert.strictEqual(erro.codigo, 'modelo');
+  } finally { await fs.rm(projeto, { recursive: true, force: true }); }
+});

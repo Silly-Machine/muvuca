@@ -16,15 +16,21 @@ if (desktop) for (const id of ['pCaminho', 'cfProjeto']) {
   const campo = $('#' + id); if (!campo) continue;
   const b = el('button', 'pequeno', 'Escolher…'); b.type = 'button'; b.onclick = () => escolherPastaEm(campo); campo.after(b);
 }
-async function boasVindas(forcar = false) {
+// "feito" vem do /api/config, que responde na hora: com as boas-vindas por fazer, o diálogo abre antes da conferência
+// do claude (que leva um segundo ou mais), e ninguém mexe numa tela ainda não configurada.
+async function boasVindas(forcar = false, feito = null) {
+  if (feito === true && !forcar) return;
   const ler = async () => (await pedir('/api/inicio')).json();
-  let j = await ler(); if (j.feito && !forcar) return;
+  const d0 = $('#boasVindas');
+  if (feito === false || forcar) { $('#bvComecar').disabled = true; $('#bvClaudeInfo').textContent = 'conferindo…'; if (!d0.open) d0.showModal(); }
+  let j = await ler(); if (j.feito && !forcar) { if (d0.open) d0.close(); return; }
+  $('#bvComecar').disabled = false;
   const pintar = () => {
     const c = j.claude, info = $('#bvClaudeInfo');
     $('#bvClaude').disabled = !c.pronto; $('#bvConferir').hidden = c.pronto;
     // instalado, mas sem login: o botão de entrar resolve aqui mesmo
     $('#bvEntrar').hidden = !(c.instalado && c.logado === false);
-    info.textContent = c.pronto ? `Usa o aplicativo "claude" logado neste computador (${c.versao || 'versão não informada'}). Vale a sua assinatura.`
+    info.textContent = c.pronto ? `Usa o aplicativo "claude" logado neste computador (${c.versao || 'versão não informada'}${c.caminho ? `, em ${c.caminho}` : ''}). Vale a sua assinatura.`
       : !c.instalado ? 'O Claude Code ainda não está neste computador. Para instalar, copie o comando abaixo, rode e depois clique em "Conferir de novo". Enquanto isso, a demonstração funciona.' : c.motivo + '.';
     $('#bvInstalar').hidden = c.instalado || !c.instalar;
     if (c.instalar) { $('#bvOnde').textContent = `Rode ${c.instalar.onde}:`; $('#bvComando').textContent = c.instalar.comando; }
@@ -56,7 +62,7 @@ async function boasVindas(forcar = false) {
     } catch (err) { $('#bvErro').textContent = err.message; }
     $('#bvComecar').disabled = false;
   };
-  d.showModal();
+  if (!d.open) d.showModal();
 }
 
 // A chave de acesso chega uma vez pelo endereço; o cookie já foi gravado, então ela sai da barra e do histórico.
@@ -74,7 +80,7 @@ if (new URLSearchParams(location.search).has('t')) { const q = new URLSearchPara
   // ?vitrine=pensando,trabalhando,concluido,aguardando,disponivel mostra os estados sem rodar nada
   const vitrine = new URLSearchParams(location.search).get('vitrine');
   if (vitrine) { vitrine.split(',').forEach((e, i) => compartilhado.agentes[i] && estado(compartilhado.agentes[i].id, e)); return; }
-  boasVindas(new URLSearchParams(location.search).has('boasvindas')).catch(() => {});
+  boasVindas(new URLSearchParams(location.search).has('boasvindas'), typeof c.inicioFeito === 'boolean' ? c.inicioFeito : null).catch(() => {});
   const fonte = new EventSource('/api/eventos?conversa=' + CONVERSA); const luz = $('#conexao');
   fonte.onopen = () => { luz.classList.add('viva'); luz.title = 'conectado ao servidor'; };
   fonte.onerror = () => { luz.classList.remove('viva'); luz.title = 'sem conexão com o servidor'; };

@@ -79,6 +79,16 @@ export const FALHA_DE_LOGIN = /Failed to authenticate|OAuth session expired|OAut
 // e o time parava em "Credit balance is too low" mesmo com a assinatura em dia.
 const CHAVES_DO_CLI = { claude: ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'] };
 export const SEM_CREDITO = /Credit balance is too low/i;
+// O modelo pedido não está disponível nesta conta: exige créditos de uso, passou do limite ou a conta não tem acesso.
+// Tentar de novo com o mesmo modelo não resolve; quem chama troca de modelo.
+export const MODELO_INDISPONIVEL = /requires usage credits|usage credits|out of (extra )?usage|usage limit (reached|exceeded)|limit reached|reached your .*limit|does not have access to|not available (on|for|in) your (plan|account|subscription)|model .* (is )?not (found|available)|invalid model/i;
+// A frase do aplicativo que explica o erro: o resultado, se ele informou; senão, a última linha não vazia da saída.
+export function motivoDoErro(saida, texto = '') {
+  const linhas = String(texto || '').trim() ? [String(texto).trim()] : String(saida || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  let m = linhas[linhas.length - 1] || '';
+  try { const o = JSON.parse(m); m = o.result || o.error?.message || o.message || m; } catch { /* já é texto */ }
+  return String(m).replace(/\s+/g, ' ').slice(0, 240);
+}
 const chavesDe = (prov) => (Array.isArray(prov.variaveisDeChave) ? prov.variaveisDeChave : CHAVES_DO_CLI[prov.comando] || []);
 const comAssinatura = new Map();   // comando -> { quando, sim, promessa }
 export const esquecerAssinatura = () => comAssinatura.clear();   // depois de um login novo, e nos testes
@@ -142,8 +152,13 @@ async function cli(prov, { sistema, mensagens, ferramentas, sinal, cwd, aoPasso,
       ? `A chave de API da variável de ambiente ${chave} está sem crédito, e não há login de assinatura para usar no lugar. Entre com a sua assinatura (${prov.comando} auth login), ponha crédito na chave ou abra a Muvuca sem essa variável.`
       : `A conta usada pelo ${prov.comando} está sem crédito ("Credit balance is too low"). Confira o login com "${prov.comando} auth status".`);
   }
-  if (r.codigo !== 0 && !lido.texto) throw new Error(`${prov.comando} saiu com código ${r.codigo}: ${r.saida.slice(-300)}`);
-  if (r.codigo !== 0) lido.texto += `\n[aviso: ${prov.comando} saiu com código ${r.codigo}]`;
+  // Saída com erro nunca vira resposta do agente: antes, um texto de erro passava como trabalho concluído (✓) e, no
+  // revisor, como "veredito ilegível", e a Muvuca gastava as devoluções repetindo o erro.
+  if (r.codigo !== 0) {
+    const motivo = motivoDoErro(r.saida, lido.texto);
+    if (MODELO_INDISPONIVEL.test(r.saida)) throw Object.assign(new Error(`O modelo ${prov.modelo || '(padrão)'} não está disponível nesta conta: ${motivo}`), { codigo: 'modelo', modelo: prov.modelo || '', motivo });
+    throw Object.assign(new Error(`O ${prov.comando === 'claude' ? 'Claude Code' : prov.comando} saiu com erro (código ${r.codigo}): ${motivo || 'sem mensagem'}`), { codigo: 'provedor', motivo });
+  }
   return { texto: lido.texto, chamadas: [], passos: lido.passos, uso: lido.uso, msg: { role: 'assistant', content: lido.texto } };
 }
 

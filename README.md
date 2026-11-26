@@ -80,13 +80,18 @@ Pronto. Para atualizar, baixe a versão nova e instale por cima: o seu time, os 
 
 ### Outras formas
 
-**Pelo terminal, sem instalar** (precisa de [Node](https://nodejs.org) 22 ou mais novo):
+**Pelo terminal** (precisa de [Node](https://nodejs.org) 22 ou mais novo):
 
 ```sh
-npx github:Silly-Machine/muvuca
+npx muvuca                  # roda sem instalar
+npm install -g muvuca       # ou instala o comando "muvuca" de vez
 ```
 
-O comando sobe a Muvuca e abre a tela no navegador. Opções: `--porta 4318`, `--dados PASTA`, `--sem-abrir`, `--ajuda`.
+O comando sobe a Muvuca e abre a tela no navegador. Opções: `--porta 4318`, `--dados PASTA`, `--sem-abrir`, `--encerrar`, `--versao`, `--ajuda`.
+
+- **Atualizar:** `npm install -g muvuca@latest`. Se uma Muvuca antiga estiver aberta, o comando novo pergunta se pode encerrá-la; ou rode `muvuca --encerrar` antes.
+- **Encerrar a Muvuca que está aberta** (num terminal esquecido, por exemplo): `muvuca --encerrar`. No meio de um pedido, ela recusa; `--encerrar --forcar` encerra assim mesmo.
+- **Saber qual cópia está respondendo:** `muvuca --versao` mostra a versão e onde ela está instalada.
 
 **Do código-fonte:**
 
@@ -98,14 +103,25 @@ npm start            # servidor + navegador; não precisa de "npm install"
 
 Para o aplicativo de mesa em modo de desenvolvimento: `npm install` e depois `npm run app`.
 
+### Desinstalar
+
+1. Feche a Muvuca (`muvuca --encerrar`, ou feche o aplicativo).
+2. Tire o programa: no Windows, "Adicionar ou remover programas"; no macOS, arraste para o Lixo; no Linux, apague o AppImage; pelo npm, `npm uninstall -g muvuca`.
+3. Se quiser apagar também o que a Muvuca guardou, apague estas pastas (nenhum desinstalador mexe nelas, para você não perder nada sem querer):
+   - `~/.muvuca`: preferências, chave de acesso, times salvos, memória dos agentes, histórico de conversas;
+   - `~/Muvuca`: a pasta de projeto que a Muvuca cria na primeira abertura, com o que o time escreveu (só se você não tiver escolhido outra).
+
 ### Se algo não funcionar
 
 | O que aparece | O que fazer |
 |---|---|
 | "O Claude Code ainda não está neste computador" | Rode o comando que a tela mostra (no PowerShell ou no Terminal) e clique em "Conferir de novo". Não precisa fechar a Muvuca. |
 | "instalado, mas sem login" | Clique em "Entrar com o Claude", ou rode `claude` num terminal e entre na sua conta. |
+| "o Claude Code em … é antigo demais" | A tela mostra qual `claude` foi achado e a versão dele. Rode `claude update`. Se ela listar outros `claude` no PATH (nvm, npm e o instalador oficial juntos), a Muvuca usa o primeiro: abra-a por um terminal onde o mais novo venha antes, ou remova os antigos. |
+| "O modelo fable não está disponível na sua conta" | A sua assinatura não inclui aquele modelo (ou acabaram os créditos). A Muvuca já seguiu com o próximo modelo, e a troca fica guardada. Para escolher outros, vá em Configurações, Modelos do time. |
 | "A Muvuca precisa do Node 22 ou mais novo" | Só no caminho pelo terminal. Instale o Node LTS, ou use o aplicativo de mesa, que já traz tudo. |
-| "Outra versão da Muvuca já está aberta" | Feche a outra (o aplicativo ou o terminal onde ela roda) e abra de novo. |
+| `EACCES: permission denied` ao rodar `npm install -g` (Linux, macOS) | O npm do sistema instala numa pasta do sistema. Não use `sudo`. Use `npx muvuca`, ou mande o npm instalar na sua pasta: `npm config set prefix ~/.npm-global` e ponha `~/.npm-global/bin` no PATH. Quem usa o [nvm](https://github.com/nvm-sh/nvm) não tem esse problema. |
+| "Já há uma Muvuca 1.0.0 aberta com esta pasta de dados" | Uma versão antiga ainda está aberta (a mensagem diz o processo e onde ela está instalada). No terminal, responda "s" para encerrá-la e abrir a nova, ou rode `muvuca --encerrar`. |
 | "A porta 4317 já está em uso" | Outra Muvuca está aberta, ou outro programa usa a porta. Use `--porta 4318`. |
 | Abriu o endereço e aparece "este navegador ainda não tem acesso" | Abra pelo link com a chave que aparece no terminal (`http://localhost:4317/?t=...`), ou pelo aplicativo. |
 
