@@ -2,7 +2,7 @@
 
 As versões seguem `maior.menor.correção`, da mais nova para a mais antiga. O que ainda não foi lançado fica em "Em andamento". Como lançar: [docs/versoes.md](docs/versoes.md).
 
-## Em andamento: o primeiro pedido de verdade não trava mais no modelo
+## 1.1.1 (26/11/2026): o primeiro pedido de verdade não trava mais no modelo
 
 - **Modelo que a sua conta não tem não derruba mais o pedido.** O time de fábrica usa o Fable no nível difícil e no revisor, e numa assinatura sem créditos de uso o primeiro pedido terminava reprovado, com o código certo. Agora, quando o Claude recusa o modelo, o agente segue com o próximo abaixo (sonnet, depois haiku), a conversa avisa, e a troca fica guardada para os próximos pedidos.
 - **Erro do Claude aparece como erro.** Uma saída com erro do aplicativo passava como "✓ concluiu" e, no revisor, como "veredito ilegível", e a Muvuca gastava as devoluções repetindo o mesmo erro, subindo justamente para o modelo que falhava. Agora a etapa falha à vista, com a mensagem do Claude, e o pedido para.
